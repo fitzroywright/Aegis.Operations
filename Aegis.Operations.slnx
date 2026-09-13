@@ -1,0 +1,16 @@
+<Solution>
+  <Folder Name="/System Operations/">
+    <Project Path="Aegis.Operations.csproj" />
+  </Folder>
+  <Folder Name="/System Configuration/">
+    <Project Path="../Aegis.Configuration/Aegis.Configuration.Domain/Aegis.Configuration.Domain.csproj" />
+    <Project Path="../Aegis.Configuration/Aegis.Configuration.Application/Aegis.Configuration.Application.csproj" />
+    <Project Path="../Aegis.Configuration/Aegis.Configuration.Infrastructure/Aegis.Configuration.Infrastructure.csproj" />
+    <Project Path="../Aegis.Configuration/Aegis.Configuration.Web/Aegis.Configuration.Web.csproj" />
+    <Project Path="../Aegis.Configuration/Aegis.Configuration.Tests/Aegis.Configuration.Tests.csproj" />
+  </Folder>
+  <Folder Name="/System Diagnostics/">
+    <Project Path="../Aegis.Diagnostics/Aegis.Diagnostics.csproj" />
+    <Project Path="../Aegis.Diagnostics/Aegis.Diagnostics.UnitTests/Aegis.Diagnostics.UnitTests.csproj" />
+  </Folder>
+</Solution>
