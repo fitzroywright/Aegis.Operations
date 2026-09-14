@@ -1,0 +1,85 @@
+[
+  {
+    "Name": "Operations Console",
+    "Projects": [
+      {
+        "Path": "Aegis.Operations.csproj",
+        "Action": "Start"
+      }
+    ]
+  },
+  {
+    "Name": "Operations + Configuration + Diagnostics",
+    "Projects": [
+      {
+        "Path": "Aegis.Operations.csproj",
+        "Action": "Start"
+      },
+      {
+        "Path": "../Aegis.Configuration/Aegis.Configuration.Web/Aegis.Configuration.Web.csproj",
+        "Action": "Start"
+      },
+      {
+        "Path": "../Aegis.Diagnostics/Aegis.Diagnostics.csproj",
+        "Action": "Start"
+      }
+    ]
+  },
+  {
+    "Name": "Operations + Configuration",
+    "Projects": [
+      {
+        "Path": "Aegis.Operations.csproj",
+        "Action": "Start"
+      },
+      {
+        "Path": "../Aegis.Configuration/Aegis.Configuration.Web/Aegis.Configuration.Web.csproj",
+        "Action": "Start"
+      }
+    ]
+  },
+  {
+    "Name": "Operations + Diagnostics",
+    "Projects": [
+      {
+        "Path": "Aegis.Operations.csproj",
+        "Action": "Start"
+      },
+      {
+        "Path": "../Aegis.Diagnostics/Aegis.Diagnostics.csproj",
+        "Action": "Start"
+      }
+    ]
+  },
+  {
+    "Name": "Configuration + Diagnostics",
+    "Projects": [
+      {
+        "Path": "../Aegis.Configuration/Aegis.Configuration.Web/Aegis.Configuration.Web.csproj",
+        "Action": "Start"
+      },
+      {
+        "Path": "../Aegis.Diagnostics/Aegis.Diagnostics.csproj",
+        "Action": "Start"
+      }
+    ]
+  },
+  {
+    "Name": "Configuration Only",
+    "Projects": [
+      {
+        "Path": "../Aegis.Configuration/Aegis.Configuration.Web/Aegis.Configuration.Web.csproj",
+        "Action": "Start"
+      }
+    ]
+  },
+  {
+    "Name": "Diagnostics Only",
+    "Projects": [
+      {
+        "Path": "../Aegis.Diagnostics/Aegis.Diagnostics.csproj",
+        "Action": "Start"
+      }
+    ]
+  }
+]
