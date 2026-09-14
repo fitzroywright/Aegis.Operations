@@ -5,6 +5,7 @@ builder.Services.AddHttpClient("ops", client =>
     int timeoutSeconds = builder.Configuration.GetValue("Operations:RequestTimeoutSeconds", 3);
     client.Timeout = TimeSpan.FromSeconds(timeoutSeconds);
 });
+builder.Services.AddSuiteSecurity();
 
 WebApplication app = builder.Build();
 
@@ -13,5 +14,7 @@ string diagnosticsUrl = (builder.Configuration["Operations:DiagnosticsUrl"] ?? "
 string site = builder.Configuration["Operations:Site"] ?? "—";
 string environment = builder.Configuration["Operations:Environment"] ?? "—";
 
+app.MapSuiteSecurity(configurationUrl, diagnosticsUrl);
+app.UseSuiteSecurity();
 app.MapOperationsEndpoints(configurationUrl, diagnosticsUrl, site, environment);
 app.Run();
