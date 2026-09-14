@@ -7,10 +7,12 @@ using Common.Security.Options;
 
 internal sealed record SuiteIdentity(string UserName,string DisplayName,string Title,string[] Permissions);
 internal sealed record SuiteTicket(string Sub,string Name,string Title,string[] Permissions,string Audience,long Expires,string Nonce);
-internal sealed class SuiteSecurity(IConfiguration config)
+internal sealed class SuiteSecurity(IConfiguration config,IHostEnvironment environment)
 {
     const string Cookie="Aegis.Operations.Session";
-    readonly byte[] key=Encoding.UTF8.GetBytes(config["SuiteSecurity:SigningKey"]??throw new InvalidOperationException("SuiteSecurity:SigningKey is required."));
+    const string DevelopmentSigningKey="Aegis-Suite-Development-Handoff-Key-v1-Operations-Configuration-Diagnostics";
+    readonly byte[] key=Encoding.UTF8.GetBytes(GetSigningKey(config,environment));
+    static string GetSigningKey(IConfiguration config,IHostEnvironment environment){string? configured=config["SuiteSecurity:SigningKey"];if(!string.IsNullOrWhiteSpace(configured))return configured;if(environment.IsDevelopment())return DevelopmentSigningKey;throw new InvalidOperationException("SuiteSecurity:SigningKey is required outside Development. Supply it through protected deployment configuration/OpenBao.");}
     public string Mode=>config["SuiteSecurity:Mode"]??"Mock";
     public SuiteIdentity? Authenticate(string user,string password){if(Mode.Equals("ActiveDirectory",StringComparison.OrdinalIgnoreCase))return AuthenticateAd(user,password);if(Mode.Equals("Internal",StringComparison.OrdinalIgnoreCase))return AuthenticateInternal(user,password);if(Mode.Equals("Mock",StringComparison.OrdinalIgnoreCase))return AuthenticateMock(user,password);return null;}
     SuiteIdentity? AuthenticateAd(string user,string password){var o=new ActiveDirectoryAuthenticationOptions{Domain=config["SuiteSecurity:ActiveDirectory:Domain"]??"",SearchBase=config["SuiteSecurity:ActiveDirectory:SearchBase"]??"",Servers=config.GetSection("SuiteSecurity:ActiveDirectory:Servers").Get<string[]>()??[]};AuthenticationResult r=new ActiveDirectory(o).Authenticate(user,password);return r.IsAuthenticated?FromResult(user,r):null;}
