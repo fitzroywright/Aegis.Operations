@@ -27,7 +27,7 @@ internal sealed class SuiteSecurity(IConfiguration config,IHostEnvironment envir
     public SuiteIdentity? ReadSession(HttpRequest req)=>req.Cookies.TryGetValue(Cookie,out var v)?Validate(v,"Aegis.Operations"):null;
     SuiteIdentity? Validate(string token,string audience){var parts=token.Split('.');if(parts.Length!=2)return null;try{byte[] data=WebEncoders.Base64UrlDecode(parts[0]),sig=WebEncoders.Base64UrlDecode(parts[1]);using var h=new HMACSHA256(key);if(!CryptographicOperations.FixedTimeEquals(h.ComputeHash(data),sig))return null;var t=JsonSerializer.Deserialize<SuiteTicket>(data);if(t is null||t.Audience!=audience||t.Expires<DateTimeOffset.UtcNow.ToUnixTimeSeconds())return null;return new(t.Sub,t.Name,t.Title,t.Permissions);}catch{return null;}}
     string Sign(SuiteTicket ticket){byte[] data=JsonSerializer.SerializeToUtf8Bytes(ticket);using var h=new HMACSHA256(key);return WebEncoders.Base64UrlEncode(data)+"."+WebEncoders.Base64UrlEncode(h.ComputeHash(data));}
-    public void SetSession(HttpResponse response,SuiteIdentity i)=>response.Cookies.Append(Cookie,CreateSession(i),new CookieOptions{HttpOnly=true,Secure=true,SameSite=SameSiteMode.Lax,MaxAge=TimeSpan.FromHours(8)});
+    public void SetSession(HttpResponse response,SuiteIdentity i)=>response.Cookies.Append(Cookie,CreateSession(i),new CookieOptions{HttpOnly=true,Secure=!environment.IsDevelopment(),SameSite=SameSiteMode.Lax,MaxAge=TimeSpan.FromHours(8)});
     public void Clear(HttpResponse response)=>response.Cookies.Delete(Cookie);
 }
 internal static class SuiteSecurityExtensions
