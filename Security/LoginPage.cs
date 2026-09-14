@@ -1,7 +1,7 @@
 using System.Text.Encodings.Web;
 internal static class LoginPage
 {
-    public static string Render(string mode,string? returnUrl,string? username=false.ToString(),bool error=false)
+    public static string Render(string mode,string? returnUrl,string? username=null,bool error=false)
     {
         string r=HtmlEncoder.Default.Encode(returnUrl??"/");
         string m=HtmlEncoder.Default.Encode(mode);
