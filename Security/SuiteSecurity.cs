@@ -1,0 +1,47 @@
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.Json;
+using Common.Security.Authenticators;
+using Common.Security.Models;
+using Common.Security.Options;
+
+internal sealed record SuiteIdentity(string UserName,string DisplayName,string Title,string[] Permissions);
+internal sealed record SuiteTicket(string Sub,string Name,string Title,string[] Permissions,string Audience,long Expires,string Nonce);
+
+internal sealed class SuiteSecurity(IConfiguration config)
+{
+    const string Cookie="Aegis.Operations.Session";
+    readonly byte[] key=Encoding.UTF8.GetBytes(config["SuiteSecurity:SigningKey"]??throw new InvalidOperationException("SuiteSecurity:SigningKey is required."));
+    public string Mode=>config["SuiteSecurity:Mode"]??"Mock";
+    public SuiteIdentity? Authenticate(string user,string password){
+        if(Mode.Equals("ActiveDirectory",StringComparison.OrdinalIgnoreCase)) return AuthenticateAd(user,password);
+        if(Mode.Equals("Internal",StringComparison.OrdinalIgnoreCase)) return AuthenticateInternal(user,password);
+        if(Mode.Equals("Mock",StringComparison.OrdinalIgnoreCase)) return AuthenticateMock(user,password);
+        return null;
+    }
+    SuiteIdentity? AuthenticateAd(string user,string password){var o=new ActiveDirectoryAuthenticationOptions{Domain=config["SuiteSecurity:ActiveDirectory:Domain"]??"",SearchBase=config["SuiteSecurity:ActiveDirectory:SearchBase"]??"",Servers=config.GetSection("SuiteSecurity:ActiveDirectory:Servers").Get<string[]>()??[]};AuthenticationResult r=new ActiveDirectory(o).Authenticate(user,password);return r.IsAuthenticated?FromResult(user,r):null;}
+    SuiteIdentity? AuthenticateMock(string user,string password){if(!config.GetValue("SuiteSecurity:Mock:Enabled",false))return null;var o=new MockAuthenticationOptions{Password=config["SuiteSecurity:Mock:Password"]??"",AllowAnyUser=config.GetValue("SuiteSecurity:Mock:AllowAnyUser",true),AllowedUsers=config["SuiteSecurity:Mock:AllowedUsers"],AdminUsers=config["SuiteSecurity:Mock:AdminUsers"]};AuthenticationResult r=new MockAuthenticator(o).Authenticate(user,password);return r.IsAuthenticated?FromResult(user,r):null;}
+    SuiteIdentity? AuthenticateInternal(string user,string password){var section=config.GetSection("SuiteSecurity:Internal:Users").GetChildren().FirstOrDefault(x=>x.Key.Equals(user,StringComparison.OrdinalIgnoreCase));if(section is null)return null;string? hash=section["PasswordHash"];if(hash is null||!Verify(password,hash))return null;return new(user,section["DisplayName"]??user,section["Title"]??"User",section.GetSection("Permissions").Get<string[]>()??DefaultPermissions());}
+    SuiteIdentity FromResult(string user,AuthenticationResult r)=>new(user,r.UserInfo?.DisplayName??user,r.UserInfo?.Title??"User",r.IsAdministrative?AdminPermissions():DefaultPermissions());
+    static string[] DefaultPermissions()=>["Operations.View","Configuration.View","Diagnostics.View"];
+    static string[] AdminPermissions()=>["Operations.View","Configuration.View","Configuration.Manage","Diagnostics.View","Diagnostics.Run","Diagnostics.Repair","Diagnostics.Critical","Security.Manage"];
+    static bool Verify(string password,string encoded){try{var p=encoded.Split('$');if(p.Length!=4||p[0]!="PBKDF2")return false;int iterations=int.Parse(p[1]);byte[] salt=Convert.FromBase64String(p[2]),expected=Convert.FromBase64String(p[3]);byte[] actual=Rfc2898DeriveBytes.Pbkdf2(password,salt,iterations,HashAlgorithmName.SHA256,expected.Length);return CryptographicOperations.FixedTimeEquals(actual,expected);}catch{return false;}}
+    public string CreateSession(SuiteIdentity i)=>Sign(new SuiteTicket(i.UserName,i.DisplayName,i.Title,i.Permissions,"Aegis.Operations",DateTimeOffset.UtcNow.AddHours(8).ToUnixTimeSeconds(),Guid.NewGuid().ToString("N")));
+    public string CreateHandoff(SuiteIdentity i,string audience)=>Sign(new SuiteTicket(i.UserName,i.DisplayName,i.Title,i.Permissions,audience,DateTimeOffset.UtcNow.AddSeconds(45).ToUnixTimeSeconds(),Guid.NewGuid().ToString("N")));
+    public SuiteIdentity? ReadSession(HttpRequest req)=>req.Cookies.TryGetValue(Cookie,out var v)?Validate(v,"Aegis.Operations"):null;
+    SuiteIdentity? Validate(string token,string audience){var parts=token.Split('.');if(parts.Length!=2)return null;byte[] data;try{data=WebEncoders.Base64UrlDecode(parts[0]);byte[] sig=WebEncoders.Base64UrlDecode(parts[1]);using var h=new HMACSHA256(key);if(!CryptographicOperations.FixedTimeEquals(h.ComputeHash(data),sig))return null;var t=JsonSerializer.Deserialize<SuiteTicket>(data);if(t is null||t.Audience!=audience||t.Expires<DateTimeOffset.UtcNow.ToUnixTimeSeconds())return null;return new(t.Sub,t.Name,t.Title,t.Permissions);}catch{return null;}}
+    string Sign(SuiteTicket ticket){byte[] data=JsonSerializer.SerializeToUtf8Bytes(ticket);using var h=new HMACSHA256(key);return WebEncoders.Base64UrlEncode(data)+"."+WebEncoders.Base64UrlEncode(h.ComputeHash(data));}
+    public void SetSession(HttpResponse response,SuiteIdentity i)=>response.Cookies.Append(Cookie,CreateSession(i),new CookieOptions{HttpOnly=true,Secure=true,SameSite=SameSiteMode.Lax,MaxAge=TimeSpan.FromHours(8)});
+    public void Clear(HttpResponse response)=>response.Cookies.Delete(Cookie);
+}
+
+internal static class SuiteSecurityExtensions{
+    public static IServiceCollection AddSuiteSecurity(this IServiceCollection s)=>s.AddSingleton<SuiteSecurity>();
+    public static void UseSuiteSecurity(this WebApplication app){app.Use(async(ctx,next)=>{if(ctx.Request.Path.StartsWithSegments("/health")||ctx.Request.Path.StartsWithSegments("/login")||ctx.Request.Path.StartsWithSegments("/auth")){await next();return;}var sec=ctx.RequestServices.GetRequiredService<SuiteSecurity>();var id=sec.ReadSession(ctx.Request);if(id is null){ctx.Response.Redirect("/login?returnUrl="+Uri.EscapeDataString(ctx.Request.Path+ctx.Request.QueryString));return;}ctx.Items["SuiteIdentity"]=id;await next();});}
+    public static void MapSuiteSecurity(this WebApplication app,string configUrl,string diagUrl){
+        app.MapGet("/login",(SuiteSecurity s,string? returnUrl)=>Results.Content(LoginPage.Render(s.Mode,returnUrl),"text/html"));
+        app.MapPost("/auth/login",async(HttpContext c,SuiteSecurity s)=>{var f=await c.Request.ReadFormAsync();var id=s.Authenticate(f["username"].ToString(),f["password"].ToString());if(id is null)return Results.Redirect("/login?error=1");s.SetSession(c.Response,id);string r=f["returnUrl"].ToString();return Results.Redirect(string.IsNullOrWhiteSpace(r)?"/":r);});
+        app.MapGet("/auth/logout",(HttpContext c,SuiteSecurity s)=>{s.Clear(c.Response);return Results.Redirect("/login");});
+        app.MapGet("/handoff/{target}",(string target,HttpContext c,SuiteSecurity s)=>{var id=s.ReadSession(c.Request);if(id is null)return Results.Redirect("/login");string audience,url;if(target.Equals("configuration",StringComparison.OrdinalIgnoreCase)){audience="Aegis.Configuration";url=configUrl;}else if(target.Equals("diagnostics",StringComparison.OrdinalIgnoreCase)){audience="Aegis.Diagnostics";url=diagUrl;}else return Results.BadRequest();string token=s.CreateHandoff(id,audience);return Results.Redirect(url+"/auth/handoff?token="+Uri.EscapeDataString(token));});
+    }
+}
