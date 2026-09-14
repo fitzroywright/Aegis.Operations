@@ -8,8 +8,8 @@ internal static class OperationsPage
             .Replace("__GLOSSY__", GlossyCss.Value, StringComparison.Ordinal)
             .Replace("__SITE__", Encode(site), StringComparison.Ordinal)
             .Replace("__ENVIRONMENT__", Encode(environment), StringComparison.Ordinal)
-            .Replace("__CONFIGURATION_URL__", Encode(configurationUrl), StringComparison.Ordinal)
-            .Replace("__DIAGNOSTICS_URL__", Encode(diagnosticsUrl), StringComparison.Ordinal);
+            .Replace("__CONFIGURATION_URL__", "/handoff/configuration", StringComparison.Ordinal)
+            .Replace("__DIAGNOSTICS_URL__", "/handoff/diagnostics", StringComparison.Ordinal);
     }
 
     private static string Encode(string value) => HtmlEncoder.Default.Encode(value);
