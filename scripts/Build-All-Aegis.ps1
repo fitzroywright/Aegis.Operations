@@ -12,7 +12,7 @@ function Invoke-Native {
 
     & $FilePath @Arguments
     if ($LASTEXITCODE -ne 0) {
-        throw "$FilePath exited with code $LASTEXITCODE: $($Arguments -join ' ')"
+        throw "$FilePath exited with code ${LASTEXITCODE}: $($Arguments -join ' ')"
     }
 }
 
