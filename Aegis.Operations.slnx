@@ -13,4 +13,7 @@
     <Project Path="../Aegis.Diagnostics/Aegis.Diagnostics.csproj" />
     <Project Path="../Aegis.Diagnostics/Aegis.Diagnostics.UnitTests/Aegis.Diagnostics.UnitTests.csproj" />
   </Folder>
+  <Folder Name="/Contract Test/">
+    <Project Path="../Aegis.Hello/Aegis.Hello.csproj" />
+  </Folder>
 </Solution>
