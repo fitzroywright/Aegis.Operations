@@ -7,7 +7,7 @@ $ErrorActionPreference = "Stop"
 function Invoke-Native {
     param(
         [Parameter(Mandatory = $true)][string]$FilePath,
-        [Parameter(ValueFromRemainingArguments = $true)][string[]]$Arguments
+        [Parameter(Mandatory = $true)][string[]]$Arguments
     )
 
     & $FilePath @Arguments
@@ -30,9 +30,9 @@ function Assert-CleanMain {
         throw "Repository has uncommitted changes and was not modified: $Path`n$($dirty -join [Environment]::NewLine)"
     }
 
-    Invoke-Native git fetch origin --prune
-    Invoke-Native git switch main
-    Invoke-Native git pull --ff-only origin main
+    Invoke-Native "git" @("fetch", "origin", "--prune")
+    Invoke-Native "git" @("switch", "main")
+    Invoke-Native "git" @("pull", "--ff-only", "origin", "main")
 
     $branch = (& git branch --show-current).Trim()
     if ($LASTEXITCODE -ne 0 -or $branch -ne "main") {
@@ -58,12 +58,12 @@ function Build-Project {
 
     Assert-CleanMain $Path
 
-    Invoke-Native dotnet restore $BuildTarget
-    Invoke-Native dotnet build $BuildTarget --no-restore --configuration Release
+    Invoke-Native "dotnet" @("restore", $BuildTarget)
+    Invoke-Native "dotnet" @("build", $BuildTarget, "--no-restore", "--configuration", "Release")
 
     if ($TestTarget) {
-        Invoke-Native dotnet restore $TestTarget
-        Invoke-Native dotnet test $TestTarget --no-restore --configuration Release
+        Invoke-Native "dotnet" @("restore", $TestTarget)
+        Invoke-Native "dotnet" @("test", $TestTarget, "--no-restore", "--configuration", "Release")
     }
 
     Write-Host "PASS: $Name" -ForegroundColor Green
