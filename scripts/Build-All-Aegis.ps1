@@ -16,6 +16,27 @@ function Invoke-Native {
     }
 }
 
+function Get-MeaningfulGitChanges {
+    param([Parameter(Mandatory = $true)][string]$Path)
+
+    Set-Location $Path
+    $statusLines = @(& git status --porcelain --untracked-files=all)
+    if ($LASTEXITCODE -ne 0) { throw "git status failed in $Path" }
+
+    return @($statusLines | Where-Object {
+        if ([string]::IsNullOrWhiteSpace($_)) { return $false }
+
+        $entryPath = if ($_.Length -gt 3) { $_.Substring(3).Trim() } else { "" }
+        $normalized = $entryPath -replace '\\', '/'
+
+        # Generated .NET build output is not source state and must not block validation.
+        # Tracked changes inside bin/obj would still be visible as meaningful if Git reports
+        # them outside these generated paths, but ordinary untracked build artifacts are ignored.
+        $isGeneratedBuildArtifact = $normalized -match '(^|/)(bin|obj)(/|$)'
+        return -not $isGeneratedBuildArtifact
+    })
+}
+
 function Assert-CleanMain {
     param([Parameter(Mandatory = $true)][string]$Path)
 
@@ -24,10 +45,9 @@ function Assert-CleanMain {
     }
 
     Set-Location $Path
-    $dirty = (& git status --porcelain)
-    if ($LASTEXITCODE -ne 0) { throw "git status failed in $Path" }
+    $dirty = Get-MeaningfulGitChanges -Path $Path
     if ($dirty) {
-        throw "Repository has uncommitted changes and was not modified: $Path`n$($dirty -join [Environment]::NewLine)"
+        throw "Repository has meaningful uncommitted changes and was not modified: $Path`n$($dirty -join [Environment]::NewLine)"
     }
 
     Invoke-Native "git" @("fetch", "origin", "--prune")
