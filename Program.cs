@@ -1,3 +1,5 @@
+using Common.Secrets;
+
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddHttpClient("ops", client =>
@@ -6,6 +8,8 @@ builder.Services.AddHttpClient("ops", client =>
     client.Timeout = TimeSpan.FromSeconds(timeoutSeconds);
 });
 builder.Services.AddSuiteSecurity();
+builder.Services.AddCommonSecrets(builder.Configuration);
+builder.Services.AddHostedService<OperationalRegistrationPublisher>();
 
 WebApplication app = builder.Build();
 
