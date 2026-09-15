@@ -26,14 +26,24 @@ function Get-MeaningfulGitChanges {
     return @($statusLines | Where-Object {
         if ([string]::IsNullOrWhiteSpace($_)) { return $false }
 
+        $isUntracked = $_.StartsWith("?? ")
         $entryPath = if ($_.Length -gt 3) { $_.Substring(3).Trim() } else { "" }
         $normalized = $entryPath -replace '\\', '/'
 
-        # Generated .NET build output is not source state and must not block validation.
-        # Tracked changes inside bin/obj would still be visible as meaningful if Git reports
-        # them outside these generated paths, but ordinary untracked build artifacts are ignored.
-        $isGeneratedBuildArtifact = $normalized -match '(^|/)(bin|obj)(/|$)'
-        return -not $isGeneratedBuildArtifact
+        # Only ignore known generated files when they are untracked. If any of these
+        # paths are tracked and modified, they remain meaningful and stop the build.
+        if ($isUntracked) {
+            $isGeneratedBuildArtifact = $normalized -match '(^|/)(bin|obj)(/|$)'
+            $isVisualStudioState = $normalized -match '^\.vs/'
+            $isConfigurationContractSnapshot = $normalized -match '^Aegis\.Configuration\.Web/contracts/.*\.configuration-contract\.json$'
+            $isConfigurationCommissioningHistory = $normalized -eq 'Aegis.Configuration.Web/data/commissioning-history.jsonl'
+
+            if ($isGeneratedBuildArtifact -or $isVisualStudioState -or $isConfigurationContractSnapshot -or $isConfigurationCommissioningHistory) {
+                return $false
+            }
+        }
+
+        return $true
     })
 }
 
