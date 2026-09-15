@@ -36,22 +36,34 @@ internal static class OperationsEndpoints
 
     private static async Task<object> ProbeAsync(HttpClient client, string url, CancellationToken ct)
     {
+        if (string.IsNullOrWhiteSpace(url))
+            return new { available = false, status = "Not configured", url = string.Empty };
+
+        string trimmedUrl = url.Trim();
+        if (!Uri.TryCreate(trimmedUrl, UriKind.Absolute, out Uri? baseUri) ||
+            (baseUri.Scheme != Uri.UriSchemeHttp && baseUri.Scheme != Uri.UriSchemeHttps))
+        {
+            return new { available = false, status = "Invalid configuration", url = trimmedUrl };
+        }
+
+        Uri healthUri = new($"{baseUri.AbsoluteUri.TrimEnd('/')}/health", UriKind.Absolute);
+
         try
         {
-            using HttpResponseMessage response = await client.GetAsync(url + "/health", ct);
+            using HttpResponseMessage response = await client.GetAsync(healthUri, ct);
             if (!response.IsSuccessStatusCode)
-                return new { available = false, status = "Unavailable", url };
+                return new { available = false, status = "Unavailable", url = trimmedUrl };
 
             using JsonDocument document = JsonDocument.Parse(await response.Content.ReadAsStringAsync(ct));
             string status = document.RootElement.TryGetProperty("status", out JsonElement value)
                 ? value.GetString() ?? "Available"
                 : "Available";
 
-            return new { available = true, status, url };
+            return new { available = true, status, url = trimmedUrl };
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
         {
-            return new { available = false, status = "Unavailable", url };
+            return new { available = false, status = "Unavailable", url = trimmedUrl };
         }
     }
 }
