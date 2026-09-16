@@ -2,7 +2,7 @@
 param(
     [string]$HostName = "kratos",
     [string]$UserName = "FWright",
-    [ValidateSet("operations","configuration","diagnostics")]
+    [ValidateSet("operations","configuration","diagnostics","requestportal")]
     [string[]]$Applications = @("operations","configuration","diagnostics"),
     [string]$ProjectsRoot = "D:\Projects",
     [string]$RemoteArchive = "/tmp/aegis-control-plane.tgz",
@@ -45,6 +45,9 @@ $definitions = @{
     }
     diagnostics = @{
         Project = Join-Path $ProjectsRoot "Aegis.Diagnostics\Aegis.Diagnostics.csproj"
+    }
+    requestportal = @{
+        Project = Join-Path $ProjectsRoot "RequestPortal\RequestPortal.Web\RequestPortal.Web.csproj"
     }
 }
 
