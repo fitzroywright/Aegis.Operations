@@ -12,14 +12,14 @@ usage() {
   cat <<'EOF'
 Usage: Deploy-Kratos-Server.sh [options]
 
-Promotes already-staged Aegis control-plane publish outputs into /opt/aegis,
+Promotes already-staged Aegis publish outputs into /opt/aegis,
 restarts the selected systemd services, validates local health endpoints, and
 rolls back automatically if deployment health validation fails.
 
 Options:
   --source PATH       Staging payload root. Default: /tmp/aegis-deploy/payload
-  --apps LIST         Comma-separated: operations,configuration,diagnostics
-                      Default: all three
+  --apps LIST         Comma-separated: operations,configuration,diagnostics,requestportal
+                      Default: operations,configuration,diagnostics
   --backup-root PATH  Backup root. Default: /opt/aegis/backups
   --owner USER:GROUP  Installed file owner. Default: aegis:aegis
   --help              Show this help
@@ -28,6 +28,7 @@ Expected staging layout:
   SOURCE/operations/Aegis.Operations.dll
   SOURCE/configuration/Aegis.Configuration.Web.dll
   SOURCE/diagnostics/Aegis.Diagnostics.dll
+  SOURCE/requestportal/RequestPortal.Web.dll
 
 This script never overwrites /etc/aegis/*.env or /etc/aegis/secrets.
 EOF
@@ -55,21 +56,25 @@ declare -A TARGET=(
   [operations]="/opt/aegis/operations"
   [configuration]="/opt/aegis/configuration"
   [diagnostics]="/opt/aegis/diagnostics"
+  [requestportal]="/opt/aegis/requestportal"
 )
 declare -A SERVICE=(
   [operations]="aegis-operations"
   [configuration]="aegis-configuration"
   [diagnostics]="aegis-diagnostics"
+  [requestportal]="aegis-requestportal"
 )
 declare -A DLL=(
   [operations]="Aegis.Operations.dll"
   [configuration]="Aegis.Configuration.Web.dll"
   [diagnostics]="Aegis.Diagnostics.dll"
+  [requestportal]="RequestPortal.Web.dll"
 )
 declare -A HEALTH=(
   [operations]="http://127.0.0.1:5100/health"
   [configuration]="http://127.0.0.1:5200/health"
   [diagnostics]="http://127.0.0.1:5300/health"
+  [requestportal]="http://127.0.0.1:5401/health"
 )
 
 SELECTED=()
@@ -116,8 +121,8 @@ is_selected() {
 }
 
 stop_selected() {
-  # Dependents first.
-  for app in operations diagnostics configuration; do
+  # Dependents first; RequestPortal is downstream of the control-plane services.
+  for app in requestportal operations diagnostics configuration; do
     if is_selected "$app"; then
       systemctl stop "${SERVICE[$app]}" || true
     fi
@@ -125,8 +130,8 @@ stop_selected() {
 }
 
 start_selected() {
-  # Registry first, then diagnostics, then the portal.
-  for app in configuration diagnostics operations; do
+  # Registry first, then diagnostics/operations, then downstream applications.
+  for app in configuration diagnostics operations requestportal; do
     if is_selected "$app"; then
       systemctl start "${SERVICE[$app]}"
     fi
