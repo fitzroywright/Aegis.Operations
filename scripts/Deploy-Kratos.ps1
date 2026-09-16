@@ -1,12 +1,13 @@
 [CmdletBinding()]
 param(
     [string]$HostName = "kratos",
-    [string]$UserName = "root",
+    [string]$UserName = "FWright",
     [ValidateSet("operations","configuration","diagnostics")]
     [string[]]$Applications = @("operations","configuration","diagnostics"),
     [string]$ProjectsRoot = "D:\Projects",
     [string]$RemoteArchive = "/tmp/aegis-control-plane.tgz",
     [string]$RemoteWorkRoot = "/tmp/aegis-deploy",
+    [string]$RemoteDeployCommand = "/usr/local/sbin/aegis-deploy",
     [string]$IdentityFile,
     [System.Management.Automation.PSCredential]$Credential,
     [switch]$SkipAuthoritativeBuild,
@@ -33,11 +34,6 @@ function ConvertTo-PlainText {
     $ptr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($SecureString)
     try { [Runtime.InteropServices.Marshal]::PtrToStringBSTR($ptr) }
     finally { [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($ptr) }
-}
-
-$serverScript = Join-Path $PSScriptRoot "Deploy-Kratos-Server.sh"
-if (-not (Test-Path $serverScript)) {
-    throw "Missing server deployment script: $serverScript"
 }
 
 $definitions = @{
@@ -87,8 +83,6 @@ try {
         )
     }
 
-    Copy-Item $serverScript (Join-Path $bundleRoot "Deploy-Kratos-Server.sh") -Force
-
     $bundleFile = Join-Path ([IO.Path]::GetTempPath()) ("aegis-control-plane-" + [Guid]::NewGuid().ToString("N") + ".tgz")
     Push-Location $bundleRoot
     try {
@@ -103,8 +97,7 @@ set -e
 rm -rf '$RemoteWorkRoot'
 mkdir -p '$RemoteWorkRoot'
 tar -xzf '$RemoteArchive' -C '$RemoteWorkRoot'
-chmod +x '$RemoteWorkRoot/Deploy-Kratos-Server.sh'
-bash '$RemoteWorkRoot/Deploy-Kratos-Server.sh' --source '$RemoteWorkRoot/payload' --apps '$appsCsv'
+sudo -n '$RemoteDeployCommand' --source '$RemoteWorkRoot/payload' --apps '$appsCsv'
 "@
     if (-not $KeepRemoteBundle) {
         $remoteCommand += "`nrm -f '$RemoteArchive'`n"
@@ -147,7 +140,6 @@ bash '$RemoteWorkRoot/Deploy-Kratos-Server.sh' --source '$RemoteWorkRoot/payload
         Invoke-Native -FilePath "scp" -ArgumentList ($scpArgs + @($bundleFile, "${remote}:$RemoteArchive"))
 
         Write-Host "`nExecuting deployment remotely on $HostName ..."
-        Write-Host "SSH may prompt for the password again when password authentication is used."
         Invoke-Native -FilePath "ssh" -ArgumentList ($sshArgs + @($remote, $remoteCommand))
     }
 
