@@ -92,16 +92,26 @@ try {
 
     $remote = "$UserName@$HostName"
     $appsCsv = ($Applications -join ",")
-    $remoteCommand = @"
-set -e
-rm -rf '$RemoteWorkRoot'
-mkdir -p '$RemoteWorkRoot'
-tar -xzf '$RemoteArchive' -C '$RemoteWorkRoot'
-sudo -n '$RemoteDeployCommand' --source '$RemoteWorkRoot/payload' --apps '$appsCsv'
-"@
+
+    # Build the remote shell program from individual lines joined with LF only.
+    # PowerShell here-strings on Windows use CRLF, which causes bash to see tokens
+    # such as `-e\r`. Keep this command explicitly Unix-normalized.
+    $remoteLines = @(
+        "set -e",
+        "rm -rf '$RemoteWorkRoot'",
+        "mkdir -p '$RemoteWorkRoot'",
+        "tar -xzf '$RemoteArchive' -C '$RemoteWorkRoot'",
+        "if sudo -n '$RemoteDeployCommand' --source '$RemoteWorkRoot/payload' --apps '$appsCsv'; then",
+        "  deploy_rc=0",
+        "else",
+        "  deploy_rc=`$?",
+        "fi"
+    )
     if (-not $KeepRemoteBundle) {
-        $remoteCommand += "`nrm -f '$RemoteArchive'`n"
+        $remoteLines += "rm -f '$RemoteArchive'"
     }
+    $remoteLines += "exit `$deploy_rc"
+    $remoteCommand = $remoteLines -join "`n"
 
     if ($Credential) {
         $plink = Get-Command plink.exe -ErrorAction SilentlyContinue
