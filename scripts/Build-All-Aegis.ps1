@@ -1,5 +1,6 @@
 param(
-    [string]$Root = "D:\Projects"
+    [string]$Root = "D:\Projects",
+    [string]$CommonMessagingPostgres = $env:COMMON_MESSAGING_POSTGRES
 )
 
 $ErrorActionPreference = "Stop"
@@ -79,7 +80,8 @@ function Build-Project {
         [Parameter(Mandatory = $true)][string]$Name,
         [Parameter(Mandatory = $true)][string]$Path,
         [Parameter(Mandatory = $true)][string]$BuildTarget,
-        [string]$TestTarget
+        [string]$TestTarget,
+        [hashtable]$TestEnvironment
     )
 
     Write-Host "`n====================================================" -ForegroundColor Yellow
@@ -93,7 +95,25 @@ function Build-Project {
 
     if ($TestTarget) {
         Invoke-Native "dotnet" @("restore", $TestTarget)
-        Invoke-Native "dotnet" @("test", $TestTarget, "--no-restore", "--configuration", "Release")
+
+        $previousEnvironment = @{}
+        try {
+            if ($TestEnvironment) {
+                foreach ($name in $TestEnvironment.Keys) {
+                    $previousEnvironment[$name] = [Environment]::GetEnvironmentVariable($name, "Process")
+                    [Environment]::SetEnvironmentVariable($name, [string]$TestEnvironment[$name], "Process")
+                }
+            }
+
+            Invoke-Native "dotnet" @("test", $TestTarget, "--no-restore", "--configuration", "Release")
+        }
+        finally {
+            if ($TestEnvironment) {
+                foreach ($name in $TestEnvironment.Keys) {
+                    [Environment]::SetEnvironmentVariable($name, $previousEnvironment[$name], "Process")
+                }
+            }
+        }
     }
 
     Write-Host "PASS: $Name" -ForegroundColor Green
@@ -101,7 +121,7 @@ function Build-Project {
 
 $projects = @(
     @{ Name = "Common.Diagnostics";  Path = "$Root\Common\Common.Diagnostics";  Build = ".\Common.Diagnostics.csproj"; Test = ".\Common.Diagnostics.UnitTests\Common.Diagnostics.UnitTests.csproj" },
-    @{ Name = "Common.Messaging";    Path = "$Root\Common\Common.Messaging";    Build = ".\Common.Messaging.csproj";   Test = ".\Common.Messaging.UnitTests\Common.Messaging.UnitTests.csproj" },
+    @{ Name = "Common.Messaging";    Path = "$Root\Common\Common.Messaging";    Build = ".\Common.Messaging.csproj";   Test = ".\Common.Messaging.UnitTests\Common.Messaging.UnitTests.csproj"; RequiresCommonMessagingPostgres = $true },
     @{ Name = "Common.Registration"; Path = "$Root\Common\Common.Registration"; Build = ".\Common.Registration.csproj"; Test = ".\Common.Registration.Tests\Common.Registration.Tests.csproj" },
     @{ Name = "Common.Secrets";      Path = "$Root\Common\Common.Secrets";      Build = ".\Common.Secrets.slnx";       Test = ".\Common.Secrets.slnx" },
     @{ Name = "Common.Security";     Path = "$Root\Common\Common.Security";     Build = ".\Common.Security.slnx";      Test = ".\Common.Security.slnx" },
@@ -124,7 +144,17 @@ try {
     Write-Host "========================================" -ForegroundColor Cyan
 
     foreach ($project in $projects) {
-        Build-Project -Name $project.Name -Path $project.Path -BuildTarget $project.Build -TestTarget $project.Test
+        $testEnvironment = $null
+        if ($project.RequiresCommonMessagingPostgres) {
+            if ([string]::IsNullOrWhiteSpace($CommonMessagingPostgres)) {
+                throw "Common.Messaging PostgreSQL integration tests require a connection string. Supply -CommonMessagingPostgres or set COMMON_MESSAGING_POSTGRES before running this script."
+            }
+
+            $testEnvironment = @{ COMMON_MESSAGING_POSTGRES = $CommonMessagingPostgres }
+            Write-Host "Common.Messaging PostgreSQL integration environment configured (value redacted)." -ForegroundColor DarkCyan
+        }
+
+        Build-Project -Name $project.Name -Path $project.Path -BuildTarget $project.Build -TestTarget $project.Test -TestEnvironment $testEnvironment
     }
 
     Write-Host "`n========================================" -ForegroundColor Green
