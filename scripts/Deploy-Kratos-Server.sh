@@ -106,10 +106,19 @@ mkdir -p "$BACKUP_DIR"
 
 log() { printf '\n==> %s\n' "$*"; }
 
+is_selected() {
+  local wanted="$1"
+  local current
+  for current in "${SELECTED[@]}"; do
+    [[ "$current" == "$wanted" ]] && return 0
+  done
+  return 1
+}
+
 stop_selected() {
   # Dependents first.
   for app in operations diagnostics configuration; do
-    if printf '%s\n' "${SELECTED[@]}" | grep -qx "$app"; then
+    if is_selected "$app"; then
       systemctl stop "${SERVICE[$app]}" || true
     fi
   done
@@ -118,7 +127,7 @@ stop_selected() {
 start_selected() {
   # Registry first, then diagnostics, then the portal.
   for app in configuration diagnostics operations; do
-    if printf '%s\n' "${SELECTED[@]}" | grep -qx "$app"; then
+    if is_selected "$app"; then
       systemctl start "${SERVICE[$app]}"
     fi
   done
@@ -186,10 +195,11 @@ rollback() {
   echo "Rollback attempted. Inspect systemctl/journalctl before retrying." >&2
 }
 
-trap 'rc=$?; if [[ $rc -ne 0 ]]; then rollback; fi; exit $rc' EXIT
-
 log "Backing up current deployment to $BACKUP_DIR"
 backup_current
+
+# Only enable automatic rollback after the backup has completed successfully.
+trap 'rc=$?; if [[ $rc -ne 0 ]]; then rollback; fi; exit $rc' EXIT
 
 log "Stopping selected services"
 stop_selected
