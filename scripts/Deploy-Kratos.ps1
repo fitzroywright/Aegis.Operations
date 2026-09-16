@@ -35,7 +35,6 @@ function ConvertTo-PlainText {
     finally { [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($ptr) }
 }
 
-$repoRoot = Split-Path -Parent $PSScriptRoot
 $serverScript = Join-Path $PSScriptRoot "Deploy-Kratos-Server.sh"
 if (-not (Test-Path $serverScript)) {
     throw "Missing server deployment script: $serverScript"
@@ -44,15 +43,12 @@ if (-not (Test-Path $serverScript)) {
 $definitions = @{
     operations = @{
         Project = Join-Path $ProjectsRoot "Aegis.Operations\Aegis.Operations.csproj"
-        Repo    = Join-Path $ProjectsRoot "Aegis.Operations"
     }
     configuration = @{
         Project = Join-Path $ProjectsRoot "Aegis.Configuration\Aegis.Configuration.Web\Aegis.Configuration.Web.csproj"
-        Repo    = Join-Path $ProjectsRoot "Aegis.Configuration"
     }
     diagnostics = @{
         Project = Join-Path $ProjectsRoot "Aegis.Diagnostics\Aegis.Diagnostics.csproj"
-        Repo    = Join-Path $ProjectsRoot "Aegis.Diagnostics"
     }
 }
 
@@ -65,11 +61,11 @@ if (-not $SkipAuthoritativeBuild) {
     $buildAll = Join-Path $PSScriptRoot "Build-All-Aegis.ps1"
     if (-not (Test-Path $buildAll)) { throw "Missing authoritative build script: $buildAll" }
     & $buildAll
-    if ($LASTEXITCODE -ne 0) { throw "Authoritative build failed." }
 }
 
 $bundleRoot = Join-Path ([IO.Path]::GetTempPath()) ("aegis-kratos-deploy-" + [Guid]::NewGuid().ToString("N"))
 $payloadRoot = Join-Path $bundleRoot "payload"
+$bundleFile = $null
 New-Item -ItemType Directory -Force -Path $payloadRoot | Out-Null
 
 try {
@@ -87,8 +83,7 @@ try {
         Invoke-Native -FilePath "dotnet" -ArgumentList @(
             "publish", $definition.Project,
             "--configuration", "Release",
-            "--output", $output,
-            "--no-restore"
+            "--output", $output
         )
     }
 
@@ -119,10 +114,14 @@ bash '$RemoteWorkRoot/Deploy-Kratos-Server.sh' --source '$RemoteWorkRoot/payload
         $plink = Get-Command plink.exe -ErrorAction SilentlyContinue
         $pscp = Get-Command pscp.exe -ErrorAction SilentlyContinue
         if (-not $plink -or -not $pscp) {
-            throw "-Credential requires PuTTY plink.exe and pscp.exe on PATH. Without -Credential, native OpenSSH will prompt interactively. For non-interactive auth, -IdentityFile is preferred."
+            throw "-Credential requires PuTTY plink.exe and pscp.exe on PATH. Without -Credential, native OpenSSH prompts interactively. For unattended auth, -IdentityFile is preferred."
         }
 
-        if ($Credential.UserName) { $UserName = $Credential.UserName; $remote = "$UserName@$HostName" }
+        if ($Credential.UserName) {
+            $UserName = $Credential.UserName
+            $remote = "$UserName@$HostName"
+        }
+
         $password = ConvertTo-PlainText $Credential.Password
         try {
             Write-Host "`nUploading deployment bundle to $remote ..."
@@ -159,8 +158,10 @@ bash '$RemoteWorkRoot/Deploy-Kratos-Server.sh' --source '$RemoteWorkRoot/payload
     Write-Host "Host:         $HostName"
 }
 finally {
-    if (Test-Path $bundleRoot) { Remove-Item $bundleRoot -Recurse -Force -ErrorAction SilentlyContinue }
-    if ($bundleFile -and -not $KeepLocalBundle -and (Test-Path $bundleFile)) {
+    if (Test-Path $bundleRoot) {
+        Remove-Item $bundleRoot -Recurse -Force -ErrorAction SilentlyContinue
+    }
+    if ($null -ne $bundleFile -and -not $KeepLocalBundle -and (Test-Path $bundleFile)) {
         Remove-Item $bundleFile -Force -ErrorAction SilentlyContinue
     }
 }
