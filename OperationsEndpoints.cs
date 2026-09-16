@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Common.Diagnostics;
 
 internal static class OperationsEndpoints
 {
@@ -26,12 +27,7 @@ internal static class OperationsEndpoints
             OperationsPage.Render(configurationUrl, diagnosticsUrl, site, environment),
             "text/html"));
 
-        app.MapGet("/health", () => Results.Ok(new
-        {
-            status = "healthy",
-            service = "Aegis.Operations",
-            displayName = "System Operations"
-        }));
+        app.MapAegisHealth("Aegis.Operations");
     }
 
     private static async Task<object> ProbeAsync(HttpClient client, string url, CancellationToken ct)
