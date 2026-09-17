@@ -303,26 +303,28 @@ A `502 Bad Gateway` means nginx accepted the host but Kestrel is not listening o
 
 ## 14. Commissioning through Aegis.Configuration
 
-RequestPortal production startup intentionally validates all commissioning requirements together. The current validator includes:
+RequestPortal production startup intentionally validates all application-level commissioning requirements together. The current RequestPortal validator includes:
 
 - `RP-CONFIG-DB-001` PostgreSQL connection
 - `RP-PROD-STORAGE-001` durable storage
 - `RP-PROD-DP-001` Data Protection key persistence
-- `RP-PROD-SECRETS-001` OpenBao address
-- `RP-PROD-SECRETS-002` OpenBao RoleId
 - `RP-PROD-HOSTS-001` restricted AllowedHosts
 - `RP-PROD-UPLOAD-001` malware scanning
 - `RP-PROD-STAFF-GROUPS-001` staff groups
-- `RP-PROD-OIDC-001` staff OIDC
+- `RP-PROD-OIDC-001` staff OIDC using a Common.Secrets-backed client secret
 - `RP-PROD-OAUTH-001` external representative identity provider
 - `RP-PROD-SMTP-001` SMTP notifications
 - `RP-PROD-MESSAGING-001` durable messaging path
 - `RP-PROD-SITE-001` site identity
 - `RP-PROD-FFPMANAGER-001` conditional FFP Manager integration
 
-The current startup path collects the complete list, attempts bootstrap publication to Aegis.Configuration, then aborts if unresolved requirements remain. Configuration should therefore be the primary commissioning checklist rather than forcing the operator to discover one gate at a time from `journalctl`.
+Provider-specific secret bootstrap is intentionally not validated by RequestPortal as OpenBao-specific application gates. Common.Secrets owns provider selection and bootstrap. In this FFP deployment, OpenBao Address, RoleId, SecretId/bootstrap-file state and provider health are operational Common.Secrets concerns; another supported secret provider must be able to replace OpenBao without changing RequestPortal's application validator.
 
-If registration itself fails, inspect `RP-CONFIG-REG-001` and verify the Configuration URL, registration credential, network path, and Common.Secrets availability.
+The current startup path resolves Common.Secrets, hydrates required secrets, collects the complete RequestPortal failure list, attempts bootstrap publication to Aegis.Configuration, then aborts if unresolved application requirements remain. Configuration should therefore be the primary commissioning checklist rather than forcing the operator to discover one gate at a time from `journalctl`.
+
+If Common.Secrets itself cannot initialize, the process can fail before RequestPortal has a usable provider with which to publish its commissioning contract. Treat that as a secret-bootstrap failure, not a successful RequestPortal registration. Inspect Common.Secrets/OpenBao bootstrap diagnostics and repair Secret Zero/provider access first.
+
+If registration itself fails after Common.Secrets is available, inspect `RP-CONFIG-REG-001` and verify the Configuration URL, registration credential, network path, and Configuration availability.
 
 ## 15. Starting and diagnosing RequestPortal
 
@@ -380,7 +382,8 @@ In Aegis.Diagnostics verify RequestPortal events are correlated from Configurati
 - `/health` responds locally.
 - Both public hostnames route correctly.
 - Production AllowedHosts contains both names.
-- OpenBao AppRole is least privilege.
+- Common.Secrets initializes successfully with the selected production provider.
+- For the current FFP OpenBao deployment, the AppRole is least privilege and Secret Zero bootstrap is protected.
 - Secret Zero is not committed or left in ordinary appsettings.
 - PostgreSQL connection resolves from Common.Secrets.
 - ClamAV listens on localhost TCP 3310 and upload scanning is enabled.
