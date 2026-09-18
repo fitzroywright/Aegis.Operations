@@ -55,6 +55,10 @@ internal static class OperationsEndpoints
             TimeSpan.FromMinutes(pendingLifetimeMinutes),
             TimeSpan.FromMinutes(retrievedLifetimeMinutes));
         ILogger registrationLogger = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("Aegis.Operations.Registration");
+        string operationsInstanceId = app.Configuration["Operations:InstanceId"]?.Trim() ?? Environment.MachineName;
+        string operationsLocalUrl = (app.Configuration["Operations:LocalUrl"] ?? "http://127.0.0.1:5100").TrimEnd('/');
+        string operationsCredentialFile = app.Configuration["Operations:RegistrationCredentialFile"]?.Trim()
+            ?? Path.Combine(registrationDirectory, "operations.key");
 
         app.Lifetime.ApplicationStarted.Register(() =>
         {
@@ -62,6 +66,37 @@ internal static class OperationsEndpoints
             {
                 CancellationToken stoppingToken = app.Lifetime.ApplicationStopping;
                 IHttpClientFactory factory = app.Services.GetRequiredService<IHttpClientFactory>();
+                string? operationsCredential = null;
+                try
+                {
+                    operationsCredential = await registrationStore.EnsureControlPlaneCredentialAsync(
+                        "Aegis.Operations",
+                        "Aegis Operations",
+                        operationsInstanceId,
+                        operationsCredentialFile,
+                        stoppingToken);
+                    registrationLogger.LogInformation(
+                        "Aegis.Operations control-plane registration is active for instance {InstanceId}.",
+                        operationsInstanceId);
+
+                    await PublishOperationsContractAsync(
+                        factory,
+                        operationsLocalUrl,
+                        operationsInstanceId,
+                        operationsCredential,
+                        site,
+                        environment,
+                        stoppingToken);
+                }
+                catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+                {
+                    return;
+                }
+                catch (Exception exception)
+                {
+                    registrationLogger.LogError(exception, "Aegis.Operations self-registration failed.");
+                }
+
                 while (!stoppingToken.IsCancellationRequested)
                 {
                     try
@@ -72,6 +107,8 @@ internal static class OperationsEndpoints
                             app,
                             factory,
                             configurationUrl,
+                            operationsInstanceId,
+                            operationsCredential,
                             activeApplicationIds,
                             stoppingToken);
                         if (!sync.Success)
@@ -211,6 +248,37 @@ internal static class OperationsEndpoints
             };
         }).AllowAnonymous();
 
+        app.MapPost("/api/registration/validate", async (
+            HttpContext context,
+            CancellationToken ct) =>
+        {
+            string applicationId = context.Request.Headers["X-Aegis-Application-Id"].ToString();
+            string instanceId = context.Request.Headers["X-Aegis-Instance-Id"].ToString();
+            string credential = Bearer(context.Request.Headers.Authorization.ToString());
+            if (string.IsNullOrWhiteSpace(applicationId) ||
+                string.IsNullOrWhiteSpace(instanceId) ||
+                string.IsNullOrWhiteSpace(credential))
+                return Results.Unauthorized();
+
+            RegistrationValidation validation = await registrationStore.ValidateAsync(
+                applicationId.Trim(),
+                instanceId.Trim(),
+                credential,
+                ct);
+
+            return validation switch
+            {
+                RegistrationValidation.Valid => Results.Ok(new
+                {
+                    valid = true,
+                    applicationId = applicationId.Trim(),
+                    instanceId = instanceId.Trim()
+                }),
+                RegistrationValidation.Revoked => Results.StatusCode(StatusCodes.Status410Gone),
+                _ => Results.Unauthorized()
+            };
+        }).AllowAnonymous();
+
         app.MapPost("/api/registration/control-plane/auto", async (
             HttpContext context,
             PendingRegistrationRequest request,
@@ -283,7 +351,7 @@ internal static class OperationsEndpoints
             if (!hasOtherRegisteredInstance)
             {
                 ConfigurationSyncResult sync = await SyncConfigurationContractAsync(
-                    app, factory, configurationUrl, revoked.ApplicationId, "retire", "revoked", ct);
+                    app, factory, configurationUrl, operationsInstanceId, operationsCredentialFile, revoked.ApplicationId, "retire", "revoked", ct);
                 if (!sync.Success)
                     return Results.Problem(
                         $"Registration was revoked, but Configuration synchronization failed: {sync.Message}",
@@ -321,7 +389,7 @@ internal static class OperationsEndpoints
             if (!hasOtherRegisteredInstance)
             {
                 ConfigurationSyncResult sync = await SyncConfigurationContractAsync(
-                    app, factory, configurationUrl, revoked.ApplicationId, "retire", "invalidated", ct);
+                    app, factory, configurationUrl, operationsInstanceId, operationsCredentialFile, revoked.ApplicationId, "retire", "invalidated", ct);
                 if (!sync.Success)
                     return Results.Problem(
                         $"Registration was invalidated, but Configuration synchronization failed: {sync.Message}",
@@ -369,7 +437,7 @@ internal static class OperationsEndpoints
             if (!hasOtherRegisteredInstance)
             {
                 ConfigurationSyncResult sync = await SyncConfigurationContractAsync(
-                    app, factory, configurationUrl, record.ApplicationId, "purge", null, ct);
+                    app, factory, configurationUrl, operationsInstanceId, operationsCredentialFile, record.ApplicationId, "purge", null, ct);
                 configurationSynchronized = sync.Success;
                 if (!sync.Success)
                 {
@@ -403,7 +471,7 @@ internal static class OperationsEndpoints
 
             IReadOnlyList<string> activeApplicationIds = await registrationStore.RegisteredApplicationIdsAsync(ct);
             ConfigurationSyncResult sync = await ReconcileConfigurationAsync(
-                app, factory, configurationUrl, activeApplicationIds, ct);
+                app, factory, configurationUrl, operationsInstanceId, await ReadCredentialFileAsync(operationsCredentialFile, ct), activeApplicationIds, ct);
 
             return sync.Success
                 ? Results.Ok(new { activeApplicationIds, synchronized = true })
@@ -456,11 +524,11 @@ internal static class OperationsEndpoints
             if (contract is null)
                 return Results.BadRequest(new { error = "Configuration contract body is required." });
 
-            string? configurationRegistrationKey = app.Configuration["Operations:ConfigurationRegistrationKey"];
-            if (string.IsNullOrWhiteSpace(configurationRegistrationKey))
+            string? operationsCredential = await ReadCredentialFileAsync(operationsCredentialFile, ct);
+            if (string.IsNullOrWhiteSpace(operationsCredential))
             {
                 return Results.Problem(
-                    "Operations cannot forward registered application contracts because its Configuration registration credential is not configured.",
+                    "Operations cannot forward registered application contracts because its self-registration credential is unavailable.",
                     statusCode: StatusCodes.Status503ServiceUnavailable);
             }
 
@@ -471,7 +539,9 @@ internal static class OperationsEndpoints
             {
                 Content = JsonContent.Create(contract)
             };
-            forward.Headers.TryAddWithoutValidation("X-Aegis-Registration-Key", configurationRegistrationKey);
+            forward.Headers.TryAddWithoutValidation("X-Aegis-Registration-Key", operationsCredential);
+            forward.Headers.TryAddWithoutValidation("X-Aegis-Application-Id", "Aegis.Operations");
+            forward.Headers.TryAddWithoutValidation("X-Aegis-Instance-Id", operationsInstanceId);
             forward.Headers.TryAddWithoutValidation("X-Aegis-Registration-Attempt-Id", attemptId);
 
             registrationLogger.LogInformation("Forwarding validated configuration contract to Aegis.Configuration.");
@@ -645,14 +715,16 @@ load();
         WebApplication app,
         IHttpClientFactory factory,
         string configurationUrl,
+        string operationsInstanceId,
+        string operationsCredentialFile,
         string applicationId,
         string action,
         string? reason,
         CancellationToken ct)
     {
-        string? key = app.Configuration["Operations:ConfigurationRegistrationKey"];
+        string? key = await ReadCredentialFileAsync(operationsCredentialFile, ct);
         if (string.IsNullOrWhiteSpace(key))
-            return new(false, "Operations:ConfigurationRegistrationKey is not configured.");
+            return new(false, "Aegis.Operations self-registration credential is unavailable.");
 
         string url = configurationUrl.TrimEnd('/') + "/api/contracts/" + Uri.EscapeDataString(applicationId);
         HttpMethod method;
@@ -670,6 +742,8 @@ load();
 
         using var request = new HttpRequestMessage(method, url);
         request.Headers.TryAddWithoutValidation("X-Aegis-Registration-Key", key);
+        request.Headers.TryAddWithoutValidation("X-Aegis-Application-Id", "Aegis.Operations");
+        request.Headers.TryAddWithoutValidation("X-Aegis-Instance-Id", operationsInstanceId);
         try
         {
             HttpClient client = factory.CreateClient("ops");
@@ -698,12 +772,14 @@ load();
         WebApplication app,
         IHttpClientFactory factory,
         string configurationUrl,
+        string operationsInstanceId,
+        string? operationsCredential,
         IReadOnlyList<string> activeApplicationIds,
         CancellationToken ct)
     {
-        string? key = app.Configuration["Operations:ConfigurationRegistrationKey"];
+        string? key = operationsCredential;
         if (string.IsNullOrWhiteSpace(key))
-            return new(false, "Operations:ConfigurationRegistrationKey is not configured.");
+            return new(false, "Aegis.Operations self-registration credential is unavailable.");
 
         using var request = new HttpRequestMessage(
             HttpMethod.Post,
@@ -712,6 +788,8 @@ load();
             Content = JsonContent.Create(activeApplicationIds)
         };
         request.Headers.TryAddWithoutValidation("X-Aegis-Registration-Key", key);
+        request.Headers.TryAddWithoutValidation("X-Aegis-Application-Id", "Aegis.Operations");
+        request.Headers.TryAddWithoutValidation("X-Aegis-Instance-Id", operationsInstanceId);
 
         try
         {
@@ -734,6 +812,80 @@ load();
         {
             return new(false, ex.Message);
         }
+    }
+
+    private static async Task<string?> ReadCredentialFileAsync(string path, CancellationToken ct)
+    {
+        if (!File.Exists(path))
+            return null;
+        string value = (await File.ReadAllTextAsync(path, ct)).Trim();
+        return string.IsNullOrWhiteSpace(value) ? null : value;
+    }
+
+    private static async Task PublishOperationsContractAsync(
+        IHttpClientFactory factory,
+        string operationsLocalUrl,
+        string instanceId,
+        string credential,
+        string site,
+        string environment,
+        CancellationToken ct)
+    {
+        JsonObject contract = new()
+        {
+            ["applicationId"] = "Aegis.Operations",
+            ["displayName"] = "Aegis Operations",
+            ["version"] = typeof(OperationsEndpoints).Assembly.GetName().Version?.ToString() ?? "unknown",
+            ["siteId"] = site == "—" ? null : site,
+            ["instanceId"] = instanceId,
+            ["requirements"] = new JsonArray
+            {
+                new JsonObject
+                {
+                    ["id"] = "configuration-url",
+                    ["displayName"] = "Configuration URL",
+                    ["kind"] = 0,
+                    ["required"] = true,
+                    ["purpose"] = "Aegis.Configuration endpoint used for contract publication and lifecycle reconciliation.",
+                    ["configurationKey"] = "Operations:ConfigurationUrl",
+                    ["sensitive"] = false
+                },
+                new JsonObject
+                {
+                    ["id"] = "diagnostics-url",
+                    ["displayName"] = "Diagnostics URL",
+                    ["kind"] = 0,
+                    ["required"] = true,
+                    ["purpose"] = "Aegis.Diagnostics endpoint used by Operations.",
+                    ["configurationKey"] = "Operations:DiagnosticsUrl",
+                    ["sensitive"] = false
+                },
+                new JsonObject
+                {
+                    ["id"] = "registration-store",
+                    ["displayName"] = "Registration Store",
+                    ["kind"] = 0,
+                    ["required"] = true,
+                    ["purpose"] = "Persistent Operations registration state.",
+                    ["configurationKey"] = "Operations:RegistrationDirectory",
+                    ["sensitive"] = false
+                }
+            }
+        };
+
+        using HttpClient client = factory.CreateClient("ops");
+        using var request = new HttpRequestMessage(
+            HttpMethod.Post,
+            operationsLocalUrl.TrimEnd('/') + "/api/registration/contracts")
+        {
+            Content = JsonContent.Create(contract)
+        };
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", credential);
+        request.Headers.TryAddWithoutValidation("X-Aegis-Application-Id", "Aegis.Operations");
+        request.Headers.TryAddWithoutValidation("X-Aegis-Instance-Id", instanceId);
+        request.Headers.TryAddWithoutValidation("X-Aegis-Registration-Attempt-Id", Guid.NewGuid().ToString("N"));
+        using HttpResponseMessage response = await client.SendAsync(request, ct);
+        response.EnsureSuccessStatusCode();
     }
 
     private static string Bearer(string authorization)
@@ -1009,35 +1161,26 @@ load();
             await _gate.WaitAsync(ct);
             try
             {
-                foreach (PendingRegistration existing in await LoadAllUnsafeAsync(ct))
+                List<PendingRegistration> all = await LoadAllUnsafeAsync(ct);
+                foreach (PendingRegistration existing in all.Where(x =>
+                    string.Equals(x.ApplicationId, applicationId, StringComparison.OrdinalIgnoreCase) &&
+                    string.Equals(x.InstanceId, instanceId, StringComparison.OrdinalIgnoreCase) &&
+                    x.State is not (RegistrationRecordState.Revoked or RegistrationRecordState.Expired)))
                 {
-                    if (!string.Equals(existing.ApplicationId, applicationId, StringComparison.OrdinalIgnoreCase) ||
-                        !string.Equals(existing.InstanceId, instanceId, StringComparison.OrdinalIgnoreCase))
-                        continue;
-
-                    if (existing.State is RegistrationRecordState.Registered or RegistrationRecordState.KeyRetrieved)
-                        return new(false, existing.RegistrationId, null, "An active control-plane registration already exists and its credential cannot be reissued.");
-
-                    if (existing.State == RegistrationRecordState.Pending && !string.IsNullOrWhiteSpace(existing.CredentialForRetrieval))
+                    PendingRegistration revoked = existing with
                     {
-                        string pendingCredential = existing.CredentialForRetrieval;
-                        PendingRegistration registeredExisting = existing with
-                        {
-                            State = RegistrationRecordState.Registered,
-                            CredentialForRetrieval = null,
-                            KeyRetrievedAtUtc = DateTimeOffset.UtcNow,
-                            RegisteredAtUtc = DateTimeOffset.UtcNow,
-                            Audit = [.. existing.Audit, new(DateTimeOffset.UtcNow, "ControlPlaneAutoRegistered", applicationId)]
-                        };
-                        await SaveUnsafeAsync(registeredExisting, ct);
-                        return new(true, registeredExisting.RegistrationId, pendingCredential, null);
-                    }
+                        State = RegistrationRecordState.Revoked,
+                        CredentialForRetrieval = null,
+                        RevokedAtUtc = DateTimeOffset.UtcNow,
+                        Audit = [.. existing.Audit, new(DateTimeOffset.UtcNow, "ControlPlaneAutoRotated", applicationId)]
+                    };
+                    await SaveUnsafeAsync(revoked, ct);
                 }
 
-                string credential = Convert.ToHexString(RandomNumberGenerator.GetBytes(32)).ToLowerInvariant();
+                string credential = Convert.ToBase64String(RandomNumberGenerator.GetBytes(48));
                 DateTimeOffset now = DateTimeOffset.UtcNow;
                 PendingRegistration record = new(
-                    Guid.NewGuid().ToString("N"),
+                    Convert.ToHexString(RandomNumberGenerator.GetBytes(16)).ToLowerInvariant(),
                     applicationId,
                     displayName,
                     instanceId,
@@ -1049,6 +1192,7 @@ load();
                     now,
                     now,
                     null,
+                    null,
                     [new(now, "ControlPlaneAutoRegistered", applicationId)]);
                 await SaveUnsafeAsync(record, ct);
                 return new(true, record.RegistrationId, credential, null);
@@ -1057,6 +1201,38 @@ load();
             {
                 _gate.Release();
             }
+        }
+
+        public async Task<string> EnsureControlPlaneCredentialAsync(
+            string applicationId,
+            string displayName,
+            string instanceId,
+            string credentialFile,
+            CancellationToken ct)
+        {
+            if (File.Exists(credentialFile))
+            {
+                string existingCredential = (await File.ReadAllTextAsync(credentialFile, ct)).Trim();
+                if (!string.IsNullOrWhiteSpace(existingCredential))
+                {
+                    RegistrationValidation validation = await ValidateAsync(applicationId, instanceId, existingCredential, ct);
+                    if (validation == RegistrationValidation.Valid)
+                        return existingCredential;
+                }
+            }
+
+            ControlPlaneProvisionResult result = await ProvisionControlPlaneAsync(
+                applicationId,
+                displayName,
+                instanceId,
+                ct);
+            if (!result.Succeeded || string.IsNullOrWhiteSpace(result.Credential))
+                throw new InvalidOperationException(result.Error ?? "Control-plane credential provisioning failed.");
+
+            Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(credentialFile))!);
+            await File.WriteAllTextAsync(credentialFile, result.Credential + Environment.NewLine, ct);
+            SecureFile(credentialFile);
+            return result.Credential;
         }
 
         public async Task<CredentialRetrieval> RetrieveKeyAsync(
