@@ -163,6 +163,10 @@ deploy_payload() {
     rm -rf "$target"
     mkdir -p "$target"
     cp -a "$SOURCE_ROOT/$app/." "$target/"
+    if [[ "$app" == "configuration" ]]; then
+      # Runtime configuration contracts are persistent state, never deployment content.
+      rm -rf "$target/contracts"
+    fi
     chown -R "$OWNER" "$target"
   done
 }
@@ -200,9 +204,10 @@ rollback() {
   echo "Rollback attempted. Inspect systemctl/journalctl before retrying." >&2
 }
 
-log "Ensuring persistent Operations registration storage"
+log "Ensuring persistent control-plane state storage"
 mkdir -p /var/lib/aegis/operations/registration
-chown -R "$OWNER" /var/lib/aegis/operations
+mkdir -p /var/lib/aegis/configuration/contracts/retired
+chown -R "$OWNER" /var/lib/aegis/operations /var/lib/aegis/configuration
 
 log "Backing up current deployment to $BACKUP_DIR"
 backup_current
