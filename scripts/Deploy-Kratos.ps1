@@ -113,7 +113,7 @@ try {
         "rm -rf '$RemoteWorkRoot'",
         "mkdir -p '$RemoteWorkRoot'",
         "tar -xzf '$RemoteArchive' -C '$RemoteWorkRoot'",
-        "sudo -n install -o root -g root -m 0755 '$RemoteWorkRoot/Deploy-Kratos-Server.sh' '$RemoteDeployCommand'",
+        "sudo -n install -o root -g root -m 0755 '$RemoteWorkRoot/Deploy-Kratos-Server.sh' '$RemoteDeployCommand' 2>/dev/null || sudo install -o root -g root -m 0755 '$RemoteWorkRoot/Deploy-Kratos-Server.sh' '$RemoteDeployCommand'",
         "if sudo -n '$RemoteDeployCommand' --source '$RemoteWorkRoot/payload' --apps '$appsCsv'; then",
         "  deploy_rc=0",
         "else",
@@ -163,7 +163,7 @@ try {
         Invoke-Native -FilePath "scp" -ArgumentList ($scpArgs + @($bundleFile, "${remote}:$RemoteArchive"))
 
         Write-Host "`nExecuting deployment remotely on $HostName ..."
-        Invoke-Native -FilePath "ssh" -ArgumentList ($sshArgs + @($remote, $remoteCommand))
+        Invoke-Native -FilePath "ssh" -ArgumentList ($sshArgs + @("-tt", $remote, $remoteCommand))
     }
 
     Write-Host "`n========================================"
