@@ -31,7 +31,7 @@ Expected staging layout:
   SOURCE/hello/Aegis.Hello.dll
   SOURCE/requestportal/RequestPortal.Web.dll
 
-This script never overwrites /etc/aegis/*.env or /etc/aegis/secrets.
+This script preserves application environment files and secrets. During registration-lifecycle migration it only renames/removes obsolete registration keys after backing the files up.
 EOF
 }
 
@@ -161,6 +161,27 @@ backup_current() {
   done
 }
 
+cleanup_legacy_registration() {
+  log "Migrating legacy registration configuration"
+
+  shopt -s nullglob
+  for env_file in /etc/aegis/*.env; do
+    # Preserve an existing new key. Otherwise migrate the old suite registration key in place.
+    if grep -q '^AEGIS_REGISTRATION_KEY=' "$env_file"; then
+      sed -i '/^AEGIS_CONFIGURATION_REGISTRATION_KEY=/d' "$env_file"
+    else
+      sed -i 's/^AEGIS_CONFIGURATION_REGISTRATION_KEY=/AEGIS_REGISTRATION_KEY=/' "$env_file"
+    fi
+
+    # These were Configuration-specific bootstrap keys and are no longer consumed.
+    sed -i '/^Operations__ConfigurationRegistrationKey=/d' "$env_file"
+    sed -i '/^AegisConfiguration__RegistrationKey=/d' "$env_file"
+  done
+  shopt -u nullglob
+
+  rm -f /var/lib/aegis/configuration/bootstrap-credentials.json
+}
+
 deploy_payload() {
   for app in "${SELECTED[@]}"; do
     target="${TARGET[$app]}"
@@ -251,6 +272,8 @@ fi
 
 log "Backing up current deployment to $BACKUP_DIR"
 backup_current
+
+cleanup_legacy_registration
 
 # Only enable automatic rollback after the backup has completed successfully.
 trap 'rc=$?; if [[ $rc -ne 0 ]]; then rollback; fi; exit $rc' EXIT
