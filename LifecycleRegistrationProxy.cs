@@ -21,6 +21,23 @@ internal static class LifecycleRegistrationProxy
                 ct);
         });
 
+        app.MapGet("/api/lifecycle-registrations/flow", async (
+            HttpContext context,
+            SuiteSecurity suiteSecurity,
+            IHttpClientFactory factory,
+            CancellationToken ct) =>
+        {
+            if (!Has(context, "Configuration.View")) return Results.Forbid();
+            return await ForwardAsync(
+                context,
+                suiteSecurity,
+                factory,
+                configurationUrl + "/api/registration/flow?limit=200",
+                HttpMethod.Get,
+                null,
+                ct);
+        });
+
         app.MapGet("/api/lifecycle-registrations/reconciliation", async (
             HttpContext context,
             SuiteSecurity suiteSecurity,
@@ -226,6 +243,19 @@ button.warn{background:#9a6a14}
 small{color:#9fb7c8}
 .empty{padding:20px;color:#9fb7c8}
 .mono{font-family:Consolas,monospace;font-size:12px;word-break:break-all}.audit{padding:7px 0;border-top:1px solid #29475b}.audit:first-of-type{border-top:0}details{margin:4px 0}summary{cursor:pointer;color:#8fd0ff}pre{white-space:pre-wrap;max-width:360px}
+.flow-shell{position:relative;padding:24px 18px 14px;margin-top:12px;background:#071a28;border:1px solid #245a7a;border-radius:9px;overflow:hidden}
+.flow-track{position:relative;height:110px;margin:0 34px}
+.flow-rail{position:absolute;left:2%;right:2%;top:34px;height:4px;background:#244b64;border-radius:999px}
+.flow-light{position:absolute;top:24px;width:24px;height:24px;margin-left:-12px;border-radius:50%;background:#20d789;box-shadow:0 0 8px #20d789,0 0 24px #20d789;transition:left .9s ease,background .3s,box-shadow .3s;z-index:4}
+.flow-light.slow{background:#ffad31;box-shadow:0 0 8px #ffad31,0 0 24px #ffad31}.flow-light.stalled,.flow-light.failed{background:#ff6b6b;box-shadow:0 0 10px #ff6b6b,0 0 28px #ff6b6b}
+.flow-light.healthy{animation:pulse 1.4s infinite}@keyframes pulse{50%{transform:scale(1.28)}}
+.flow-nodes{position:absolute;inset:0;display:grid;grid-template-columns:repeat(6,1fr);align-items:start}
+.flow-node{text-align:center;position:relative;z-index:2}.flow-node i{display:block;width:17px;height:17px;margin:27px auto 9px;border-radius:50%;background:#587386;border:3px solid #071a28}.flow-node.active i{background:#50c8ff;box-shadow:0 0 14px #50c8ff}.flow-node.done i{background:#20d789}.flow-node b{display:block;font-size:12px}.flow-node small{display:block;color:#8faabd;font-size:10px}
+.flow-meta{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-top:4px}.flow-meta div{background:#0a2233;padding:8px;border-radius:6px}.flow-meta small{display:block;color:#8faabd}.health{font-weight:800}.health.healthy{color:#20d789}.health.slow{color:#ffad31}.health.stalled,.health.failed{color:#ff6b6b}
+.journey-list{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}.journey-chip{background:#102c40;border:1px solid #35617d;color:#eef6ff;border-radius:999px;padding:7px 10px;cursor:pointer}.journey-chip.selected{border-color:#50c8ff;box-shadow:0 0 0 1px #50c8ff}.journey-chip.failed,.journey-chip.stalled{border-color:#c84c4c}.journey-chip.slow{border-color:#c58a2c}
+.event-strip{max-height:260px;overflow:auto}.flow-event{display:grid;grid-template-columns:85px 120px 100px 1fr 220px;gap:8px;padding:7px 0;border-bottom:1px solid #29475b}.flow-event small{color:#9fb7c8}.outcome-failed{color:#ff8080}.outcome-succeeded{color:#56dda2}
+@media(max-width:900px){.flow-meta{grid-template-columns:1fr 1fr}.flow-event{grid-template-columns:75px 90px 1fr}.flow-event .corr,.flow-event .app{display:none}}
+
 </style>
 </head>
 <body>
@@ -233,6 +263,28 @@ small{color:#9fb7c8}
 <p><a href="/">← Operations</a></p>
 <h1>Application Registration</h1>
 <p>Install → Request → Pending → Approve → Claim → Registered. Pending applications have zero trust.</p>
+<section class="panel">
+<h2>Live Registration Flow</h2>
+<p class="muted">Real lifecycle telemetry from Configuration. The light moves as the selected registration advances; amber means slow, red means stalled or failed.</p>
+<div id="journeys" class="journey-list"></div>
+<div class="flow-shell">
+  <div class="flow-track">
+    <div class="flow-rail"></div>
+    <div id="flowLight" class="flow-light healthy" style="left:0%"></div>
+    <div class="flow-nodes">
+      <div class="flow-node" data-stage="Request"><i></i><b>Request</b><small>zero trust</small></div>
+      <div class="flow-node" data-stage="Approval"><i></i><b>Approval</b><small>human gate</small></div>
+      <div class="flow-node" data-stage="Claim"><i></i><b>Claim</b><small>one time</small></div>
+      <div class="flow-node" data-stage="Authenticate"><i></i><b>Authenticate</b><small>durable ID</small></div>
+      <div class="flow-node" data-stage="Publish"><i></i><b>Publish</b><small>contract</small></div>
+      <div class="flow-node" data-stage="Running"><i></i><b>Running</b><small>healthy</small></div>
+    </div>
+  </div>
+  <div id="flowMeta" class="flow-meta"></div>
+</div>
+<h3>Recent Flow Events</h3>
+<div id="flowEvents" class="event-strip"></div>
+</section>
 <section class="panel"><div id="reconciliation" class="empty">Checking reconciliation…</div></section>
 <section class="panel">
 <table>
@@ -242,6 +294,56 @@ small{color:#9fb7c8}
 </section>
 <script>
 const e=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+let flowSnapshot={journeys:[],events:[]};
+let selectedRegistrationId=null;
+const stageOrder=['Request','Approval','Claim','Authenticate','Publish','Running'];
+function stageIndex(stage){
+ if(stage==='Recovery Approval'||stage==='Rejected')return 1;
+ if(stage==='Recovery Claim')return 2;
+ if(stage==='Identity Conflict')return 3;
+ if(stage==='Revoked')return 5;
+ const i=stageOrder.indexOf(stage);
+ return i<0?0:i;
+}
+function fmtAge(seconds){
+ const s=Number(seconds||0); if(s<60)return s+'s';
+ if(s<3600)return Math.floor(s/60)+'m '+(s%60)+'s';
+ return Math.floor(s/3600)+'h '+Math.floor((s%3600)/60)+'m';
+}
+function selectJourney(id){selectedRegistrationId=id;renderFlow()}
+function renderFlow(){
+ const js=flowSnapshot.journeys||[];
+ if(!selectedRegistrationId||!js.some(x=>x.registrationId===selectedRegistrationId))
+   selectedRegistrationId=js.length?js[0].registrationId:null;
+ journeys.innerHTML=js.length?js.map(x=>'<button class="journey-chip '+e(String(x.health||'').toLowerCase())+(x.registrationId===selectedRegistrationId?' selected':'')+'" onclick="selectJourney(\''+e(x.registrationId)+'\')">'+e(x.applicationId)+' · '+e(x.instanceId)+' · '+e(x.health)+'</button>').join(''):'<span class="empty">No active registration journeys.</span>';
+ const x=js.find(y=>y.registrationId===selectedRegistrationId);
+ if(!x){flowMeta.innerHTML='<div><small>STATE</small><b>No active journey</b></div>';flowLight.style.left='0%';return}
+ const idx=stageIndex(x.currentStage);
+ const pct=(idx/(stageOrder.length-1))*100;
+ flowLight.style.left=pct+'%';
+ flowLight.className='flow-light '+String(x.health||'Healthy').toLowerCase();
+ document.querySelectorAll('.flow-node').forEach((n,i)=>{n.classList.toggle('active',i===idx);n.classList.toggle('done',i<idx)});
+ flowMeta.innerHTML=
+  '<div><small>APPLICATION</small><b>'+e(x.applicationId)+'</b></div>'+
+  '<div><small>STATE / STAGE</small><b>'+e(x.state)+' / '+e(x.currentStage)+'</b></div>'+
+  '<div><small>HEALTH</small><b class="health '+e(String(x.health).toLowerCase())+'">'+e(x.health)+'</b></div>'+
+  '<div><small>STAGE AGE</small><b>'+e(fmtAge(x.stageAgeSeconds))+'</b></div>'+
+  '<div><small>CORRELATION</small><b class="mono">'+e(x.correlationId||'—')+'</b></div>';
+ const ev=(flowSnapshot.events||[]).filter(v=>!selectedRegistrationId||v.registrationId===selectedRegistrationId).slice(0,30);
+ flowEvents.innerHTML=ev.length?ev.map(v=>'<div class="flow-event"><span>'+e(new Date(v.atUtc).toLocaleTimeString())+'</span><b>'+e(v.stage)+'</b><span class="outcome-'+e(String(v.outcome).toLowerCase())+'">'+e(v.outcome)+'</span><span class="app">'+e(v.action)+(v.reason?' · '+e(v.reason):'')+'</span><code class="corr">'+e(v.correlationId||'—')+'</code></div>').join(''):'<div class="empty">No flow events for this journey.</div>';
+}
+async function loadFlow(){
+ try{
+  const r=await fetch('/api/lifecycle-registrations/flow',{cache:'no-store'});
+  if(!r.ok)throw new Error('HTTP '+r.status);
+  flowSnapshot=await r.json();
+  renderFlow();
+ }catch(err){
+  flowMeta.innerHTML='<div><small>FLOW TELEMETRY</small><b class="health failed">Unavailable</b></div>';
+  flowEvents.innerHTML='<div class="empty">'+e(err.message)+'</div>';
+ }
+}
+
 
 async function load(){
  const rr=await fetch('/api/lifecycle-registrations/reconciliation');
@@ -326,7 +428,9 @@ async function purge(id){
 }
 
 load();
+loadFlow();
 setInterval(load,10000);
+setInterval(loadFlow,3000);
 </script>
 </main>
 </body>
