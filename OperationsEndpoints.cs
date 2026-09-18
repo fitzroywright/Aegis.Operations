@@ -131,16 +131,30 @@ internal static class OperationsEndpoints
             });
         });
 
-        app.MapGet("/api/summary", async (IHttpClientFactory factory, CancellationToken ct) =>
+        app.MapGet("/api/summary", async (
+            HttpContext context,
+            SuiteSecurity suiteSecurity,
+            IHttpClientFactory factory,
+            CancellationToken ct) =>
         {
             HttpClient client = factory.CreateClient("ops");
+            LifecycleSummaryProbe lifecycle =
+                await ProbeLifecycleSummaryAsync(
+                    context,
+                    suiteSecurity,
+                    client,
+                    configurationUrl,
+                    ct);
+
             return Results.Ok(new
             {
                 site,
                 environment,
                 configuration = await ProbeAsync(client, configurationUrl, ct),
                 diagnostics = await ProbeAsync(client, diagnosticsUrl, ct),
-                registeredApplications = await registrationStore.CountRegisteredAsync(ct),
+                registeredApplications = lifecycle.Registered,
+                registration = lifecycle,
+                controlPlaneRegistrations = await registrationStore.CountRegisteredAsync(ct),
                 checkedAt = DateTimeOffset.UtcNow
             });
         });
@@ -430,6 +444,77 @@ internal static class OperationsEndpoints
 
     private static string Actor(HttpContext context) =>
         context.User?.Identity?.Name ?? "unknown";
+
+    private static async Task<LifecycleSummaryProbe> ProbeLifecycleSummaryAsync(
+        HttpContext context,
+        SuiteSecurity suiteSecurity,
+        HttpClient client,
+        string configurationUrl,
+        CancellationToken ct)
+    {
+        if (!context.Items.TryGetValue("SuiteIdentity", out object? value) ||
+            value is not SuiteIdentity identity)
+        {
+            return LifecycleSummaryProbe.Unavailable("No authenticated Operations identity.");
+        }
+
+        try
+        {
+            using var request = new HttpRequestMessage(
+                HttpMethod.Get,
+                configurationUrl.TrimEnd('/') + "/api/registration/summary");
+            request.Headers.TryAddWithoutValidation(
+                "X-Aegis-Suite-Handoff",
+                suiteSecurity.CreateHandoff(identity, "Aegis.Configuration"));
+
+            using HttpResponseMessage response = await client.SendAsync(request, ct);
+            if (!response.IsSuccessStatusCode)
+                return LifecycleSummaryProbe.Unavailable(
+                    $"Configuration registration summary returned HTTP {(int)response.StatusCode}.");
+
+            using JsonDocument document =
+                JsonDocument.Parse(await response.Content.ReadAsStringAsync(ct));
+            JsonElement root = document.RootElement;
+
+            static int Int(JsonElement root, string name) =>
+                root.TryGetProperty(name, out JsonElement value) &&
+                value.TryGetInt32(out int number)
+                    ? number
+                    : 0;
+
+            return new LifecycleSummaryProbe(
+                true,
+                Int(root, "total"),
+                Int(root, "pending"),
+                Int(root, "registered"),
+                Int(root, "recoveryPending"),
+                Int(root, "conflicts"),
+                Int(root, "revoked"),
+                Int(root, "rejected"),
+                Int(root, "attention"),
+                null);
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException)
+        {
+            return LifecycleSummaryProbe.Unavailable(ex.Message);
+        }
+    }
+
+    private sealed record LifecycleSummaryProbe(
+        bool Available,
+        int Total,
+        int Pending,
+        int Registered,
+        int RecoveryPending,
+        int Conflicts,
+        int Revoked,
+        int Rejected,
+        int Attention,
+        string? Error)
+    {
+        public static LifecycleSummaryProbe Unavailable(string error) =>
+            new(false, 0, 0, 0, 0, 0, 0, 0, 0, error);
+    }
 
     private static async Task<object> ProbeAsync(HttpClient client, string url, CancellationToken ct)
     {
