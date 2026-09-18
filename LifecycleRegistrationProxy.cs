@@ -21,6 +21,23 @@ internal static class LifecycleRegistrationProxy
                 ct);
         });
 
+        app.MapGet("/api/lifecycle-registrations/reconciliation", async (
+            HttpContext context,
+            SuiteSecurity suiteSecurity,
+            IHttpClientFactory factory,
+            CancellationToken ct) =>
+        {
+            if (!Has(context, "Configuration.Manage")) return Results.Forbid();
+            return await ForwardAsync(
+                context,
+                suiteSecurity,
+                factory,
+                configurationUrl + "/api/registration/reconciliation",
+                HttpMethod.Get,
+                null,
+                ct);
+        });
+
         app.MapPost("/api/lifecycle-registrations/{registrationId}/approve", async (
             HttpContext context,
             string registrationId,
@@ -194,6 +211,7 @@ small{color:#9fb7c8}
 <p><a href="/">← Operations</a></p>
 <h1>Application Registration</h1>
 <p>Install → Request → Pending → Approve → Claim → Registered. Pending applications have zero trust.</p>
+<section class="panel"><div id="reconciliation" class="empty">Checking reconciliation…</div></section>
 <section class="panel">
 <table>
 <thead><tr><th>Application</th><th>Instance</th><th>Installation</th><th>State</th><th>Updated</th><th>Actions</th></tr></thead>
@@ -204,6 +222,14 @@ small{color:#9fb7c8}
 const e=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
 async function load(){
+ const rr=await fetch('/api/lifecycle-registrations/reconciliation');
+ if(rr.ok){
+   const s=await rr.json();
+   const issues=Array.isArray(s.issues)?s.issues:[];
+   reconciliation.innerHTML=s.healthy
+     ? '<b>Reconciliation: Healthy</b> · '+e(s.registrationCount)+' registration(s) checked'
+     : '<b>Reconciliation: Attention required</b> · '+e(issues.length)+' issue(s)<br><small>'+issues.map(i=>e(i.code)+': '+e(i.applicationId)+'/'+e(i.instanceId)).join(' · ')+'</small>';
+ }
  const r=await fetch('/api/lifecycle-registrations');
  if(!r.ok){rows.innerHTML='<tr><td colspan="6">Unable to load registrations.</td></tr>';return}
  const d=await r.json();
