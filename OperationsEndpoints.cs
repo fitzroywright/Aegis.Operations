@@ -451,6 +451,7 @@ table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:9px;bord
 <section class="panel">
 <h2>Registrations</h2>
 <p class="muted">Revoke or invalidate an active registration before purging it. Purge permanently removes the registration record.</p>
+<button onclick="reconcile()">Reconcile Configuration</button>
 <div id="message"></div>
 <table><thead><tr><th>Application</th><th>Instance</th><th>State</th><th>Created</th><th>Actions</th></tr></thead><tbody id="rows"></tbody></table>
 </section>
@@ -478,6 +479,16 @@ async function action(id,kind,label){
    return;
  }
  notice('Registration '+label.toLowerCase()+'d successfully.',true);
+ await load();
+}
+async function reconcile(){
+ const r=await fetch('/api/registration/reconcile',{method:'POST'});
+ if(!r.ok){
+   let d={}; try{d=await r.json()}catch{}
+   notice(d.detail||d.error||'Configuration reconciliation failed.');
+   return;
+ }
+ notice('Configuration contracts reconciled with registered applications.',true);
  await load();
 }
 async function purge(id){
