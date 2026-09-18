@@ -203,7 +203,7 @@ button.warn{background:#9a6a14}
 .identityconflict,.revoked,.rejected{background:#7d2f2f}
 small{color:#9fb7c8}
 .empty{padding:20px;color:#9fb7c8}
-.mono{font-family:Consolas,monospace;font-size:12px;word-break:break-all}
+.mono{font-family:Consolas,monospace;font-size:12px;word-break:break-all}.audit{padding:7px 0;border-top:1px solid #29475b}.audit:first-of-type{border-top:0}details{margin:4px 0}summary{cursor:pointer;color:#8fd0ff}pre{white-space:pre-wrap;max-width:360px}
 </style>
 </head>
 <body>
@@ -214,7 +214,7 @@ small{color:#9fb7c8}
 <section class="panel"><div id="reconciliation" class="empty">Checking reconciliation…</div></section>
 <section class="panel">
 <table>
-<thead><tr><th>Application</th><th>Instance</th><th>Installation</th><th>State</th><th>Updated</th><th>Actions</th></tr></thead>
+<thead><tr><th>Application</th><th>Instance</th><th>Installation</th><th>State</th><th>Updated</th><th>Audit / Request</th><th>Actions</th></tr></thead>
 <tbody id="rows"></tbody>
 </table>
 </section>
@@ -231,7 +231,7 @@ async function load(){
      : '<b>Reconciliation: Attention required</b> · '+e(issues.length)+' issue(s)<br><small>'+issues.map(i=>e(i.code)+': '+e(i.applicationId)+'/'+e(i.instanceId)).join(' · ')+'</small>';
  }
  const r=await fetch('/api/lifecycle-registrations');
- if(!r.ok){rows.innerHTML='<tr><td colspan="6">Unable to load registrations.</td></tr>';return}
+ if(!r.ok){rows.innerHTML='<tr><td colspan="7">Unable to load registrations.</td></tr>';return}
  const d=await r.json();
  rows.innerHTML=d.length?d.map(x=>{
    const actionable=x.state==='Pending'||x.state==='RecoveryPending';
@@ -258,7 +258,19 @@ async function load(){
      '<td><span class="badge '+e(x.state.toLowerCase())+'">'+e(x.state)+'</span></td>'+
      '<td>'+e(x.updatedAtUtc)+'</td>'+
      '<td>'+(actions||'—')+'</td></tr>';
- }).join(''):'<tr><td colspan="6" class="empty">No lifecycle registrations.</td></tr>';
+   const audit=Array.isArray(x.audit)?x.audit:[];
+   const history=audit.length
+     ? '<details><summary>'+e(audit.length)+' event(s)</summary>'+audit.slice().reverse().map(a=>'<div class="audit"><b>'+e(a.action)+'</b> · '+e(a.atUtc)+'<br><small>Actor: '+e(a.actor)+' · IP: '+e(a.sourceIp||'—')+' · '+e(a.previousState||'—')+' → '+e(a.resultingState||'—')+(a.reason?'<br>Reason: '+e(a.reason):'')+(a.correlationId?'<br>Correlation: <span class="mono">'+e(a.correlationId)+'</span>':'')+'</small></div>').join('')+'</details>'
+     : '—';
+   const metadata=x.metadata?'<details><summary>Request metadata</summary><pre class="mono">'+e(JSON.stringify(x.metadata,null,2))+'</pre></details>':'';
+   return '<tr><td><b>'+e(x.applicationId)+'</b><br><small>'+e(x.registrationId)+'</small></td>'+
+     '<td>'+e(x.instanceId)+'</td>'+
+     '<td class="mono">'+e(x.installationId)+'</td>'+
+     '<td><span class="badge '+e(x.state.toLowerCase())+'">'+e(x.state)+'</span></td>'+
+     '<td>'+e(x.updatedAtUtc)+'</td>'+
+     '<td>'+history+metadata+'</td>'+
+     '<td>'+(actions||'—')+'</td></tr>';
+ }).join(''):'<tr><td colspan="7" class="empty">No lifecycle registrations.</td></tr>';
 }
 
 async function decide(id,action){
