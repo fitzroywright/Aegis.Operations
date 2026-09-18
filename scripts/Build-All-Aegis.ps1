@@ -145,7 +145,7 @@ try {
 
     foreach ($project in $projects) {
         $testEnvironment = $null
-        if ($project.RequiresCommonMessagingPostgres) {
+        if ($project.ContainsKey("RequiresCommonMessagingPostgres") -and [bool]$project["RequiresCommonMessagingPostgres"]) {
             if ([string]::IsNullOrWhiteSpace($CommonMessagingPostgres)) {
                 throw "Common.Messaging PostgreSQL integration tests require a connection string. Supply -CommonMessagingPostgres or set COMMON_MESSAGING_POSTGRES before running this script."
             }
