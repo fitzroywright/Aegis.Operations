@@ -163,6 +163,7 @@ internal static class OperationsEndpoints
                 pin = record.Pin,
                 state = record.State.ToString(),
                 environmentVariable = RegistrationEnvironmentVariable,
+                keyRetrievalUrl = retrieveUrl,
                 curlCommand = curl,
                 createdAtUtc = record.CreatedAtUtc
             });
@@ -464,7 +465,7 @@ async function createRegistration(){
  if(!r.ok){created.innerHTML='<p>'+e(d.error||'Registration could not be created.')+'</p>';return}
  created.innerHTML='<h3>Pending Registration Created</h3>'+
  '<p><b>PIN:</b> <code>'+e(d.pin)+'</code></p>'+
- '<p><b>Retrieve registration key:</b></p><pre>'+e(d.curlCommand)+'</pre>'+
+ '<p><b>Retrieve registration key:</b></p><pre><a href="'+e(d.keyRetrievalUrl)+'" target="_blank" rel="noopener noreferrer" title="Open key retrieval in a new window">'+e(d.curlCommand)+'</a></pre>'+
  '<p><b>Designated environment variable:</b> <code>'+e(d.environmentVariable)+'</code></p>'+
  '<p class="muted">Run the curl command on the target machine, save the returned key in the environment variable, then install/start the application. The key is returned only once.</p>';
  load();
@@ -472,14 +473,17 @@ async function createRegistration(){
 function notice(text,ok=false){message.innerHTML='<p class="'+(ok?'success':'error')+'">'+e(text)+'</p>'}
 async function action(id,kind,label){
  if(!confirm(label+' this registration?')) return;
- const r=await fetch('/api/registration/'+encodeURIComponent(id)+'/'+kind,{method:'POST'});
- if(!r.ok){
-   let d={}; try{d=await r.json()}catch{}
-   notice(d.error||label+' failed.');
-   return;
+ try{
+   const r=await fetch('/api/registration/'+encodeURIComponent(id)+'/'+kind,{method:'POST'});
+   if(!r.ok){
+     let d={}; try{d=await r.json()}catch{}
+     notice(d.detail||d.error||label+' failed.');
+     return;
+   }
+   notice('Registration '+label.toLowerCase()+'d successfully.',true);
+ } finally {
+   await load();
  }
- notice('Registration '+label.toLowerCase()+'d successfully.',true);
- await load();
 }
 async function reconcile(){
  const r=await fetch('/api/registration/reconcile',{method:'POST'});
@@ -493,14 +497,17 @@ async function reconcile(){
 }
 async function purge(id){
  if(!confirm('Permanently purge this revoked registration? This cannot be undone.')) return;
- const r=await fetch('/api/registration/'+encodeURIComponent(id),{method:'DELETE'});
- if(!r.ok){
-   let d={}; try{d=await r.json()}catch{}
-   notice(d.error||'Purge failed.');
-   return;
+ try{
+   const r=await fetch('/api/registration/'+encodeURIComponent(id),{method:'DELETE'});
+   if(!r.ok){
+     let d={}; try{d=await r.json()}catch{}
+     notice(d.detail||d.error||'Purge failed.');
+     return;
+   }
+   notice('Registration purged permanently.',true);
+ } finally {
+   await load();
  }
- notice('Registration purged permanently.',true);
- await load();
 }
 function actionsFor(x){
  const id=e(x.registrationId);
