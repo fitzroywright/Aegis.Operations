@@ -116,57 +116,6 @@ internal static class LifecycleRegistrationProxy
                 ct);
         });
 
-        app.MapPost("/api/lifecycle-registrations/{registrationId}/revoke", async (
-            HttpContext context,
-            string registrationId,
-            LifecycleDecision request,
-            IHttpClientFactory factory,
-            CancellationToken ct) =>
-        {
-            if (!Has(context, "Configuration.Manage")) return Results.Forbid();
-            return await ForwardAsync(context, factory,
-                configurationUrl + "/api/registration/" + Uri.EscapeDataString(registrationId) + "/revoke",
-                HttpMethod.Post, request, ct);
-        });
-
-        app.MapDelete("/api/lifecycle-registrations/{registrationId}", async (
-            HttpContext context,
-            string registrationId,
-            IHttpClientFactory factory,
-            CancellationToken ct) =>
-        {
-            if (!Has(context, "Configuration.Manage")) return Results.Forbid();
-            return await ForwardAsync(context, factory,
-                configurationUrl + "/api/registration/" + Uri.EscapeDataString(registrationId),
-                HttpMethod.Delete, null, ct);
-        });
-
-        app.MapPost("/api/lifecycle-registrations/{registrationId}/conflict/retire-existing", async (
-            HttpContext context,
-            string registrationId,
-            LifecycleDecision request,
-            IHttpClientFactory factory,
-            CancellationToken ct) =>
-        {
-            if (!Has(context, "Configuration.Manage")) return Results.Forbid();
-            return await ForwardAsync(context, factory,
-                configurationUrl + "/api/registration/" + Uri.EscapeDataString(registrationId) + "/conflict/retire-existing",
-                HttpMethod.Post, request, ct);
-        });
-
-        app.MapPost("/api/lifecycle-registrations/{registrationId}/conflict/reject", async (
-            HttpContext context,
-            string registrationId,
-            LifecycleDecision request,
-            IHttpClientFactory factory,
-            CancellationToken ct) =>
-        {
-            if (!Has(context, "Configuration.Manage")) return Results.Forbid();
-            return await ForwardAsync(context, factory,
-                configurationUrl + "/api/registration/" + Uri.EscapeDataString(registrationId) + "/conflict/reject",
-                HttpMethod.Post, request, ct);
-        });
-
         app.MapGet("/registration-lifecycle", (HttpContext context) =>
         {
             if (!Has(context, "Configuration.Manage")) return Results.Forbid();
