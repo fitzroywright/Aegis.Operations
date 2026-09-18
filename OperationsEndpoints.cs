@@ -52,6 +52,7 @@ internal static class OperationsEndpoints
                 environment,
                 configuration = await ProbeAsync(client, configurationUrl, ct),
                 diagnostics = await ProbeAsync(client, diagnosticsUrl, ct),
+                registeredApplications = await registrationStore.CountRegisteredAsync(ct),
                 checkedAt = DateTimeOffset.UtcNow
             });
         });
@@ -563,6 +564,20 @@ load();
 
                 await SaveUnsafeAsync(record, ct);
                 return new(record, false, null);
+            }
+            finally
+            {
+                _gate.Release();
+            }
+        }
+
+        public async Task<int> CountRegisteredAsync(CancellationToken ct)
+        {
+            await _gate.WaitAsync(ct);
+            try
+            {
+                return (await LoadAllUnsafeAsync(ct))
+                    .Count(x => x.State == RegistrationRecordState.Registered);
             }
             finally
             {
