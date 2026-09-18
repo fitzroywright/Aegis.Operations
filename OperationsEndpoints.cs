@@ -215,7 +215,7 @@ internal static class OperationsEndpoints
 
     private static string Actor(HttpContext context) =>
         context.Items.TryGetValue("SuiteIdentity", out object? value) && value is SuiteIdentity identity
-            ? identity.Name ?? "unknown"
+            ? context.User?.Identity?.Name ?? "unknown"
             : "unknown";
 
     private static async Task<object> ProbeAsync(HttpClient client, string url, CancellationToken ct)
