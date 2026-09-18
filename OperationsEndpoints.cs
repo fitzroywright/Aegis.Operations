@@ -38,21 +38,8 @@ internal static class OperationsEndpoints
                 registrationDirectory);
         }
 
-        int pendingLifetimeMinutes = app.Configuration.GetValue<int?>("Operations:RegistrationPendingLifetimeMinutes") ?? 30;
-        int retrievedLifetimeMinutes = app.Configuration.GetValue<int?>("Operations:RegistrationRetrievedLifetimeMinutes") ?? 60;
-        if (pendingLifetimeMinutes <= 0) pendingLifetimeMinutes = 30;
-        if (retrievedLifetimeMinutes <= 0) retrievedLifetimeMinutes = 60;
-
-        app.Logger.LogInformation(
-            "Registration key lifetimes: pending={PendingLifetimeMinutes} minutes, retrieved-unused={RetrievedLifetimeMinutes} minutes.",
-            pendingLifetimeMinutes,
-            retrievedLifetimeMinutes);
-
         Directory.CreateDirectory(registrationDirectory);
-        var registrationStore = new RegistrationStore(
-            registrationDirectory,
-            TimeSpan.FromMinutes(pendingLifetimeMinutes),
-            TimeSpan.FromMinutes(retrievedLifetimeMinutes));
+        var registrationStore = new ControlPlaneRegistrationStore(registrationDirectory);
         ILogger registrationLogger = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("Aegis.Operations.Registration");
         string operationsInstanceId = app.Configuration["Operations:InstanceId"]?.Trim() ?? Environment.MachineName;
         string operationsLocalUrl = (app.Configuration["Operations:LocalUrl"] ?? "http://127.0.0.1:5100").TrimEnd('/');
@@ -160,7 +147,7 @@ internal static class OperationsEndpoints
 
         app.MapPost("/api/registration/control-plane/auto", async (
             HttpContext context,
-            PendingRegistrationRequest request,
+            ControlPlaneBootstrapRequest request,
             CancellationToken ct) =>
         {
             if (context.Connection.RemoteIpAddress is null || !IPAddress.IsLoopback(context.Connection.RemoteIpAddress))
