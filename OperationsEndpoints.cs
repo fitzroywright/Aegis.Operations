@@ -39,8 +39,21 @@ internal static class OperationsEndpoints
                 registrationDirectory);
         }
 
+        int pendingLifetimeMinutes = app.Configuration.GetValue<int?>("Operations:RegistrationPendingLifetimeMinutes") ?? 30;
+        int retrievedLifetimeMinutes = app.Configuration.GetValue<int?>("Operations:RegistrationRetrievedLifetimeMinutes") ?? 60;
+        if (pendingLifetimeMinutes <= 0) pendingLifetimeMinutes = 30;
+        if (retrievedLifetimeMinutes <= 0) retrievedLifetimeMinutes = 60;
+
+        app.Logger.LogInformation(
+            "Registration key lifetimes: pending={PendingLifetimeMinutes} minutes, retrieved-unused={RetrievedLifetimeMinutes} minutes.",
+            pendingLifetimeMinutes,
+            retrievedLifetimeMinutes);
+
         Directory.CreateDirectory(registrationDirectory);
-        var registrationStore = new RegistrationStore(registrationDirectory);
+        var registrationStore = new RegistrationStore(
+            registrationDirectory,
+            TimeSpan.FromMinutes(pendingLifetimeMinutes),
+            TimeSpan.FromMinutes(retrievedLifetimeMinutes));
         ILogger registrationLogger = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("Aegis.Operations.Registration");
 
         app.Lifetime.ApplicationStarted.Register(() =>
@@ -165,7 +178,8 @@ internal static class OperationsEndpoints
                 environmentVariable = RegistrationEnvironmentVariable,
                 keyRetrievalUrl = retrieveUrl,
                 curlCommand = curl,
-                createdAtUtc = record.CreatedAtUtc
+                createdAtUtc = record.CreatedAtUtc,
+                expiresAtUtc = record.CreatedAtUtc.AddMinutes(pendingLifetimeMinutes)
             });
         });
 
@@ -191,7 +205,7 @@ internal static class OperationsEndpoints
                     Results.Text(result.Credential, "text/plain; charset=utf-8"),
                 RegistrationRecordState.KeyRetrieved or RegistrationRecordState.Registered =>
                     Results.Conflict(new { error = "Registration key has already been retrieved. It is not displayed again." }),
-                RegistrationRecordState.Revoked =>
+                RegistrationRecordState.Revoked or RegistrationRecordState.Expired =>
                     Results.StatusCode(StatusCodes.Status410Gone),
                 _ => Results.Unauthorized()
             };
@@ -291,8 +305,8 @@ internal static class OperationsEndpoints
 
             PendingRegistration? record = await registrationStore.GetAsync(registrationId, ct);
             if (record is null) return Results.NotFound();
-            if (record.State != RegistrationRecordState.Revoked)
-                return Results.Conflict(new { error = "Registration must be revoked or invalidated before purge." });
+            if (record.State is not (RegistrationRecordState.Revoked or RegistrationRecordState.Expired))
+                return Results.Conflict(new { error = "Registration must be revoked, invalidated, or expired before purge." });
 
             bool hasOtherRegisteredInstance = await registrationStore.HasRegisteredApplicationAsync(record.ApplicationId, ct);
 
@@ -450,7 +464,7 @@ pre{white-space:pre-wrap;word-break:break-all;background:#06111b;padding:12px;bo
 table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:9px;border-bottom:1px solid #29475b}.muted{color:#a9c0d1}
 .actions{display:flex;gap:6px;flex-wrap:wrap}.danger{background:#a63d3d}.warn{background:#9a6a14}.purge{background:#6f2c2c}.ok{background:#1b7a50}
 .badge{display:inline-block;padding:4px 8px;border-radius:999px;font-size:12px;font-weight:700;background:#24394a}
-.badge.registered{background:#145b40}.badge.pending{background:#4b5563}.badge.keyretrieved{background:#4b3f72}.badge.revoked{background:#7d2f2f}
+.badge.registered{background:#145b40}.badge.pending{background:#4b5563}.badge.keyretrieved{background:#4b3f72}.badge.revoked{background:#7d2f2f}.badge.expired{background:#6b4b17}
 #message{margin-top:10px}.error{color:#ffb4b4}.success{color:#9be7bd}
 </style>
 </head>
@@ -471,7 +485,7 @@ table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:9px;bord
 <p class="muted">Revoke or invalidate an active registration before purging it. Purge permanently removes the registration record.</p>
 <button onclick="reconcile()">Reconcile Configuration</button>
 <div id="message"></div>
-<table><thead><tr><th>Application</th><th>Instance</th><th>State</th><th>Created</th><th>Actions</th></tr></thead><tbody id="rows"></tbody></table>
+<table><thead><tr><th>Application</th><th>Instance</th><th>State</th><th>Created</th><th>Expires</th><th>Actions</th></tr></thead><tbody id="rows"></tbody></table>
 </section>
 <script>
 const e=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -529,7 +543,7 @@ async function purge(id){
 function actionsFor(x){
  const id=e(x.registrationId);
  const state=String(x.state||'').toLowerCase();
- if(state==='revoked'){
+ if(state==='revoked'||state==='expired'){
    return '<button class="purge" onclick="purge(\''+id+'\')">Purge</button>';
  }
  return '<button class="danger" onclick="action(\''+id+'\',\'revoke\',\'Revoke\')">Revoke</button>'+
@@ -545,6 +559,7 @@ async function load(){
    const css=state.toLowerCase();
    return '<tr><td><b>'+e(x.displayName)+'</b><br><span class="muted">'+e(x.applicationId)+'</span></td>'+
    '<td>'+e(x.instanceId)+'</td><td><span class="badge '+e(css)+'">'+e(state)+'</span></td><td>'+e(new Date(x.createdAtUtc).toLocaleString())+'</td>'+
+   '<td>'+(x.expiresAtUtc?e(new Date(x.expiresAtUtc).toLocaleString()):'—')+'</td>'+
    '<td class="actions">'+actionsFor(x)+'</td></tr>';
  }).join('');
 }
@@ -704,7 +719,8 @@ load();
         Pending,
         KeyRetrieved,
         Registered,
-        Revoked
+        Revoked,
+        Expired
     }
 
     private enum RegistrationValidation
@@ -738,6 +754,7 @@ load();
         DateTimeOffset? KeyRetrievedAtUtc,
         DateTimeOffset? RegisteredAtUtc,
         DateTimeOffset? RevokedAtUtc,
+        DateTimeOffset? ExpiredAtUtc,
         List<RegistrationAudit> Audit);
 
     private sealed record CreatePendingResult(
@@ -748,6 +765,8 @@ load();
     private sealed class RegistrationStore
     {
         private readonly string _directory;
+        private readonly TimeSpan _pendingLifetime;
+        private readonly TimeSpan _retrievedLifetime;
         private readonly SemaphoreSlim _gate = new(1, 1);
         private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
         {
@@ -755,7 +774,12 @@ load();
             Converters = { new System.Text.Json.Serialization.JsonStringEnumConverter() }
         };
 
-        public RegistrationStore(string directory) => _directory = directory;
+        public RegistrationStore(string directory, TimeSpan pendingLifetime, TimeSpan retrievedLifetime)
+        {
+            _directory = directory;
+            _pendingLifetime = pendingLifetime;
+            _retrievedLifetime = retrievedLifetime;
+        }
 
         public async Task<CreatePendingResult> CreatePendingAsync(
             string applicationId,
@@ -773,7 +797,7 @@ load();
                     .FirstOrDefault(x =>
                         string.Equals(x.ApplicationId, applicationId, StringComparison.OrdinalIgnoreCase) &&
                         string.Equals(x.InstanceId, instanceId, StringComparison.OrdinalIgnoreCase) &&
-                        x.State != RegistrationRecordState.Revoked);
+                        x.State is not (RegistrationRecordState.Revoked or RegistrationRecordState.Expired));
 
                 if (existing is not null)
                 {
@@ -793,6 +817,7 @@ load();
                     Hash(credential),
                     credential,
                     DateTimeOffset.UtcNow,
+                    null,
                     null,
                     null,
                     null,
@@ -885,6 +910,13 @@ load();
                         x.KeyRetrievedAtUtc,
                         x.RegisteredAtUtc,
                         x.RevokedAtUtc,
+                        x.ExpiredAtUtc,
+                        expiresAtUtc = x.State switch
+                        {
+                            RegistrationRecordState.Pending => x.CreatedAtUtc + _pendingLifetime,
+                            RegistrationRecordState.KeyRetrieved when x.KeyRetrievedAtUtc.HasValue => x.KeyRetrievedAtUtc.Value + _retrievedLifetime,
+                            _ => (DateTimeOffset?)null
+                        },
                         x.Audit
                     })
                     .ToList();
@@ -1015,7 +1047,7 @@ load();
                 PendingRegistration? record = await LoadUnsafeAsync(id, ct);
                 if (record is null)
                     return PurgeResult.NotFound;
-                if (record.State != RegistrationRecordState.Revoked)
+                if (record.State is not (RegistrationRecordState.Revoked or RegistrationRecordState.Expired))
                     return PurgeResult.MustRevokeFirst;
 
                 string auditPath = Path.Combine(_directory, "audit.log");
@@ -1047,8 +1079,11 @@ load();
                 PendingRegistration? item = JsonSerializer.Deserialize<PendingRegistration>(
                     await File.ReadAllTextAsync(file, ct),
                     JsonOptions);
-                if (item is not null)
-                    result.Add(item);
+                if (item is null)
+                    continue;
+
+                item = await ApplyExpirationUnsafeAsync(item, ct);
+                result.Add(item);
             }
             return result;
         }
@@ -1058,9 +1093,41 @@ load();
             string path = PathFor(id);
             if (!File.Exists(path))
                 return null;
-            return JsonSerializer.Deserialize<PendingRegistration>(
+
+            PendingRegistration? record = JsonSerializer.Deserialize<PendingRegistration>(
                 await File.ReadAllTextAsync(path, ct),
                 JsonOptions);
+            return record is null ? null : await ApplyExpirationUnsafeAsync(record, ct);
+        }
+
+        private async Task<PendingRegistration> ApplyExpirationUnsafeAsync(
+            PendingRegistration record,
+            CancellationToken ct)
+        {
+            if (record.State is RegistrationRecordState.Registered or RegistrationRecordState.Revoked or RegistrationRecordState.Expired)
+                return record;
+
+            DateTimeOffset now = DateTimeOffset.UtcNow;
+            DateTimeOffset? expiresAt = record.State switch
+            {
+                RegistrationRecordState.Pending => record.CreatedAtUtc + _pendingLifetime,
+                RegistrationRecordState.KeyRetrieved when record.KeyRetrievedAtUtc.HasValue =>
+                    record.KeyRetrievedAtUtc.Value + _retrievedLifetime,
+                _ => null
+            };
+
+            if (!expiresAt.HasValue || now < expiresAt.Value)
+                return record;
+
+            PendingRegistration expired = record with
+            {
+                State = RegistrationRecordState.Expired,
+                CredentialForRetrieval = null,
+                ExpiredAtUtc = now,
+                Audit = [.. record.Audit, new(now, "Expired", "Aegis.Operations")]
+            };
+            await SaveUnsafeAsync(expired, ct);
+            return expired;
         }
 
         private async Task SaveUnsafeAsync(PendingRegistration record, CancellationToken ct)
