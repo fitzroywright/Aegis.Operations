@@ -54,8 +54,8 @@ internal static class SuiteSecurityExtensions
     public static void UseSuiteSecurity(this WebApplication app)=>app.Use(async(ctx,next)=>{
         bool publicRegistrationEndpoint =
             ctx.Request.Path.Equals("/api/registration/contracts", StringComparison.OrdinalIgnoreCase) ||
-            (ctx.Request.Path.StartsWithSegments("/api/registration/pending") &&
-             ctx.Request.Path.Value?.EndsWith("/key", StringComparison.OrdinalIgnoreCase) == true);
+            ctx.Request.Path.Equals("/api/registration/validate", StringComparison.OrdinalIgnoreCase) ||
+            ctx.Request.Path.Equals("/api/registration/control-plane/auto", StringComparison.OrdinalIgnoreCase);
 
         if(ctx.Request.Path.StartsWithSegments("/health")||
            ctx.Request.Path.StartsWithSegments("/login")||
