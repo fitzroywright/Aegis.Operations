@@ -295,27 +295,44 @@ internal static class OperationsEndpoints
                 return Results.Conflict(new { error = "Registration must be revoked or invalidated before purge." });
 
             bool hasOtherRegisteredInstance = await registrationStore.HasRegisteredApplicationAsync(record.ApplicationId, ct);
-            if (!hasOtherRegisteredInstance)
-            {
-                ConfigurationSyncResult sync = await SyncConfigurationContractAsync(
-                    app, factory, configurationUrl, record.ApplicationId, "purge", null, ct);
-                if (!sync.Success)
-                    return Results.Problem(
-                        $"Configuration contract purge failed; registration was retained so the operation can be retried: {sync.Message}",
-                        statusCode: StatusCodes.Status502BadGateway);
-            }
 
             PurgeResult result = await registrationStore.PurgeAsync(
                 registrationId,
                 Actor(context),
                 ct);
 
-            return result switch
+            if (result == PurgeResult.NotFound)
+                return Results.NotFound();
+            if (result == PurgeResult.MustRevokeFirst)
+                return Results.Conflict(new { error = "Registration must be revoked or invalidated before purge." });
+
+            bool configurationSynchronized = true;
+            string? synchronizationWarning = null;
+            if (!hasOtherRegisteredInstance)
             {
-                PurgeResult.NotFound => Results.NotFound(),
-                PurgeResult.MustRevokeFirst => Results.Conflict(new { error = "Registration must be revoked or invalidated before purge." }),
-                _ => Results.NoContent()
-            };
+                ConfigurationSyncResult sync = await SyncConfigurationContractAsync(
+                    app, factory, configurationUrl, record.ApplicationId, "purge", null, ct);
+                configurationSynchronized = sync.Success;
+                if (!sync.Success)
+                {
+                    synchronizationWarning =
+                        $"Registration was purged, but Configuration cleanup failed and will be retried by reconciliation: {sync.Message}";
+                    registrationLogger.LogWarning(
+                        "Registration {RegistrationId} was purged, but Configuration cleanup failed for {ApplicationId}: {Message}",
+                        record.RegistrationId,
+                        record.ApplicationId,
+                        sync.Message);
+                }
+            }
+
+            return Results.Ok(new
+            {
+                purged = true,
+                record.RegistrationId,
+                record.ApplicationId,
+                configurationSynchronized,
+                warning = synchronizationWarning
+            });
         });
 
         app.MapPost("/api/registration/reconcile", async (
@@ -499,12 +516,12 @@ async function purge(id){
  if(!confirm('Permanently purge this revoked registration? This cannot be undone.')) return;
  try{
    const r=await fetch('/api/registration/'+encodeURIComponent(id),{method:'DELETE'});
+   let d={}; try{d=await r.json()}catch{}
    if(!r.ok){
-     let d={}; try{d=await r.json()}catch{}
      notice(d.detail||d.error||'Purge failed.');
      return;
    }
-   notice('Registration purged permanently.',true);
+   notice(d.warning||'Registration purged permanently.',true);
  } finally {
    await load();
  }
