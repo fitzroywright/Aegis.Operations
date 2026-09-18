@@ -5,6 +5,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Common.Diagnostics;
+using Common.Security;
 
 internal static class OperationsEndpoints
 {
