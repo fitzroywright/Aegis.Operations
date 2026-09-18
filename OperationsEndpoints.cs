@@ -1206,38 +1206,6 @@ load();
             }
         }
 
-        public async Task<string> EnsureControlPlaneCredentialAsync(
-            string applicationId,
-            string displayName,
-            string instanceId,
-            string credentialFile,
-            CancellationToken ct)
-        {
-            if (File.Exists(credentialFile))
-            {
-                string existingCredential = (await File.ReadAllTextAsync(credentialFile, ct)).Trim();
-                if (!string.IsNullOrWhiteSpace(existingCredential))
-                {
-                    RegistrationValidation validation = await ValidateAsync(applicationId, instanceId, existingCredential, ct);
-                    if (validation == RegistrationValidation.Valid)
-                        return existingCredential;
-                }
-            }
-
-            ControlPlaneProvisionResult result = await ProvisionControlPlaneAsync(
-                applicationId,
-                displayName,
-                instanceId,
-                ct);
-            if (!result.Succeeded || string.IsNullOrWhiteSpace(result.Credential))
-                throw new InvalidOperationException(result.Error ?? "Control-plane credential provisioning failed.");
-
-            Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(credentialFile))!);
-            await File.WriteAllTextAsync(credentialFile, result.Credential + Environment.NewLine, ct);
-            SecureFile(credentialFile);
-            return result.Credential;
-        }
-
         public async Task<CredentialRetrieval> RetrieveKeyAsync(
             string id,
             string pin,
