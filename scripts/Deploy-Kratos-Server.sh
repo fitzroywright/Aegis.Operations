@@ -214,6 +214,39 @@ mkdir -p /var/lib/aegis/operations/registration
 mkdir -p /var/lib/aegis/configuration/contracts/retired
 chown -R "$OWNER" /var/lib/aegis/operations /var/lib/aegis/configuration
 
+if is_selected hello; then
+  log "Ensuring Aegis.Hello systemd service"
+  mkdir -p /etc/aegis
+  touch /etc/aegis/hello.env
+  chmod 600 /etc/aegis/hello.env
+  if [[ ! -f /etc/systemd/system/aegis-hello.service ]]; then
+    cat >/etc/systemd/system/aegis-hello.service <<'EOF'
+[Unit]
+Description=Aegis Hello
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=aegis
+Group=aegis
+WorkingDirectory=/opt/aegis/hello
+ExecStart=/usr/bin/dotnet /opt/aegis/hello/Aegis.Hello.dll
+Environment=ASPNETCORE_ENVIRONMENT=Production
+Environment=ASPNETCORE_URLS=http://127.0.0.1:5400
+EnvironmentFile=/etc/aegis/hello.env
+Restart=always
+RestartSec=5
+SyslogIdentifier=aegis-hello
+
+[Install]
+WantedBy=multi-user.target
+EOF
+    systemctl daemon-reload
+    systemctl enable aegis-hello.service
+  fi
+fi
+
 log "Backing up current deployment to $BACKUP_DIR"
 backup_current
 
