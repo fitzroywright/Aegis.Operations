@@ -564,6 +564,15 @@ load();
         {
             HttpClient client = factory.CreateClient("ops");
             using HttpResponseMessage response = await client.SendAsync(request, ct);
+            Uri? finalUri = response.RequestMessage?.RequestUri;
+            bool redirectedToLogin = finalUri is not null &&
+                finalUri.AbsolutePath.StartsWith("/login", StringComparison.OrdinalIgnoreCase);
+            bool htmlResponse = response.Content.Headers.ContentType?.MediaType?.Equals(
+                "text/html",
+                StringComparison.OrdinalIgnoreCase) == true;
+            if (redirectedToLogin || htmlResponse)
+                return new(false, "Configuration redirected the lifecycle API request to interactive login.");
+
             if (response.IsSuccessStatusCode || response.StatusCode == HttpStatusCode.NotFound)
                 return new(true, response.StatusCode == HttpStatusCode.NotFound ? "Contract was already absent." : "Configuration synchronized.");
 
@@ -598,6 +607,15 @@ load();
         {
             HttpClient client = factory.CreateClient("ops");
             using HttpResponseMessage response = await client.SendAsync(request, ct);
+            Uri? finalUri = response.RequestMessage?.RequestUri;
+            bool redirectedToLogin = finalUri is not null &&
+                finalUri.AbsolutePath.StartsWith("/login", StringComparison.OrdinalIgnoreCase);
+            bool htmlResponse = response.Content.Headers.ContentType?.MediaType?.Equals(
+                "text/html",
+                StringComparison.OrdinalIgnoreCase) == true;
+            if (redirectedToLogin || htmlResponse)
+                return new(false, "Configuration redirected the reconciliation API request to interactive login.");
+
             return response.IsSuccessStatusCode
                 ? new(true, "Configuration reconciliation completed.")
                 : new(false, $"Configuration reconciliation returned HTTP {(int)response.StatusCode}.");
