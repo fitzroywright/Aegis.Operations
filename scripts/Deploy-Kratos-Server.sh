@@ -200,6 +200,10 @@ rollback() {
   echo "Rollback attempted. Inspect systemctl/journalctl before retrying." >&2
 }
 
+log "Ensuring persistent Operations registration storage"
+mkdir -p /var/lib/aegis/operations/registration
+chown -R "$OWNER" /var/lib/aegis/operations
+
 log "Backing up current deployment to $BACKUP_DIR"
 backup_current
 
