@@ -160,6 +160,7 @@ internal static class OperationsEndpoints
         app.MapPost("/api/registration/{registrationId}/revoke", async (
             HttpContext context,
             string registrationId,
+            IHttpClientFactory factory,
             CancellationToken ct) =>
         {
             if (!Has(context, "Configuration.Manage"))
@@ -171,21 +172,33 @@ internal static class OperationsEndpoints
                 "Revoked",
                 ct);
 
-            return revoked is null
-                ? Results.NotFound()
-                : Results.Ok(new
-                {
-                    revoked = true,
-                    revoked.RegistrationId,
-                    revoked.ApplicationId,
-                    state = revoked.State.ToString(),
-                    revoked.RevokedAtUtc
-                });
+            if (revoked is null) return Results.NotFound();
+
+            bool hasOtherRegisteredInstance = await registrationStore.HasRegisteredApplicationAsync(revoked.ApplicationId, ct);
+            if (!hasOtherRegisteredInstance)
+            {
+                ConfigurationSyncResult sync = await SyncConfigurationContractAsync(
+                    app, factory, configurationUrl, revoked.ApplicationId, "retire", "revoked", ct);
+                if (!sync.Success)
+                    return Results.Problem(
+                        $"Registration was revoked, but Configuration synchronization failed: {sync.Message}",
+                        statusCode: StatusCodes.Status502BadGateway);
+            }
+
+            return Results.Ok(new
+            {
+                revoked = true,
+                revoked.RegistrationId,
+                revoked.ApplicationId,
+                state = revoked.State.ToString(),
+                revoked.RevokedAtUtc
+            });
         });
 
         app.MapPost("/api/registration/{registrationId}/invalidate", async (
             HttpContext context,
             string registrationId,
+            IHttpClientFactory factory,
             CancellationToken ct) =>
         {
             if (!Has(context, "Configuration.Manage"))
@@ -197,25 +210,53 @@ internal static class OperationsEndpoints
                 "Invalidated",
                 ct);
 
-            return revoked is null
-                ? Results.NotFound()
-                : Results.Ok(new
-                {
-                    invalidated = true,
-                    revoked.RegistrationId,
-                    revoked.ApplicationId,
-                    state = revoked.State.ToString(),
-                    revoked.RevokedAtUtc
-                });
+            if (revoked is null) return Results.NotFound();
+
+            bool hasOtherRegisteredInstance = await registrationStore.HasRegisteredApplicationAsync(revoked.ApplicationId, ct);
+            if (!hasOtherRegisteredInstance)
+            {
+                ConfigurationSyncResult sync = await SyncConfigurationContractAsync(
+                    app, factory, configurationUrl, revoked.ApplicationId, "retire", "invalidated", ct);
+                if (!sync.Success)
+                    return Results.Problem(
+                        $"Registration was invalidated, but Configuration synchronization failed: {sync.Message}",
+                        statusCode: StatusCodes.Status502BadGateway);
+            }
+
+            return Results.Ok(new
+            {
+                invalidated = true,
+                revoked.RegistrationId,
+                revoked.ApplicationId,
+                state = revoked.State.ToString(),
+                revoked.RevokedAtUtc
+            });
         });
 
         app.MapDelete("/api/registration/{registrationId}", async (
             HttpContext context,
             string registrationId,
+            IHttpClientFactory factory,
             CancellationToken ct) =>
         {
             if (!Has(context, "Configuration.Manage"))
                 return Results.Forbid();
+
+            PendingRegistration? record = await registrationStore.GetAsync(registrationId, ct);
+            if (record is null) return Results.NotFound();
+            if (record.State != RegistrationRecordState.Revoked)
+                return Results.Conflict(new { error = "Registration must be revoked or invalidated before purge." });
+
+            bool hasOtherRegisteredInstance = await registrationStore.HasRegisteredApplicationAsync(record.ApplicationId, ct);
+            if (!hasOtherRegisteredInstance)
+            {
+                ConfigurationSyncResult sync = await SyncConfigurationContractAsync(
+                    app, factory, configurationUrl, record.ApplicationId, "purge", null, ct);
+                if (!sync.Success)
+                    return Results.Problem(
+                        $"Configuration contract purge failed; registration was retained so the operation can be retried: {sync.Message}",
+                        statusCode: StatusCodes.Status502BadGateway);
+            }
 
             PurgeResult result = await registrationStore.PurgeAsync(
                 registrationId,
@@ -228,6 +269,23 @@ internal static class OperationsEndpoints
                 PurgeResult.MustRevokeFirst => Results.Conflict(new { error = "Registration must be revoked or invalidated before purge." }),
                 _ => Results.NoContent()
             };
+        });
+
+        app.MapPost("/api/registration/reconcile", async (
+            HttpContext context,
+            IHttpClientFactory factory,
+            CancellationToken ct) =>
+        {
+            if (!Has(context, "Configuration.Manage"))
+                return Results.Forbid();
+
+            IReadOnlyList<string> activeApplicationIds = await registrationStore.RegisteredApplicationIdsAsync(ct);
+            ConfigurationSyncResult sync = await ReconcileConfigurationAsync(
+                app, factory, configurationUrl, activeApplicationIds, ct);
+
+            return sync.Success
+                ? Results.Ok(new { activeApplicationIds, synchronized = true })
+                : Results.Problem(sync.Message, statusCode: StatusCodes.Status502BadGateway);
         });
 
         app.MapPost("/api/registration/contracts", async (
@@ -413,6 +471,85 @@ load();
 </script>
 </main></body></html>
 """;
+
+    private sealed record ConfigurationSyncResult(bool Success, string Message);
+
+    private static async Task<ConfigurationSyncResult> SyncConfigurationContractAsync(
+        WebApplication app,
+        IHttpClientFactory factory,
+        string configurationUrl,
+        string applicationId,
+        string action,
+        string? reason,
+        CancellationToken ct)
+    {
+        string? key = app.Configuration["Operations:ConfigurationRegistrationKey"];
+        if (string.IsNullOrWhiteSpace(key))
+            return new(false, "Operations:ConfigurationRegistrationKey is not configured.");
+
+        string url = configurationUrl.TrimEnd('/') + "/api/contracts/" + Uri.EscapeDataString(applicationId);
+        HttpMethod method;
+        if (action == "retire")
+        {
+            method = HttpMethod.Post;
+            url += "/retire";
+            if (!string.IsNullOrWhiteSpace(reason))
+                url += "?reason=" + Uri.EscapeDataString(reason);
+        }
+        else
+        {
+            method = HttpMethod.Delete;
+        }
+
+        using var request = new HttpRequestMessage(method, url);
+        request.Headers.TryAddWithoutValidation("X-Aegis-Registration-Key", key);
+        try
+        {
+            HttpClient client = factory.CreateClient("ops");
+            using HttpResponseMessage response = await client.SendAsync(request, ct);
+            if (response.IsSuccessStatusCode || response.StatusCode == HttpStatusCode.NotFound)
+                return new(true, response.StatusCode == HttpStatusCode.NotFound ? "Contract was already absent." : "Configuration synchronized.");
+
+            return new(false, $"Configuration returned HTTP {(int)response.StatusCode}.");
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+        {
+            return new(false, ex.Message);
+        }
+    }
+
+    private static async Task<ConfigurationSyncResult> ReconcileConfigurationAsync(
+        WebApplication app,
+        IHttpClientFactory factory,
+        string configurationUrl,
+        IReadOnlyList<string> activeApplicationIds,
+        CancellationToken ct)
+    {
+        string? key = app.Configuration["Operations:ConfigurationRegistrationKey"];
+        if (string.IsNullOrWhiteSpace(key))
+            return new(false, "Operations:ConfigurationRegistrationKey is not configured.");
+
+        using var request = new HttpRequestMessage(
+            HttpMethod.Post,
+            configurationUrl.TrimEnd('/') + "/api/contracts/reconcile")
+        {
+            Content = JsonContent.Create(activeApplicationIds)
+        };
+        request.Headers.TryAddWithoutValidation("X-Aegis-Registration-Key", key);
+
+        try
+        {
+            HttpClient client = factory.CreateClient("ops");
+            using HttpResponseMessage response = await client.SendAsync(request, ct);
+            return response.IsSuccessStatusCode
+                ? new(true, "Configuration reconciliation completed.")
+                : new(false, $"Configuration reconciliation returned HTTP {(int)response.StatusCode}.");
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+        {
+            return new(false, ex.Message);
+        }
+    }
 
     private static string Bearer(string authorization)
     {
