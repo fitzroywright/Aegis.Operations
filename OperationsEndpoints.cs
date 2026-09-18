@@ -4,6 +4,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.Net.Http.Json;
 using Common.Diagnostics;
 using Common.Security;
 
@@ -214,7 +215,7 @@ internal static class OperationsEndpoints
 
     private static string Actor(HttpContext context) =>
         context.Items.TryGetValue("SuiteIdentity", out object? value) && value is SuiteIdentity identity
-            ? identity.UserName ?? "unknown"
+            ? identity.Name ?? "unknown"
             : "unknown";
 
     private static async Task<object> ProbeAsync(HttpClient client, string url, CancellationToken ct)
