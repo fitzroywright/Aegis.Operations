@@ -571,6 +571,52 @@ load();
             }
         }
 
+        public async Task<PendingRegistration?> GetAsync(string id, CancellationToken ct)
+        {
+            await _gate.WaitAsync(ct);
+            try
+            {
+                return await LoadUnsafeAsync(id, ct);
+            }
+            finally
+            {
+                _gate.Release();
+            }
+        }
+
+        public async Task<bool> HasRegisteredApplicationAsync(string applicationId, CancellationToken ct)
+        {
+            await _gate.WaitAsync(ct);
+            try
+            {
+                return (await LoadAllUnsafeAsync(ct)).Any(x =>
+                    x.State == RegistrationRecordState.Registered &&
+                    string.Equals(x.ApplicationId, applicationId, StringComparison.OrdinalIgnoreCase));
+            }
+            finally
+            {
+                _gate.Release();
+            }
+        }
+
+        public async Task<IReadOnlyList<string>> RegisteredApplicationIdsAsync(CancellationToken ct)
+        {
+            await _gate.WaitAsync(ct);
+            try
+            {
+                return (await LoadAllUnsafeAsync(ct))
+                    .Where(x => x.State == RegistrationRecordState.Registered)
+                    .Select(x => x.ApplicationId)
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .OrderBy(x => x, StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+            }
+            finally
+            {
+                _gate.Release();
+            }
+        }
+
         public async Task<int> CountRegisteredAsync(CancellationToken ct)
         {
             await _gate.WaitAsync(ct);
