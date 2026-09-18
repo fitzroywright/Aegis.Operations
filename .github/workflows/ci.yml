@@ -43,7 +43,7 @@ jobs:
         shell: bash
         run: |
           set +e
-          dotnet restore Aegis.Operations.csproj 2>&1 | tee restore.log
+          dotnet restore Aegis.Operations.csproj -p:CommonRoot="${{ github.workspace }}/Common" 2>&1 | tee restore.log
           code=${PIPESTATUS[0]}
           exit "$code"
 
@@ -53,7 +53,7 @@ jobs:
         shell: bash
         run: |
           set +e
-          dotnet build Aegis.Operations.csproj --no-restore --configuration Release 2>&1 | tee build.log
+          dotnet build Aegis.Operations.csproj --no-restore --configuration Release -p:CommonRoot="${{ github.workspace }}/Common" 2>&1 | tee build.log
           code=${PIPESTATUS[0]}
           if [ "$code" -ne 0 ]; then
             grep -m1 -E '(: error |error (CS|MSB|NU)[0-9]+)' build.log | tr '\n' ' ' | cut -c1-130 > first-error.txt || true
