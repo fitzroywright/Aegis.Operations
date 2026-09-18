@@ -211,6 +211,50 @@ internal static class OperationsEndpoints
             };
         }).AllowAnonymous();
 
+        app.MapPost("/api/registration/control-plane/auto", async (
+            HttpContext context,
+            PendingRegistrationRequest request,
+            CancellationToken ct) =>
+        {
+            if (context.Connection.RemoteIpAddress is null || !IPAddress.IsLoopback(context.Connection.RemoteIpAddress))
+                return Results.Unauthorized();
+
+            string[] controlPlaneApplications =
+            [
+                "Aegis.Operations",
+                "Aegis.Configuration",
+                "Aegis.Diagnostics"
+            ];
+            if (!controlPlaneApplications.Contains(request.ApplicationId, StringComparer.OrdinalIgnoreCase))
+                return Results.Forbid();
+
+            if (string.IsNullOrWhiteSpace(request.InstanceId))
+                return Results.BadRequest(new { error = "instanceId is required." });
+
+            ControlPlaneProvisionResult provisioned = await registrationStore.ProvisionControlPlaneAsync(
+                request.ApplicationId.Trim(),
+                string.IsNullOrWhiteSpace(request.DisplayName) ? request.ApplicationId.Trim() : request.DisplayName.Trim(),
+                request.InstanceId.Trim(),
+                ct);
+
+            if (!provisioned.Succeeded || string.IsNullOrWhiteSpace(provisioned.Credential))
+                return Results.Conflict(new { error = provisioned.Error ?? "Control-plane registration could not be provisioned." });
+
+            context.Response.Headers.CacheControl = "no-store";
+            registrationLogger.LogInformation(
+                "Control-plane registration auto-provisioned for {ApplicationId}/{InstanceId}. RegistrationId={RegistrationId}.",
+                request.ApplicationId,
+                request.InstanceId,
+                provisioned.RegistrationId);
+            return Results.Ok(new
+            {
+                provisioned.RegistrationId,
+                request.ApplicationId,
+                request.InstanceId,
+                credential = provisioned.Credential
+            });
+        }).AllowAnonymous();
+
         app.MapGet("/api/registration/pending", async (HttpContext context, CancellationToken ct) =>
         {
             if (!Has(context, "Configuration.Manage"))
@@ -764,6 +808,8 @@ load();
         MustRevokeFirst
     }
 
+    private sealed record ControlPlaneProvisionResult(bool Succeeded, string? RegistrationId, string? Credential, string? Error);
+
     private sealed record CredentialRetrieval(RegistrationRecordState State, string? Credential);
 
     private sealed record RegistrationAudit(DateTimeOffset AtUtc, string Action, string Actor);
@@ -947,6 +993,65 @@ load();
                         x.Audit
                     })
                     .ToList();
+            }
+            finally
+            {
+                _gate.Release();
+            }
+        }
+
+        public async Task<ControlPlaneProvisionResult> ProvisionControlPlaneAsync(
+            string applicationId,
+            string displayName,
+            string instanceId,
+            CancellationToken ct)
+        {
+            await _gate.WaitAsync(ct);
+            try
+            {
+                foreach (PendingRegistration existing in await LoadAllUnsafeAsync(ct))
+                {
+                    if (!string.Equals(existing.ApplicationId, applicationId, StringComparison.OrdinalIgnoreCase) ||
+                        !string.Equals(existing.InstanceId, instanceId, StringComparison.OrdinalIgnoreCase))
+                        continue;
+
+                    if (existing.State is RegistrationRecordState.Registered or RegistrationRecordState.KeyRetrieved)
+                        return new(false, existing.RegistrationId, null, "An active control-plane registration already exists and its credential cannot be reissued.");
+
+                    if (existing.State == RegistrationRecordState.Pending && !string.IsNullOrWhiteSpace(existing.CredentialForRetrieval))
+                    {
+                        string pendingCredential = existing.CredentialForRetrieval;
+                        PendingRegistration registeredExisting = existing with
+                        {
+                            State = RegistrationRecordState.Registered,
+                            CredentialForRetrieval = null,
+                            KeyRetrievedAtUtc = DateTimeOffset.UtcNow,
+                            RegisteredAtUtc = DateTimeOffset.UtcNow,
+                            Audit = [.. existing.Audit, new(DateTimeOffset.UtcNow, "ControlPlaneAutoRegistered", applicationId)]
+                        };
+                        await SaveUnsafeAsync(registeredExisting, ct);
+                        return new(true, registeredExisting.RegistrationId, pendingCredential, null);
+                    }
+                }
+
+                string credential = Convert.ToHexString(RandomNumberGenerator.GetBytes(32)).ToLowerInvariant();
+                DateTimeOffset now = DateTimeOffset.UtcNow;
+                PendingRegistration record = new(
+                    Guid.NewGuid().ToString("N"),
+                    applicationId,
+                    displayName,
+                    instanceId,
+                    string.Empty,
+                    RegistrationRecordState.Registered,
+                    Hash(credential),
+                    null,
+                    now,
+                    now,
+                    now,
+                    null,
+                    [new(now, "ControlPlaneAutoRegistered", applicationId)]);
+                await SaveUnsafeAsync(record, ct);
+                return new(true, record.RegistrationId, credential, null);
             }
             finally
             {
