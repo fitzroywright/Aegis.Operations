@@ -20,8 +20,25 @@ internal static class OperationsEndpoints
         string site,
         string environment)
     {
-        string registrationDirectory = app.Configuration["Operations:RegistrationDirectory"]
-            ?? Path.Combine(app.Environment.ContentRootPath, "registration");
+        string? configuredRegistrationDirectory = app.Configuration["Operations:RegistrationDirectory"];
+        string registrationDirectory;
+        if (string.IsNullOrWhiteSpace(configuredRegistrationDirectory))
+        {
+            registrationDirectory = Path.Combine(app.Environment.ContentRootPath, "registration");
+            app.Logger.LogWarning(
+                "Configuration {ConfigurationKey} is not set; falling back to default value {FallbackValue}.",
+                "Operations:RegistrationDirectory",
+                registrationDirectory);
+        }
+        else
+        {
+            registrationDirectory = configuredRegistrationDirectory.Trim();
+            app.Logger.LogInformation(
+                "Configuration {ConfigurationKey} resolved from configured value {ConfiguredValue}.",
+                "Operations:RegistrationDirectory",
+                registrationDirectory);
+        }
+
         Directory.CreateDirectory(registrationDirectory);
         var registrationStore = new RegistrationStore(registrationDirectory);
         ILogger registrationLogger = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("Aegis.Operations.Registration");
