@@ -43,6 +43,52 @@ internal static class OperationsEndpoints
         var registrationStore = new RegistrationStore(registrationDirectory);
         ILogger registrationLogger = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("Aegis.Operations.Registration");
 
+        app.Lifetime.ApplicationStarted.Register(() =>
+        {
+            _ = Task.Run(async () =>
+            {
+                CancellationToken stoppingToken = app.Lifetime.ApplicationStopping;
+                IHttpClientFactory factory = app.Services.GetRequiredService<IHttpClientFactory>();
+                while (!stoppingToken.IsCancellationRequested)
+                {
+                    try
+                    {
+                        IReadOnlyList<string> activeApplicationIds =
+                            await registrationStore.RegisteredApplicationIdsAsync(stoppingToken);
+                        ConfigurationSyncResult sync = await ReconcileConfigurationAsync(
+                            app,
+                            factory,
+                            configurationUrl,
+                            activeApplicationIds,
+                            stoppingToken);
+                        if (!sync.Success)
+                            registrationLogger.LogWarning("Configuration reconciliation failed: {Message}", sync.Message);
+                        else
+                            registrationLogger.LogInformation(
+                                "Configuration reconciliation completed for {ApplicationCount} registered applications.",
+                                activeApplicationIds.Count);
+                    }
+                    catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+                    {
+                        break;
+                    }
+                    catch (Exception exception)
+                    {
+                        registrationLogger.LogWarning(exception, "Unexpected failure during Configuration reconciliation.");
+                    }
+
+                    try
+                    {
+                        await Task.Delay(TimeSpan.FromMinutes(5), stoppingToken);
+                    }
+                    catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+                    {
+                        break;
+                    }
+                }
+            });
+        });
+
         app.MapGet("/api/summary", async (IHttpClientFactory factory, CancellationToken ct) =>
         {
             HttpClient client = factory.CreateClient("ops");
