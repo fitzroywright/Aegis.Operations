@@ -294,6 +294,12 @@ small{color:#9fb7c8}
 </section>
 <script>
 const e=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const journeys=document.getElementById('journeys');
+const flowLight=document.getElementById('flowLight');
+const flowMeta=document.getElementById('flowMeta');
+const flowEvents=document.getElementById('flowEvents');
+const reconciliation=document.getElementById('reconciliation');
+const rows=document.getElementById('rows');
 let flowSnapshot={journeys:[],events:[]};
 let selectedRegistrationId=null;
 const stageOrder=['Request','Approval','Claim','Authenticate','Publish','Running'];
@@ -377,12 +383,6 @@ async function load(){
    if(canPurge){
      actions+='<button class="danger" onclick="purge(\''+e(x.registrationId)+'\')">Purge</button>';
    }
-   return '<tr><td><b>'+e(x.applicationId)+'</b><br><small>'+e(x.registrationId)+'</small></td>'+
-     '<td>'+e(x.instanceId)+'</td>'+
-     '<td class="mono">'+e(x.installationId)+'</td>'+
-     '<td><span class="badge '+e(x.state.toLowerCase())+'">'+e(x.state)+'</span></td>'+
-     '<td>'+e(x.updatedAtUtc)+'</td>'+
-     '<td>'+(actions||'—')+'</td></tr>';
    const audit=Array.isArray(x.audit)?x.audit:[];
    const history=audit.length
      ? '<details><summary>'+e(audit.length)+' event(s)</summary>'+audit.slice().reverse().map(a=>'<div class="audit"><b>'+e(a.action)+'</b> · '+e(a.atUtc)+'<br><small>Actor: '+e(a.actor)+' · IP: '+e(a.sourceIp||'—')+' · '+e(a.previousState||'—')+' → '+e(a.resultingState||'—')+(a.reason?'<br>Reason: '+e(a.reason):'')+(a.correlationId?'<br>Correlation: <span class="mono">'+e(a.correlationId)+'</span>':'')+'</small></div>').join('')+'</details>'
