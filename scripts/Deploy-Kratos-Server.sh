@@ -135,8 +135,8 @@ stop_selected() {
 }
 
 start_selected() {
-  # Registry first, then diagnostics/operations, then downstream applications.
-  for app in configuration diagnostics operations hello requestportal; do
+  # Operations is the registration authority; start it before Configuration and Diagnostics.
+  for app in operations configuration diagnostics hello requestportal; do
     if is_selected "$app"; then
       systemctl start "${SERVICE[$app]}"
     fi
@@ -212,7 +212,9 @@ rollback() {
 log "Ensuring persistent control-plane state storage"
 mkdir -p /var/lib/aegis/operations/registration
 mkdir -p /var/lib/aegis/configuration/contracts/retired
-chown -R "$OWNER" /var/lib/aegis/operations /var/lib/aegis/configuration
+mkdir -p /var/lib/aegis/diagnostics
+chown -R "$OWNER" /var/lib/aegis/operations /var/lib/aegis/configuration /var/lib/aegis/diagnostics
+chmod 700 /var/lib/aegis/operations/registration /var/lib/aegis/configuration /var/lib/aegis/diagnostics
 
 if is_selected hello; then
   log "Ensuring Aegis.Hello systemd service"
