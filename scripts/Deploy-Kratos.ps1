@@ -70,6 +70,12 @@ $payloadRoot = Join-Path $bundleRoot "payload"
 $bundleFile = $null
 New-Item -ItemType Directory -Force -Path $payloadRoot | Out-Null
 
+$serverDeployScript = Join-Path $PSScriptRoot "Deploy-Kratos-Server.sh"
+if (-not (Test-Path $serverDeployScript)) {
+    throw "Missing Kratos server deployer: $serverDeployScript"
+}
+Copy-Item -Force $serverDeployScript (Join-Path $bundleRoot "Deploy-Kratos-Server.sh")
+
 try {
     foreach ($app in $Applications) {
         $definition = $definitions[$app]
@@ -107,6 +113,7 @@ try {
         "rm -rf '$RemoteWorkRoot'",
         "mkdir -p '$RemoteWorkRoot'",
         "tar -xzf '$RemoteArchive' -C '$RemoteWorkRoot'",
+        "sudo -n install -o root -g root -m 0755 '$RemoteWorkRoot/Deploy-Kratos-Server.sh' '$RemoteDeployCommand'",
         "if sudo -n '$RemoteDeployCommand' --source '$RemoteWorkRoot/payload' --apps '$appsCsv'; then",
         "  deploy_rc=0",
         "else",
