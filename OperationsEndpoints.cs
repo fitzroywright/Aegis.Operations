@@ -322,9 +322,13 @@ body{font:14px Segoe UI,Arial,sans-serif;margin:0;background:#071522;color:#eef6
 a{color:#66bfff}.panel{background:#0d2030;border:1px solid #28597b;border-radius:8px;padding:18px;margin:14px 0}
 input{width:100%;box-sizing:border-box;padding:10px;margin:5px 0 12px;background:#081621;color:#fff;border:1px solid #486b83;border-radius:5px}
 button{padding:10px 14px;background:#167ee6;color:#fff;border:0;border-radius:5px;cursor:pointer}
+button:disabled{opacity:.45;cursor:not-allowed}
 pre{white-space:pre-wrap;word-break:break-all;background:#06111b;padding:12px;border-radius:5px;border:1px solid #29475b}
 table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:9px;border-bottom:1px solid #29475b}.muted{color:#a9c0d1}
-.actions button{margin-right:6px}.danger{background:#a63d3d}
+.actions{display:flex;gap:6px;flex-wrap:wrap}.danger{background:#a63d3d}.warn{background:#9a6a14}.purge{background:#6f2c2c}.ok{background:#1b7a50}
+.badge{display:inline-block;padding:4px 8px;border-radius:999px;font-size:12px;font-weight:700;background:#24394a}
+.badge.registered{background:#145b40}.badge.pending{background:#4b5563}.badge.keyretrieved{background:#4b3f72}.badge.revoked{background:#7d2f2f}
+#message{margin-top:10px}.error{color:#ffb4b4}.success{color:#9be7bd}
 </style>
 </head>
 <body><main>
@@ -341,6 +345,8 @@ table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:9px;bord
 </section>
 <section class="panel">
 <h2>Registrations</h2>
+<p class="muted">Revoke or invalidate an active registration before purging it. Purge permanently removes the registration record.</p>
+<div id="message"></div>
 <table><thead><tr><th>Application</th><th>Instance</th><th>State</th><th>Created</th><th>Actions</th></tr></thead><tbody id="rows"></tbody></table>
 </section>
 <script>
@@ -357,16 +363,50 @@ async function createRegistration(){
  '<p class="muted">Run the curl command on the target machine, save the returned key in the environment variable, then install/start the application. The key is returned only once.</p>';
  load();
 }
-async function action(id,kind){await fetch('/api/registration/'+encodeURIComponent(id)+'/'+kind,{method:'POST'});load()}
-async function purge(id){await fetch('/api/registration/'+encodeURIComponent(id),{method:'DELETE'});load()}
+function notice(text,ok=false){message.innerHTML='<p class="'+(ok?'success':'error')+'">'+e(text)+'</p>'}
+async function action(id,kind,label){
+ if(!confirm(label+' this registration?')) return;
+ const r=await fetch('/api/registration/'+encodeURIComponent(id)+'/'+kind,{method:'POST'});
+ if(!r.ok){
+   let d={}; try{d=await r.json()}catch{}
+   notice(d.error||label+' failed.');
+   return;
+ }
+ notice('Registration '+label.toLowerCase()+'d successfully.',true);
+ await load();
+}
+async function purge(id){
+ if(!confirm('Permanently purge this revoked registration? This cannot be undone.')) return;
+ const r=await fetch('/api/registration/'+encodeURIComponent(id),{method:'DELETE'});
+ if(!r.ok){
+   let d={}; try{d=await r.json()}catch{}
+   notice(d.error||'Purge failed.');
+   return;
+ }
+ notice('Registration purged permanently.',true);
+ await load();
+}
+function actionsFor(x){
+ const id=e(x.registrationId);
+ const state=String(x.state||'').toLowerCase();
+ if(state==='revoked'){
+   return '<button class="purge" onclick="purge(\''+id+'\')">Purge</button>';
+ }
+ return '<button class="danger" onclick="action(\''+id+'\',\'revoke\',\'Revoke\')">Revoke</button>'+
+        '<button class="warn" onclick="action(\''+id+'\',\'invalidate\',\'Invalidate\')">Invalidate</button>'+
+        '<button class="purge" disabled title="Revoke or invalidate before purge">Purge</button>';
+}
 async function load(){
- const r=await fetch('/api/registration/pending',{cache:'no-store'}); if(!r.ok)return;
+ const r=await fetch('/api/registration/pending',{cache:'no-store'});
+ if(!r.ok){notice('Unable to load registrations.');return;}
  const d=await r.json();
- rows.innerHTML=d.map(x=>'<tr><td><b>'+e(x.displayName)+'</b><br><span class="muted">'+e(x.applicationId)+'</span></td>'+
- '<td>'+e(x.instanceId)+'</td><td>'+e(x.state)+'</td><td>'+e(new Date(x.createdAtUtc).toLocaleString())+'</td>'+
- '<td class="actions"><button class="danger" onclick="action(\''+e(x.registrationId)+'\',\'revoke\')">Revoke</button>'+
- '<button onclick="action(\''+e(x.registrationId)+'\',\'invalidate\')">Invalidate</button>'+
- '<button onclick="purge(\''+e(x.registrationId)+'\')">Purge</button></td></tr>').join('');
+ rows.innerHTML=d.map(x=>{
+   const state=String(x.state||'');
+   const css=state.toLowerCase();
+   return '<tr><td><b>'+e(x.displayName)+'</b><br><span class="muted">'+e(x.applicationId)+'</span></td>'+
+   '<td>'+e(x.instanceId)+'</td><td><span class="badge '+e(css)+'">'+e(state)+'</span></td><td>'+e(new Date(x.createdAtUtc).toLocaleString())+'</td>'+
+   '<td class="actions">'+actionsFor(x)+'</td></tr>';
+ }).join('');
 }
 load();
 </script>
