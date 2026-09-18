@@ -1,3 +1,5 @@
+using Common.Security;
+
 internal static class LifecycleRegistrationProxy
 {
     internal static void MapLifecycleRegistrationProxy(this WebApplication app, string configurationUrl)
