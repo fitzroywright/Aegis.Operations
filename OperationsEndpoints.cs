@@ -274,6 +274,7 @@ internal static class OperationsEndpoints
                 Content = JsonContent.Create(contract)
             };
             forward.Headers.TryAddWithoutValidation("X-Aegis-Registration-Key", configurationRegistrationKey);
+            forward.Headers.TryAddWithoutValidation("X-Aegis-Registration-Attempt-Id", attemptId);
 
             registrationLogger.LogInformation("Forwarding validated configuration contract to Aegis.Configuration.");
             using HttpResponseMessage response = await client.SendAsync(forward, ct);
