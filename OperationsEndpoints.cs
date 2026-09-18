@@ -462,16 +462,10 @@ internal static class OperationsEndpoints
         }
     }
 
-    private sealed record PendingRegistrationRequest(string ApplicationId, string DisplayName, string InstanceId);
-
-    private enum RegistrationRecordState
-    {
-        Pending,
-        KeyRetrieved,
-        Registered,
-        Revoked,
-        Expired
-    }
+    private sealed record ControlPlaneBootstrapRequest(
+        string ApplicationId,
+        string DisplayName,
+        string InstanceId);
 
     private enum RegistrationValidation
     {
@@ -480,203 +474,42 @@ internal static class OperationsEndpoints
         Revoked
     }
 
-    private enum PurgeResult
-    {
-        Purged,
-        NotFound,
-        MustRevokeFirst
-    }
+    private sealed record ControlPlaneProvisionResult(
+        bool Succeeded,
+        string? RegistrationId,
+        string? Credential,
+        string? Error);
 
-    private sealed record ControlPlaneProvisionResult(bool Succeeded, string? RegistrationId, string? Credential, string? Error);
+    private sealed record ControlPlaneRegistrationAudit(
+        DateTimeOffset AtUtc,
+        string Action,
+        string Actor);
 
-    private sealed record CredentialRetrieval(RegistrationRecordState State, string? Credential);
-
-    private sealed record RegistrationAudit(DateTimeOffset AtUtc, string Action, string Actor);
-
-    private sealed record PendingRegistration(
+    private sealed record ControlPlaneRegistrationRecord(
         string RegistrationId,
         string ApplicationId,
         string DisplayName,
         string InstanceId,
-        string Pin,
-        RegistrationRecordState State,
+        bool Revoked,
         string CredentialHash,
-        string? CredentialForRetrieval,
         DateTimeOffset CreatedAtUtc,
-        DateTimeOffset? KeyRetrievedAtUtc,
-        DateTimeOffset? RegisteredAtUtc,
         DateTimeOffset? RevokedAtUtc,
-        DateTimeOffset? ExpiredAtUtc,
-        List<RegistrationAudit> Audit);
+        DateTimeOffset? LastAuthenticatedAtUtc,
+        List<ControlPlaneRegistrationAudit> Audit);
 
-    private sealed record CreatePendingResult(
-        PendingRegistration? Record,
-        bool Conflict,
-        RegistrationRecordState? ExistingState);
-
-    private sealed class RegistrationStore
+    private sealed class ControlPlaneRegistrationStore
     {
         private readonly string _directory;
-        private readonly TimeSpan _pendingLifetime;
-        private readonly TimeSpan _retrievedLifetime;
         private readonly SemaphoreSlim _gate = new(1, 1);
         private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
         {
-            WriteIndented = true,
-            Converters = { new System.Text.Json.Serialization.JsonStringEnumConverter() }
+            WriteIndented = true
         };
 
-        public RegistrationStore(string directory, TimeSpan pendingLifetime, TimeSpan retrievedLifetime)
+        public ControlPlaneRegistrationStore(string directory)
         {
             _directory = directory;
-            _pendingLifetime = pendingLifetime;
-            _retrievedLifetime = retrievedLifetime;
-        }
-
-        public async Task<CreatePendingResult> CreatePendingAsync(
-            string applicationId,
-            string displayName,
-            string instanceId,
-            string actor,
-            CancellationToken ct)
-        {
-            await _gate.WaitAsync(ct);
-            try
-            {
-                List<PendingRegistration> all = await LoadAllUnsafeAsync(ct);
-                PendingRegistration? existing = all
-                    .OrderByDescending(x => x.CreatedAtUtc)
-                    .FirstOrDefault(x =>
-                        string.Equals(x.ApplicationId, applicationId, StringComparison.OrdinalIgnoreCase) &&
-                        string.Equals(x.InstanceId, instanceId, StringComparison.OrdinalIgnoreCase) &&
-                        x.State is not (RegistrationRecordState.Revoked or RegistrationRecordState.Expired));
-
-                if (existing is not null)
-                {
-                    if (existing.State == RegistrationRecordState.Pending)
-                        return new(existing, false, existing.State);
-                    return new(null, true, existing.State);
-                }
-
-                string credential = Convert.ToBase64String(RandomNumberGenerator.GetBytes(48));
-                var record = new PendingRegistration(
-                    Convert.ToHexString(RandomNumberGenerator.GetBytes(16)).ToLowerInvariant(),
-                    applicationId,
-                    displayName,
-                    instanceId,
-                    RandomNumberGenerator.GetInt32(100000, 1000000).ToString(),
-                    RegistrationRecordState.Pending,
-                    Hash(credential),
-                    credential,
-                    DateTimeOffset.UtcNow,
-                    null,
-                    null,
-                    null,
-                    null,
-                    [new(DateTimeOffset.UtcNow, "PendingCreated", actor)]);
-
-                await SaveUnsafeAsync(record, ct);
-                return new(record, false, null);
-            }
-            finally
-            {
-                _gate.Release();
-            }
-        }
-
-        public async Task<PendingRegistration?> GetAsync(string id, CancellationToken ct)
-        {
-            await _gate.WaitAsync(ct);
-            try
-            {
-                return await LoadUnsafeAsync(id, ct);
-            }
-            finally
-            {
-                _gate.Release();
-            }
-        }
-
-        public async Task<bool> HasRegisteredApplicationAsync(string applicationId, CancellationToken ct)
-        {
-            await _gate.WaitAsync(ct);
-            try
-            {
-                return (await LoadAllUnsafeAsync(ct)).Any(x =>
-                    x.State == RegistrationRecordState.Registered &&
-                    string.Equals(x.ApplicationId, applicationId, StringComparison.OrdinalIgnoreCase));
-            }
-            finally
-            {
-                _gate.Release();
-            }
-        }
-
-        public async Task<IReadOnlyList<string>> RegisteredApplicationIdsAsync(CancellationToken ct)
-        {
-            await _gate.WaitAsync(ct);
-            try
-            {
-                return (await LoadAllUnsafeAsync(ct))
-                    .Where(x => x.State == RegistrationRecordState.Registered)
-                    .Select(x => x.ApplicationId)
-                    .Distinct(StringComparer.OrdinalIgnoreCase)
-                    .OrderBy(x => x, StringComparer.OrdinalIgnoreCase)
-                    .ToList();
-            }
-            finally
-            {
-                _gate.Release();
-            }
-        }
-
-        public async Task<int> CountRegisteredAsync(CancellationToken ct)
-        {
-            await _gate.WaitAsync(ct);
-            try
-            {
-                return (await LoadAllUnsafeAsync(ct))
-                    .Count(x => x.State == RegistrationRecordState.Registered);
-            }
-            finally
-            {
-                _gate.Release();
-            }
-        }
-
-        public async Task<IReadOnlyList<object>> ListAsync(CancellationToken ct)
-        {
-            await _gate.WaitAsync(ct);
-            try
-            {
-                return (await LoadAllUnsafeAsync(ct))
-                    .OrderByDescending(x => x.CreatedAtUtc)
-                    .Select(x => (object)new
-                    {
-                        x.RegistrationId,
-                        x.ApplicationId,
-                        x.DisplayName,
-                        x.InstanceId,
-                        state = x.State.ToString(),
-                        x.CreatedAtUtc,
-                        x.KeyRetrievedAtUtc,
-                        x.RegisteredAtUtc,
-                        x.RevokedAtUtc,
-                        x.ExpiredAtUtc,
-                        expiresAtUtc = x.State switch
-                        {
-                            RegistrationRecordState.Pending => x.CreatedAtUtc + _pendingLifetime,
-                            RegistrationRecordState.KeyRetrieved when x.KeyRetrievedAtUtc.HasValue => x.KeyRetrievedAtUtc.Value + _retrievedLifetime,
-                            _ => (DateTimeOffset?)null
-                        },
-                        x.Audit
-                    })
-                    .ToList();
-            }
-            finally
-            {
-                _gate.Release();
-            }
+            Directory.CreateDirectory(_directory);
         }
 
         public async Task<ControlPlaneProvisionResult> ProvisionControlPlaneAsync(
@@ -688,76 +521,43 @@ internal static class OperationsEndpoints
             await _gate.WaitAsync(ct);
             try
             {
-                List<PendingRegistration> all = await LoadAllUnsafeAsync(ct);
-                foreach (PendingRegistration existing in all.Where(x =>
+                List<ControlPlaneRegistrationRecord> all = await LoadAllUnsafeAsync(ct);
+                DateTimeOffset now = DateTimeOffset.UtcNow;
+
+                foreach (ControlPlaneRegistrationRecord existing in all.Where(x =>
                     string.Equals(x.ApplicationId, applicationId, StringComparison.OrdinalIgnoreCase) &&
                     string.Equals(x.InstanceId, instanceId, StringComparison.OrdinalIgnoreCase) &&
-                    x.State is not (RegistrationRecordState.Revoked or RegistrationRecordState.Expired)))
+                    !x.Revoked))
                 {
-                    PendingRegistration revoked = existing with
+                    ControlPlaneRegistrationRecord revoked = existing with
                     {
-                        State = RegistrationRecordState.Revoked,
-                        CredentialForRetrieval = null,
-                        RevokedAtUtc = DateTimeOffset.UtcNow,
-                        Audit = [.. existing.Audit, new(DateTimeOffset.UtcNow, "ControlPlaneAutoRotated", applicationId)]
+                        Revoked = true,
+                        RevokedAtUtc = now,
+                        Audit = [.. existing.Audit, new(now, "ControlPlaneCredentialRotated", applicationId)]
                     };
                     await SaveUnsafeAsync(revoked, ct);
                 }
 
                 string credential = Convert.ToBase64String(RandomNumberGenerator.GetBytes(48));
-                DateTimeOffset now = DateTimeOffset.UtcNow;
-                PendingRegistration record = new(
+                ControlPlaneRegistrationRecord record = new(
                     Convert.ToHexString(RandomNumberGenerator.GetBytes(16)).ToLowerInvariant(),
                     applicationId,
                     displayName,
                     instanceId,
-                    string.Empty,
-                    RegistrationRecordState.Registered,
-                    Hash(credential),
-                    null,
-                    now,
-                    now,
+                    false,
+                    HashCredential(credential),
                     now,
                     null,
                     null,
                     [new(now, "ControlPlaneAutoRegistered", applicationId)]);
-                await SaveUnsafeAsync(record, ct);
-                return new(true, record.RegistrationId, credential, null);
-            }
-            finally
-            {
-                _gate.Release();
-            }
-        }
 
-        public async Task<CredentialRetrieval> RetrieveKeyAsync(
-            string id,
-            string pin,
-            CancellationToken ct)
-        {
-            await _gate.WaitAsync(ct);
-            try
-            {
-                PendingRegistration? record = await LoadUnsafeAsync(id, ct);
-                if (record is null)
-                    return new(RegistrationRecordState.Revoked, null);
-                if (!FixedEquals(record.Pin, pin))
-                    return new(RegistrationRecordState.Revoked, null);
-                if (record.State != RegistrationRecordState.Pending)
-                    return new(record.State, null);
-                if (string.IsNullOrWhiteSpace(record.CredentialForRetrieval))
-                    return new(RegistrationRecordState.KeyRetrieved, null);
-
-                string credential = record.CredentialForRetrieval;
-                record = record with
-                {
-                    State = RegistrationRecordState.KeyRetrieved,
-                    CredentialForRetrieval = null,
-                    KeyRetrievedAtUtc = DateTimeOffset.UtcNow,
-                    Audit = [.. record.Audit, new(DateTimeOffset.UtcNow, "KeyRetrieved", record.ApplicationId)]
-                };
                 await SaveUnsafeAsync(record, ct);
-                return new(RegistrationRecordState.Pending, credential);
+
+                return new(
+                    true,
+                    record.RegistrationId,
+                    credential,
+                    null);
             }
             finally
             {
@@ -774,19 +574,25 @@ internal static class OperationsEndpoints
             await _gate.WaitAsync(ct);
             try
             {
-                string hash = Hash(credential);
-                foreach (PendingRegistration record in await LoadAllUnsafeAsync(ct))
+                foreach (ControlPlaneRegistrationRecord record in await LoadAllUnsafeAsync(ct))
                 {
                     if (!string.Equals(record.ApplicationId, applicationId, StringComparison.OrdinalIgnoreCase) ||
                         !string.Equals(record.InstanceId, instanceId, StringComparison.OrdinalIgnoreCase) ||
-                        !FixedEquals(record.CredentialHash, hash))
+                        !VerifyCredentialHash(record.CredentialHash, credential))
+                    {
                         continue;
+                    }
 
-                    if (record.State == RegistrationRecordState.Revoked)
+                    if (record.Revoked)
                         return RegistrationValidation.Revoked;
 
-                    if (record.State is RegistrationRecordState.KeyRetrieved or RegistrationRecordState.Registered)
-                        return RegistrationValidation.Valid;
+                    ControlPlaneRegistrationRecord authenticated = record with
+                    {
+                        LastAuthenticatedAtUtc = DateTimeOffset.UtcNow
+                    };
+                    await SaveUnsafeAsync(authenticated, ct);
+
+                    return RegistrationValidation.Valid;
                 }
 
                 return RegistrationValidation.Invalid;
@@ -803,34 +609,26 @@ internal static class OperationsEndpoints
             string credential,
             CancellationToken ct)
         {
+            RegistrationValidation validation = await ValidateAsync(
+                applicationId,
+                instanceId,
+                credential,
+                ct);
+
+            return validation == RegistrationValidation.Valid;
+        }
+
+        public async Task<IReadOnlyList<string>> RegisteredApplicationIdsAsync(CancellationToken ct)
+        {
             await _gate.WaitAsync(ct);
             try
             {
-                string hash = Hash(credential);
-                foreach (PendingRegistration record in await LoadAllUnsafeAsync(ct))
-                {
-                    if (!string.Equals(record.ApplicationId, applicationId, StringComparison.OrdinalIgnoreCase) ||
-                        !string.Equals(record.InstanceId, instanceId, StringComparison.OrdinalIgnoreCase) ||
-                        !FixedEquals(record.CredentialHash, hash))
-                        continue;
-
-                    if (record.State == RegistrationRecordState.Registered)
-                        return true;
-
-                    if (record.State != RegistrationRecordState.KeyRetrieved)
-                        return false;
-
-                    PendingRegistration registered = record with
-                    {
-                        State = RegistrationRecordState.Registered,
-                        RegisteredAtUtc = DateTimeOffset.UtcNow,
-                        Audit = [.. record.Audit, new(DateTimeOffset.UtcNow, "Registered", applicationId)]
-                    };
-                    await SaveUnsafeAsync(registered, ct);
-                    return true;
-                }
-
-                return false;
+                return (await LoadAllUnsafeAsync(ct))
+                    .Where(x => !x.Revoked)
+                    .Select(x => x.ApplicationId)
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .OrderBy(x => x, StringComparer.OrdinalIgnoreCase)
+                    .ToList();
             }
             finally
             {
@@ -838,30 +636,12 @@ internal static class OperationsEndpoints
             }
         }
 
-        public async Task<PendingRegistration?> RevokeAsync(
-            string id,
-            string actor,
-            string action,
-            CancellationToken ct)
+        public async Task<int> CountRegisteredAsync(CancellationToken ct)
         {
             await _gate.WaitAsync(ct);
             try
             {
-                PendingRegistration? record = await LoadUnsafeAsync(id, ct);
-                if (record is null)
-                    return null;
-                if (record.State == RegistrationRecordState.Revoked)
-                    return record;
-
-                record = record with
-                {
-                    State = RegistrationRecordState.Revoked,
-                    CredentialForRetrieval = null,
-                    RevokedAtUtc = DateTimeOffset.UtcNow,
-                    Audit = [.. record.Audit, new(DateTimeOffset.UtcNow, action, actor)]
-                };
-                await SaveUnsafeAsync(record, ct);
-                return record;
+                return (await LoadAllUnsafeAsync(ct)).Count(x => !x.Revoked);
             }
             finally
             {
@@ -869,129 +649,103 @@ internal static class OperationsEndpoints
             }
         }
 
-        public async Task<PurgeResult> PurgeAsync(
-            string id,
-            string actor,
-            CancellationToken ct)
+        private async Task<List<ControlPlaneRegistrationRecord>> LoadAllUnsafeAsync(CancellationToken ct)
         {
-            await _gate.WaitAsync(ct);
-            try
-            {
-                PendingRegistration? record = await LoadUnsafeAsync(id, ct);
-                if (record is null)
-                    return PurgeResult.NotFound;
-                if (record.State is not (RegistrationRecordState.Revoked or RegistrationRecordState.Expired))
-                    return PurgeResult.MustRevokeFirst;
+            var result = new List<ControlPlaneRegistrationRecord>();
 
-                string auditPath = Path.Combine(_directory, "audit.log");
-                string auditLine = JsonSerializer.Serialize(new
-                {
-                    atUtc = DateTimeOffset.UtcNow,
-                    action = "Purged",
-                    actor,
-                    record.RegistrationId,
-                    record.ApplicationId,
-                    record.InstanceId
-                }, JsonOptions);
-                await File.AppendAllTextAsync(auditPath, auditLine + Environment.NewLine, ct);
-                SecureFile(auditPath);
-                File.Delete(PathFor(id));
-                return PurgeResult.Purged;
-            }
-            finally
+            foreach (string file in Directory.EnumerateFiles(_directory, "control-plane-*.json"))
             {
-                _gate.Release();
-            }
-        }
+                string json = await File.ReadAllTextAsync(file, ct);
+                ControlPlaneRegistrationRecord? record =
+                    JsonSerializer.Deserialize<ControlPlaneRegistrationRecord>(json, JsonOptions);
 
-        private async Task<List<PendingRegistration>> LoadAllUnsafeAsync(CancellationToken ct)
-        {
-            var result = new List<PendingRegistration>();
-            foreach (string file in Directory.EnumerateFiles(_directory, "*.json"))
-            {
-                PendingRegistration? item = JsonSerializer.Deserialize<PendingRegistration>(
-                    await File.ReadAllTextAsync(file, ct),
-                    JsonOptions);
-                if (item is null)
-                    continue;
-
-                item = await ApplyExpirationUnsafeAsync(item, ct);
-                result.Add(item);
+                if (record is not null)
+                    result.Add(record);
             }
+
             return result;
         }
 
-        private async Task<PendingRegistration?> LoadUnsafeAsync(string id, CancellationToken ct)
-        {
-            string path = PathFor(id);
-            if (!File.Exists(path))
-                return null;
-
-            PendingRegistration? record = JsonSerializer.Deserialize<PendingRegistration>(
-                await File.ReadAllTextAsync(path, ct),
-                JsonOptions);
-            return record is null ? null : await ApplyExpirationUnsafeAsync(record, ct);
-        }
-
-        private async Task<PendingRegistration> ApplyExpirationUnsafeAsync(
-            PendingRegistration record,
+        private async Task SaveUnsafeAsync(
+            ControlPlaneRegistrationRecord record,
             CancellationToken ct)
         {
-            if (record.State is RegistrationRecordState.Registered or RegistrationRecordState.Revoked or RegistrationRecordState.Expired)
-                return record;
+            string path = Path.Combine(
+                _directory,
+                "control-plane-" + record.RegistrationId + ".json");
 
-            DateTimeOffset now = DateTimeOffset.UtcNow;
-            DateTimeOffset? expiresAt = record.State switch
-            {
-                RegistrationRecordState.Pending => record.CreatedAtUtc + _pendingLifetime,
-                RegistrationRecordState.KeyRetrieved when record.KeyRetrievedAtUtc.HasValue =>
-                    record.KeyRetrievedAtUtc.Value + _retrievedLifetime,
-                _ => null
-            };
+            string temp = path + ".tmp-" + Guid.NewGuid().ToString("N");
 
-            if (!expiresAt.HasValue || now < expiresAt.Value)
-                return record;
+            await File.WriteAllTextAsync(
+                temp,
+                JsonSerializer.Serialize(record, JsonOptions),
+                ct);
 
-            PendingRegistration expired = record with
-            {
-                State = RegistrationRecordState.Expired,
-                CredentialForRetrieval = null,
-                ExpiredAtUtc = now,
-                Audit = [.. record.Audit, new(now, "Expired", "Aegis.Operations")]
-            };
-            await SaveUnsafeAsync(expired, ct);
-            return expired;
-        }
-
-        private async Task SaveUnsafeAsync(PendingRegistration record, CancellationToken ct)
-        {
-            string path = PathFor(record.RegistrationId);
-            await File.WriteAllTextAsync(path, JsonSerializer.Serialize(record, JsonOptions), ct);
+            SecureFile(temp);
+            File.Move(temp, path, true);
             SecureFile(path);
         }
 
-        private string PathFor(string id)
+        private static string HashCredential(string credential)
         {
-            if (id.Any(ch => !char.IsLetterOrDigit(ch)))
-                throw new ArgumentException("Invalid registration id.", nameof(id));
-            return Path.Combine(_directory, id + ".json");
+            const int iterations = 210_000;
+            byte[] salt = RandomNumberGenerator.GetBytes(32);
+            byte[] hash = Rfc2898DeriveBytes.Pbkdf2(
+                credential,
+                salt,
+                iterations,
+                HashAlgorithmName.SHA256,
+                32);
+
+            return "PBKDF2-SHA256$" + iterations + "$" +
+                   Convert.ToBase64String(salt) + "$" +
+                   Convert.ToBase64String(hash);
         }
 
-        private static string Hash(string value) =>
-            Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(value)));
-
-        private static bool FixedEquals(string expected, string actual)
+        private static bool VerifyCredentialHash(
+            string encoded,
+            string credential)
         {
-            byte[] a = SHA256.HashData(Encoding.UTF8.GetBytes(expected));
-            byte[] b = SHA256.HashData(Encoding.UTF8.GetBytes(actual));
-            return CryptographicOperations.FixedTimeEquals(a, b);
+            try
+            {
+                string[] parts = encoded.Split('$');
+                if (parts.Length != 4 ||
+                    !string.Equals(parts[0], "PBKDF2-SHA256", StringComparison.Ordinal))
+                {
+                    return false;
+                }
+
+                int iterations = int.Parse(
+                    parts[1],
+                    System.Globalization.CultureInfo.InvariantCulture);
+
+                byte[] salt = Convert.FromBase64String(parts[2]);
+                byte[] expected = Convert.FromBase64String(parts[3]);
+                byte[] actual = Rfc2898DeriveBytes.Pbkdf2(
+                    credential,
+                    salt,
+                    iterations,
+                    HashAlgorithmName.SHA256,
+                    expected.Length);
+
+                return CryptographicOperations.FixedTimeEquals(
+                    actual,
+                    expected);
+            }
+            catch
+            {
+                return false;
+            }
         }
 
         private static void SecureFile(string path)
         {
             if (OperatingSystem.IsWindows())
                 return;
-            File.SetUnixFileMode(path, UnixFileMode.UserRead | UnixFileMode.UserWrite);
+
+            File.SetUnixFileMode(
+                path,
+                UnixFileMode.UserRead | UnixFileMode.UserWrite);
         }
     }
 }
