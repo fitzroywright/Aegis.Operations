@@ -79,19 +79,17 @@ internal static class OperationsEndpoints
                             environment);
 
                         using HttpClient registrationHttp = factory.CreateClient("ops");
-                        var registration = new ApplicationRegistrationClient(
+                        var registration = new ControlPlaneRegistrationClient(
                             registrationHttp,
-                            new ApplicationRegistrationOptions(
+                            new ControlPlaneRegistrationOptions(
                                 new Uri(operationsLocalUrl + "/", UriKind.Absolute),
                                 "Aegis.Operations",
                                 operationsInstanceId,
-                                RegistrationCredentialResolver.EnvironmentVariableName,
-                                TimeSpan.FromSeconds(10),
-                                AutoProvisionControlPlane: true,
-                                CredentialFilePath: operationsCredentialFile),
+                                operationsCredentialFile,
+                                TimeSpan.FromSeconds(10)),
                             logger: registrationLogger);
 
-                        ApplicationRegistrationStatus registrationStatus =
+                        ControlPlaneRegistrationStatus registrationStatus =
                             await registration.RegisterAsync(contract, stoppingToken);
                         if (!registrationStatus.IsRegistered)
                         {
