@@ -51,7 +51,44 @@ internal sealed class SuiteSecurity(IConfiguration config,IHostEnvironment envir
 internal static class SuiteSecurityExtensions
 {
     public static IServiceCollection AddSuiteSecurity(this IServiceCollection s)=>s.AddSingleton<SuiteSecurity>();
-    public static void UseSuiteSecurity(this WebApplication app)=>app.Use(async(ctx,next)=>{if(ctx.Request.Path.StartsWithSegments("/health")||ctx.Request.Path.StartsWithSegments("/login")||ctx.Request.Path.StartsWithSegments("/auth")){await next();return;}var sec=ctx.RequestServices.GetRequiredService<SuiteSecurity>();var id=sec.ReadSession(ctx.Request);if(id is null){ctx.Response.Redirect("/login?returnUrl="+Uri.EscapeDataString(ctx.Request.Path+ctx.Request.QueryString));return;}if(!id.Permissions.Contains("Operations.View",StringComparer.OrdinalIgnoreCase)){ctx.Response.StatusCode=StatusCodes.Status403Forbidden;return;}ctx.Items["SuiteIdentity"]=id;await next();});
+    public static void UseSuiteSecurity(this WebApplication app)=>app.Use(async(ctx,next)=>{
+        bool publicRegistrationEndpoint =
+            ctx.Request.Path.Equals("/api/registration/contracts", StringComparison.OrdinalIgnoreCase) ||
+            (ctx.Request.Path.StartsWithSegments("/api/registration/pending") &&
+             ctx.Request.Path.Value?.EndsWith("/key", StringComparison.OrdinalIgnoreCase) == true);
+
+        if(ctx.Request.Path.StartsWithSegments("/health")||
+           ctx.Request.Path.StartsWithSegments("/login")||
+           ctx.Request.Path.StartsWithSegments("/auth")||
+           publicRegistrationEndpoint)
+        {
+            await next();
+            return;
+        }
+
+        var sec=ctx.RequestServices.GetRequiredService<SuiteSecurity>();
+        var id=sec.ReadSession(ctx.Request);
+        if(id is null)
+        {
+            if(ctx.Request.Path.StartsWithSegments("/api"))
+            {
+                ctx.Response.StatusCode=StatusCodes.Status401Unauthorized;
+                return;
+            }
+
+            ctx.Response.Redirect("/login?returnUrl="+Uri.EscapeDataString(ctx.Request.Path+ctx.Request.QueryString));
+            return;
+        }
+
+        if(!id.Permissions.Contains("Operations.View",StringComparer.OrdinalIgnoreCase))
+        {
+            ctx.Response.StatusCode=StatusCodes.Status403Forbidden;
+            return;
+        }
+
+        ctx.Items["SuiteIdentity"]=id;
+        await next();
+    });
     public static void MapSuiteSecurity(this WebApplication app,string configUrl,string diagUrl)
     {
         app.MapGet("/login",(SuiteSecurity s,string? returnUrl,string? username,string? error)=>Results.Content(LoginPage.Render(s.Mode,returnUrl,username,!string.IsNullOrWhiteSpace(error)),"text/html; charset=utf-8"));
