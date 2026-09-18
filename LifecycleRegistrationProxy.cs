@@ -6,22 +6,24 @@ internal static class LifecycleRegistrationProxy
     {
         app.MapGet("/api/lifecycle-registrations", async (
             HttpContext context,
+            SuiteSecurity suiteSecurity,
             IHttpClientFactory factory,
             CancellationToken ct) =>
         {
             if (!Has(context, "Configuration.Manage")) return Results.Forbid();
-            return await ForwardAsync(context, factory, configurationUrl + "/api/registration/requests", HttpMethod.Get, null, ct);
+            return await ForwardAsync(context, suiteSecurity, factory, configurationUrl + "/api/registration/requests", HttpMethod.Get, null, ct);
         });
 
         app.MapPost("/api/lifecycle-registrations/{registrationId}/approve", async (
             HttpContext context,
             string registrationId,
             LifecycleDecision request,
+            SuiteSecurity suiteSecurity,
             IHttpClientFactory factory,
             CancellationToken ct) =>
         {
             if (!Has(context, "Configuration.Manage")) return Results.Forbid();
-            return await ForwardAsync(context, factory,
+            return await ForwardAsync(context, suiteSecurity, factory,
                 configurationUrl + "/api/registration/" + Uri.EscapeDataString(registrationId) + "/approve",
                 HttpMethod.Post, request, ct);
         });
@@ -34,7 +36,7 @@ internal static class LifecycleRegistrationProxy
             CancellationToken ct) =>
         {
             if (!Has(context, "Configuration.Manage")) return Results.Forbid();
-            return await ForwardAsync(context, factory,
+            return await ForwardAsync(context, suiteSecurity, factory,
                 configurationUrl + "/api/registration/" + Uri.EscapeDataString(registrationId) + "/reject",
                 HttpMethod.Post, request, ct);
         });
@@ -48,6 +50,7 @@ internal static class LifecycleRegistrationProxy
 
     private static async Task<IResult> ForwardAsync(
         HttpContext source,
+        SuiteSecurity suiteSecurity,
         IHttpClientFactory factory,
         string url,
         HttpMethod method,
@@ -58,10 +61,12 @@ internal static class LifecycleRegistrationProxy
         if (body is not null)
             request.Content = System.Net.Http.Json.JsonContent.Create(body);
 
-        if (source.Request.Headers.TryGetValue("Cookie", out var cookie))
-            request.Headers.TryAddWithoutValidation("Cookie", cookie.ToString());
-        if (source.Request.Headers.TryGetValue("Authorization", out var auth))
-            request.Headers.TryAddWithoutValidation("Authorization", auth.ToString());
+        if (!source.Items.TryGetValue("SuiteIdentity", out object? value) || value is not SuiteIdentity identity)
+            return Results.Unauthorized();
+
+        request.Headers.TryAddWithoutValidation(
+            "X-Aegis-Suite-Handoff",
+            suiteSecurity.CreateHandoff(identity, "Aegis.Configuration"));
         request.Headers.TryAddWithoutValidation("X-Aegis-Correlation-Id", Guid.NewGuid().ToString("N"));
 
         using HttpResponseMessage response = await factory.CreateClient("ops").SendAsync(request, ct);
