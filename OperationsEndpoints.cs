@@ -7,6 +7,7 @@ using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Common.Diagnostics;
+using Common.Registration;
 using Common.Security;
 
 internal static class OperationsEndpoints
@@ -67,50 +68,46 @@ internal static class OperationsEndpoints
                 CancellationToken stoppingToken = app.Lifetime.ApplicationStopping;
                 IHttpClientFactory factory = app.Services.GetRequiredService<IHttpClientFactory>();
                 string? operationsCredential = null;
-                try
-                {
-                    operationsCredential = await registrationStore.EnsureControlPlaneCredentialAsync(
-                        "Aegis.Operations",
-                        "Aegis Operations",
-                        operationsInstanceId,
-                        operationsCredentialFile,
-                        stoppingToken);
-                    registrationLogger.LogInformation(
-                        "Aegis.Operations control-plane registration is active for instance {InstanceId}.",
-                        operationsInstanceId);
-
-                    await PublishOperationsContractAsync(
-                        factory,
-                        operationsLocalUrl,
-                        operationsInstanceId,
-                        operationsCredential,
-                        site,
-                        environment,
-                        stoppingToken);
-                }
-                catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
-                {
-                    return;
-                }
-                catch (Exception exception)
-                {
-                    registrationLogger.LogError(exception, "Aegis.Operations self-registration failed.");
-                }
 
                 while (!stoppingToken.IsCancellationRequested)
                 {
                     try
                     {
-                        if (!string.IsNullOrWhiteSpace(operationsCredential))
-                        {
-                            await PublishOperationsContractAsync(
-                                factory,
-                                operationsLocalUrl,
+                        JsonObject contract = BuildOperationsContract(
+                            operationsInstanceId,
+                            site,
+                            environment);
+
+                        using HttpClient registrationHttp = factory.CreateClient("ops");
+                        var registration = new ApplicationRegistrationClient(
+                            registrationHttp,
+                            new ApplicationRegistrationOptions(
+                                new Uri(operationsLocalUrl + "/", UriKind.Absolute),
+                                "Aegis.Operations",
                                 operationsInstanceId,
-                                operationsCredential,
-                                site,
-                                environment,
+                                RegistrationCredentialResolver.EnvironmentVariableName,
+                                TimeSpan.FromSeconds(10),
+                                AutoProvisionControlPlane: true,
+                                CredentialFilePath: operationsCredentialFile),
+                            logger: registrationLogger);
+
+                        ApplicationRegistrationStatus registrationStatus =
+                            await registration.RegisterAsync(contract, stoppingToken);
+                        if (!registrationStatus.IsRegistered)
+                        {
+                            registrationLogger.LogWarning(
+                                "Aegis.Operations self-registration state is {RegistrationState}: {RegistrationError}.",
+                                registrationStatus.State,
+                                registrationStatus.Error ?? "No additional detail.");
+                        }
+                        else
+                        {
+                            operationsCredential = await ReadCredentialFileAsync(
+                                operationsCredentialFile,
                                 stoppingToken);
+                            registrationLogger.LogInformation(
+                                "Aegis.Operations control-plane registration is active for instance {InstanceId}.",
+                                operationsInstanceId);
                         }
 
                         IReadOnlyList<string> activeApplicationIds =
@@ -136,7 +133,7 @@ internal static class OperationsEndpoints
                     }
                     catch (Exception exception)
                     {
-                        registrationLogger.LogWarning(exception, "Unexpected failure during Configuration reconciliation.");
+                        registrationLogger.LogWarning(exception, "Unexpected failure during Operations self-registration or Configuration reconciliation.");
                     }
 
                     try
@@ -834,16 +831,12 @@ load();
         return string.IsNullOrWhiteSpace(value) ? null : value;
     }
 
-    private static async Task PublishOperationsContractAsync(
-        IHttpClientFactory factory,
-        string operationsLocalUrl,
+    private static JsonObject BuildOperationsContract(
         string instanceId,
-        string credential,
         string site,
-        string environment,
-        CancellationToken ct)
+        string environment)
     {
-        JsonObject contract = new()
+        return new JsonObject
         {
             ["applicationId"] = "Aegis.Operations",
             ["displayName"] = "Aegis Operations",
@@ -860,7 +853,11 @@ load();
                     ["required"] = true,
                     ["purpose"] = "Aegis.Configuration endpoint used for contract publication and lifecycle reconciliation.",
                     ["configurationKey"] = "Operations:ConfigurationUrl",
-                    ["sensitive"] = false
+                    ["sensitive"] = false,
+                    ["isConfigured"] = true,
+                    ["effectiveValueAvailable"] = true,
+                    ["configurationState"] = "Configured",
+                    ["effectiveSource"] = "Resolved IConfiguration"
                 },
                 new JsonObject
                 {
@@ -870,7 +867,11 @@ load();
                     ["required"] = true,
                     ["purpose"] = "Aegis.Diagnostics endpoint used by Operations.",
                     ["configurationKey"] = "Operations:DiagnosticsUrl",
-                    ["sensitive"] = false
+                    ["sensitive"] = false,
+                    ["isConfigured"] = true,
+                    ["effectiveValueAvailable"] = true,
+                    ["configurationState"] = "Configured",
+                    ["effectiveSource"] = "Resolved IConfiguration"
                 },
                 new JsonObject
                 {
@@ -880,24 +881,14 @@ load();
                     ["required"] = true,
                     ["purpose"] = "Persistent Operations registration state.",
                     ["configurationKey"] = "Operations:RegistrationDirectory",
-                    ["sensitive"] = false
+                    ["sensitive"] = false,
+                    ["isConfigured"] = true,
+                    ["effectiveValueAvailable"] = true,
+                    ["configurationState"] = "Configured",
+                    ["effectiveSource"] = "Resolved IConfiguration"
                 }
             }
         };
-
-        using HttpClient client = factory.CreateClient("ops");
-        using var request = new HttpRequestMessage(
-            HttpMethod.Post,
-            operationsLocalUrl.TrimEnd('/') + "/api/registration/contracts")
-        {
-            Content = JsonContent.Create(contract)
-        };
-        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", credential);
-        request.Headers.TryAddWithoutValidation("X-Aegis-Application-Id", "Aegis.Operations");
-        request.Headers.TryAddWithoutValidation("X-Aegis-Instance-Id", instanceId);
-        request.Headers.TryAddWithoutValidation("X-Aegis-Registration-Attempt-Id", Guid.NewGuid().ToString("N"));
-        using HttpResponseMessage response = await client.SendAsync(request, ct);
-        response.EnsureSuccessStatusCode();
     }
 
     private static string Bearer(string authorization)
