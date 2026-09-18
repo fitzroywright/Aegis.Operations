@@ -11,7 +11,7 @@ using Common.Security;
 
 internal static class OperationsEndpoints
 {
-    private const string RegistrationEnvironmentVariable = "AEGIS_CONFIGURATION_REGISTRATION_KEY";
+    private const string RegistrationEnvironmentVariable = "AEGIS_REGISTRATION_KEY";
 
     internal static void MapOperationsEndpoints(
         this WebApplication app,
