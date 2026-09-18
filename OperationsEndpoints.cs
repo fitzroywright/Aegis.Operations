@@ -338,9 +338,9 @@ table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:9px;bord
 <p class="muted">Create the pending registration before installing the application. The application never creates its own pending registration.</p>
 <section class="panel">
 <h2>Create Pending Registration</h2>
-<label>Application ID<input id="applicationId" placeholder="Aegis.Cafeteria.Services"></label>
-<label>Display Name<input id="displayName" placeholder="Aegis Cafeteria Services"></label>
-<label>Instance ID<input id="instanceId" placeholder="kratos"></label>
+<label>Application ID<input id="applicationId" placeholder=""></label>
+<label>Display Name<input id="displayName" placeholder=""></label>
+<label>Instance ID<input id="instanceId" placeholder=""></label>
 <button onclick="createRegistration()">Create Pending Registration</button>
 <div id="created"></div>
 </section>
