@@ -6,9 +6,31 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout Aegis.Operations
+        uses: actions/checkout@v4
+        with:
+          path: Aegis.Operations
+      - name: Checkout Common.Diagnostics
+        uses: actions/checkout@v4
+        with:
+          repository: fitzroywright/Common.Diagnostics
+          path: Common/Common.Diagnostics
+      - name: Checkout Common.Security
+        uses: actions/checkout@v4
+        with:
+          repository: fitzroywright/Common.Security
+          path: Common/Common.Security
+      - name: Checkout Common.Registration
+        uses: actions/checkout@v4
+        with:
+          repository: fitzroywright/Common.Registration
+          path: Common/Common.Registration
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.0.x'
-      - run: dotnet restore Aegis.Operations.csproj
-      - run: dotnet build Aegis.Operations.csproj --no-restore --configuration Release
+      - name: Restore
+        working-directory: Aegis.Operations
+        run: dotnet restore Aegis.Operations.csproj
+      - name: Build
+        working-directory: Aegis.Operations
+        run: dotnet build Aegis.Operations.csproj --no-restore --configuration Release
