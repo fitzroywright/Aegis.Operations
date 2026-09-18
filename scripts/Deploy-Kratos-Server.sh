@@ -2,7 +2,7 @@
 set -Eeuo pipefail
 
 SOURCE_ROOT="/tmp/aegis-deploy/payload"
-APPS="operations,configuration,diagnostics"
+APPS="operations,configuration,diagnostics,hello"
 BACKUP_ROOT="/opt/aegis/backups"
 OWNER="aegis:aegis"
 HEALTH_RETRIES=10
@@ -18,8 +18,8 @@ rolls back automatically if deployment health validation fails.
 
 Options:
   --source PATH       Staging payload root. Default: /tmp/aegis-deploy/payload
-  --apps LIST         Comma-separated: operations,configuration,diagnostics,requestportal
-                      Default: operations,configuration,diagnostics
+  --apps LIST         Comma-separated: operations,configuration,diagnostics,hello,requestportal
+                      Default: operations,configuration,diagnostics,hello
   --backup-root PATH  Backup root. Default: /opt/aegis/backups
   --owner USER:GROUP  Installed file owner. Default: aegis:aegis
   --help              Show this help
@@ -28,6 +28,7 @@ Expected staging layout:
   SOURCE/operations/Aegis.Operations.dll
   SOURCE/configuration/Aegis.Configuration.Web.dll
   SOURCE/diagnostics/Aegis.Diagnostics.dll
+  SOURCE/hello/Aegis.Hello.dll
   SOURCE/requestportal/RequestPortal.Web.dll
 
 This script never overwrites /etc/aegis/*.env or /etc/aegis/secrets.
@@ -56,24 +57,28 @@ declare -A TARGET=(
   [operations]="/opt/aegis/operations"
   [configuration]="/opt/aegis/configuration"
   [diagnostics]="/opt/aegis/diagnostics"
+  [hello]="/opt/aegis/hello"
   [requestportal]="/opt/aegis/requestportal"
 )
 declare -A SERVICE=(
   [operations]="aegis-operations"
   [configuration]="aegis-configuration"
   [diagnostics]="aegis-diagnostics"
+  [hello]="aegis-hello"
   [requestportal]="aegis-requestportal"
 )
 declare -A DLL=(
   [operations]="Aegis.Operations.dll"
   [configuration]="Aegis.Configuration.Web.dll"
   [diagnostics]="Aegis.Diagnostics.dll"
+  [hello]="Aegis.Hello.dll"
   [requestportal]="RequestPortal.Web.dll"
 )
 declare -A HEALTH=(
   [operations]="http://127.0.0.1:5100/health"
   [configuration]="http://127.0.0.1:5200/health"
   [diagnostics]="http://127.0.0.1:5300/health"
+  [hello]="http://127.0.0.1:5400/health"
   [requestportal]="http://127.0.0.1:5401/health"
 )
 
@@ -122,7 +127,7 @@ is_selected() {
 
 stop_selected() {
   # Dependents first; RequestPortal is downstream of the control-plane services.
-  for app in requestportal operations diagnostics configuration; do
+  for app in requestportal hello operations diagnostics configuration; do
     if is_selected "$app"; then
       systemctl stop "${SERVICE[$app]}" || true
     fi
@@ -131,7 +136,7 @@ stop_selected() {
 
 start_selected() {
   # Registry first, then diagnostics/operations, then downstream applications.
-  for app in configuration diagnostics operations requestportal; do
+  for app in configuration diagnostics operations hello requestportal; do
     if is_selected "$app"; then
       systemctl start "${SERVICE[$app]}"
     fi
