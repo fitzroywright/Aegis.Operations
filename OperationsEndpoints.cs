@@ -390,7 +390,7 @@ internal static class OperationsEndpoints
                 string.IsNullOrWhiteSpace(credential))
                 return Results.Unauthorized();
 
-            RegistrationValidation validation = await registrationStore.ValidateAndMarkRegisteredAsync(
+            RegistrationValidation validation = await registrationStore.ValidateAsync(
                 applicationId,
                 instanceId,
                 credential,
@@ -434,6 +434,33 @@ internal static class OperationsEndpoints
             using HttpResponseMessage response = await client.SendAsync(forward, ct);
             registrationLogger.LogInformation("Aegis.Configuration returned HTTP {StatusCode}.", (int)response.StatusCode);
             string body = await response.Content.ReadAsStringAsync(ct);
+
+            if (response.IsSuccessStatusCode)
+            {
+                bool markedRegistered = await registrationStore.MarkRegisteredAsync(
+                    applicationId,
+                    instanceId,
+                    credential,
+                    ct);
+                if (!markedRegistered)
+                {
+                    registrationLogger.LogError(
+                        "Configuration accepted the contract, but Operations could not finalize the registration state.");
+                    return Results.Problem(
+                        "Configuration accepted the contract, but Operations could not finalize registration state.",
+                        statusCode: StatusCodes.Status500InternalServerError);
+                }
+
+                registrationLogger.LogInformation(
+                    "Registration finalized after Configuration accepted the contract.");
+            }
+            else
+            {
+                registrationLogger.LogWarning(
+                    "Registration remains retryable because Configuration rejected the contract with HTTP {StatusCode}.",
+                    (int)response.StatusCode);
+            }
+
             return Results.Content(
                 body,
                 response.Content.Headers.ContentType?.ToString() ?? "application/json",
@@ -962,7 +989,7 @@ load();
             }
         }
 
-        public async Task<RegistrationValidation> ValidateAndMarkRegisteredAsync(
+        public async Task<RegistrationValidation> ValidateAsync(
             string applicationId,
             string instanceId,
             string credential,
@@ -983,21 +1010,51 @@ load();
                         return RegistrationValidation.Revoked;
 
                     if (record.State is RegistrationRecordState.KeyRetrieved or RegistrationRecordState.Registered)
-                    {
-                        if (record.State != RegistrationRecordState.Registered)
-                        {
-                            PendingRegistration registered = record with
-                            {
-                                State = RegistrationRecordState.Registered,
-                                RegisteredAtUtc = DateTimeOffset.UtcNow,
-                                Audit = [.. record.Audit, new(DateTimeOffset.UtcNow, "Registered", applicationId)]
-                            };
-                            await SaveUnsafeAsync(registered, ct);
-                        }
                         return RegistrationValidation.Valid;
-                    }
                 }
+
                 return RegistrationValidation.Invalid;
+            }
+            finally
+            {
+                _gate.Release();
+            }
+        }
+
+        public async Task<bool> MarkRegisteredAsync(
+            string applicationId,
+            string instanceId,
+            string credential,
+            CancellationToken ct)
+        {
+            await _gate.WaitAsync(ct);
+            try
+            {
+                string hash = Hash(credential);
+                foreach (PendingRegistration record in await LoadAllUnsafeAsync(ct))
+                {
+                    if (!string.Equals(record.ApplicationId, applicationId, StringComparison.OrdinalIgnoreCase) ||
+                        !string.Equals(record.InstanceId, instanceId, StringComparison.OrdinalIgnoreCase) ||
+                        !FixedEquals(record.CredentialHash, hash))
+                        continue;
+
+                    if (record.State == RegistrationRecordState.Registered)
+                        return true;
+
+                    if (record.State != RegistrationRecordState.KeyRetrieved)
+                        return false;
+
+                    PendingRegistration registered = record with
+                    {
+                        State = RegistrationRecordState.Registered,
+                        RegisteredAtUtc = DateTimeOffset.UtcNow,
+                        Audit = [.. record.Audit, new(DateTimeOffset.UtcNow, "Registered", applicationId)]
+                    };
+                    await SaveUnsafeAsync(registered, ct);
+                    return true;
+                }
+
+                return false;
             }
             finally
             {
