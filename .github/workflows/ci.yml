@@ -40,7 +40,12 @@ jobs:
 
       - name: Restore
         working-directory: Aegis.Operations
-        run: dotnet restore Aegis.Operations.csproj
+        shell: bash
+        run: |
+          set +e
+          dotnet restore Aegis.Operations.csproj 2>&1 | tee restore.log
+          code=${PIPESTATUS[0]}
+          exit "$code"
 
       - name: Build
         id: build
@@ -77,5 +82,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: build-log
-          path: Aegis.Operations/build.log
+          path: |
+            Aegis.Operations/restore.log
+            Aegis.Operations/build.log
           if-no-files-found: ignore
