@@ -24,6 +24,7 @@ internal static class OperationsEndpoints
             ?? Path.Combine(app.Environment.ContentRootPath, "registration");
         Directory.CreateDirectory(registrationDirectory);
         var registrationStore = new RegistrationStore(registrationDirectory);
+        ILogger registrationLogger = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("Aegis.Operations.Registration");
 
         app.MapGet("/api/summary", async (IHttpClientFactory factory, CancellationToken ct) =>
         {
@@ -50,6 +51,15 @@ internal static class OperationsEndpoints
             PendingRegistrationRequest request,
             CancellationToken ct) =>
         {
+            string attemptId = Guid.NewGuid().ToString("N");
+            using IDisposable? logScope = registrationLogger.BeginScope(new Dictionary<string, object?>
+            {
+                ["Activity"] = "Registration",
+                ["Application"] = request.ApplicationId,
+                ["RegistrationAttemptId"] = attemptId,
+                ["Stage"] = "PendingRegistration"
+            });
+            registrationLogger.LogInformation("Pending registration creation requested for instance {InstanceId}.", request.InstanceId);
             if (!Has(context, "Configuration.Manage"))
                 return Results.Forbid();
 
@@ -75,6 +85,7 @@ internal static class OperationsEndpoints
             }
 
             PendingRegistration record = result.Record!;
+            registrationLogger.LogInformation("Pending registration exists or was created. RegistrationId={RegistrationId}.", record.RegistrationId);
             string retrieveUrl =
                 $"{context.Request.Scheme}://{context.Request.Host}{context.Request.PathBase}/api/registration/pending/{Uri.EscapeDataString(record.RegistrationId)}/key?pin={Uri.EscapeDataString(record.Pin)}";
             string curl = $"curl -fsS '{retrieveUrl}'";
@@ -99,6 +110,14 @@ internal static class OperationsEndpoints
             string pin,
             CancellationToken ct) =>
         {
+            using IDisposable? logScope = registrationLogger.BeginScope(new Dictionary<string, object?>
+            {
+                ["Activity"] = "Registration",
+                ["Application"] = "Aegis.Operations",
+                ["RegistrationAttemptId"] = registrationId,
+                ["Stage"] = "KeyRetrieval"
+            });
+            registrationLogger.LogInformation("Registration key retrieval requested.");
             context.Response.Headers.CacheControl = "no-store";
             CredentialRetrieval result = await registrationStore.RetrieveKeyAsync(registrationId, pin, ct);
             return result.State switch
@@ -198,9 +217,19 @@ internal static class OperationsEndpoints
             IHttpClientFactory factory,
             CancellationToken ct) =>
         {
+            string attemptId = context.Request.Headers["X-Aegis-Registration-Attempt-Id"].ToString();
+            if (string.IsNullOrWhiteSpace(attemptId)) attemptId = Guid.NewGuid().ToString("N");
             string applicationId = context.Request.Headers["X-Aegis-Application-Id"].ToString();
             string instanceId = context.Request.Headers["X-Aegis-Instance-Id"].ToString();
             string credential = Bearer(context.Request.Headers.Authorization.ToString());
+            using IDisposable? logScope = registrationLogger.BeginScope(new Dictionary<string, object?>
+            {
+                ["Activity"] = "Registration",
+                ["Application"] = applicationId,
+                ["RegistrationAttemptId"] = attemptId,
+                ["Stage"] = "ContractReceived"
+            });
+            registrationLogger.LogInformation("Registration contract request received for instance {InstanceId}.", instanceId);
 
             if (string.IsNullOrWhiteSpace(applicationId) ||
                 string.IsNullOrWhiteSpace(instanceId) ||
@@ -214,9 +243,16 @@ internal static class OperationsEndpoints
                 ct);
 
             if (validation == RegistrationValidation.Revoked)
+            {
+                registrationLogger.LogWarning("Registration contract rejected because registration is revoked.");
                 return Results.StatusCode(StatusCodes.Status410Gone);
+            }
             if (validation != RegistrationValidation.Valid)
+            {
+                registrationLogger.LogWarning("Registration contract rejected because registration key validation failed.");
                 return Results.Unauthorized();
+            }
+            registrationLogger.LogInformation("Registration key validation succeeded.");
 
             JsonNode? contract = await JsonNode.ParseAsync(context.Request.Body, cancellationToken: ct);
             if (contract is null)
@@ -239,7 +275,9 @@ internal static class OperationsEndpoints
             };
             forward.Headers.TryAddWithoutValidation("X-Aegis-Registration-Key", configurationRegistrationKey);
 
+            registrationLogger.LogInformation("Forwarding validated configuration contract to Aegis.Configuration.");
             using HttpResponseMessage response = await client.SendAsync(forward, ct);
+            registrationLogger.LogInformation("Aegis.Configuration returned HTTP {StatusCode}.", (int)response.StatusCode);
             string body = await response.Content.ReadAsStringAsync(ct);
             return Results.Content(
                 body,
