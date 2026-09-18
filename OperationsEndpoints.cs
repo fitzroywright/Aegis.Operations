@@ -101,6 +101,18 @@ internal static class OperationsEndpoints
                 {
                     try
                     {
+                        if (!string.IsNullOrWhiteSpace(operationsCredential))
+                        {
+                            await PublishOperationsContractAsync(
+                                factory,
+                                operationsLocalUrl,
+                                operationsInstanceId,
+                                operationsCredential,
+                                site,
+                                environment,
+                                stoppingToken);
+                        }
+
                         IReadOnlyList<string> activeApplicationIds =
                             await registrationStore.RegisteredApplicationIdsAsync(stoppingToken);
                         ConfigurationSyncResult sync = await ReconcileConfigurationAsync(
