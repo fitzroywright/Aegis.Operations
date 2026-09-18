@@ -31,4 +31,5 @@ string environment = Resolve("Operations:Environment", "—");
 app.MapSuiteSecurity(configurationUrl, diagnosticsUrl);
 app.UseSuiteSecurity();
 app.MapOperationsEndpoints(configurationUrl, diagnosticsUrl, site, environment);
+app.MapLifecycleRegistrationProxy(configurationUrl);
 app.Run();
