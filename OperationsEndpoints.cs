@@ -24,7 +24,7 @@ internal static class OperationsEndpoints
         string registrationDirectory;
         if (string.IsNullOrWhiteSpace(configuredRegistrationDirectory))
         {
-            registrationDirectory = Path.Combine(app.Environment.ContentRootPath, "registration");
+            registrationDirectory = "/var/lib/aegis/operations/registration";
             app.Logger.LogWarning(
                 "Configuration {ConfigurationKey} is not set; falling back to default value {FallbackValue}.",
                 "Operations:RegistrationDirectory",
