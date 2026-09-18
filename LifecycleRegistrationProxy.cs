@@ -133,6 +133,28 @@ internal static class LifecycleRegistrationProxy
                 ct);
         });
 
+
+        app.MapPost("/api/lifecycle-registrations/{registrationId}/conflict/replace-with-incoming", async (
+            HttpContext context,
+            string registrationId,
+            LifecycleDecision request,
+            SuiteSecurity suiteSecurity,
+            IHttpClientFactory factory,
+            CancellationToken ct) =>
+        {
+            if (!Has(context, "Configuration.Manage")) return Results.Forbid();
+            return await ForwardAsync(
+                context,
+                suiteSecurity,
+                factory,
+                configurationUrl + "/api/registration/" +
+                Uri.EscapeDataString(registrationId) +
+                "/conflict/replace-with-incoming",
+                HttpMethod.Post,
+                request,
+                ct);
+        });
+
         app.MapGet("/registration-lifecycle", (HttpContext context) =>
         {
             if (!Has(context, "Configuration.Manage")) return Results.Forbid();
@@ -245,6 +267,7 @@ async function load(){
    }
    if(conflict){
      actions+='<button class="warn" onclick="decide(\''+e(x.registrationId)+'\',\'conflict/retain-existing\')">Retain Existing</button>';
+     actions+='<button class="danger" onclick="decide(\''+e(x.registrationId)+'\',\'conflict/replace-with-incoming\')">Replace with Incoming</button>';
    }
    if(canRevoke){
      actions+='<button class="danger" onclick="decide(\''+e(x.registrationId)+'\',\'revoke\')">Revoke</button>';
