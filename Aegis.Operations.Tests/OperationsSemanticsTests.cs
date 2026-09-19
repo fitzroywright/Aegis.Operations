@@ -4,17 +4,17 @@ using Xunit;
 public sealed class OperationsSemanticsTests
 {
     [Theory]
-    [InlineData("Healthy", OperationalState.Healthy)]
-    [InlineData("Degraded", OperationalState.Degraded)]
-    [InlineData("Warning", OperationalState.Warning)]
-    [InlineData("Failed", OperationalState.Failed)]
-    [InlineData("Offline", OperationalState.Offline)]
-    [InlineData("Unknown", OperationalState.Unknown)]
-    [InlineData("Maintenance", OperationalState.Maintenance)]
-    [InlineData("Not Supported", OperationalState.NotSupported)]
-    [InlineData("something-new", OperationalState.Unknown)]
-    internal void Health_statuses_do_not_manufacture_healthy(string input, OperationalState expected)
-        => Assert.Equal(expected, OperationalStateSemantics.FromHealthStatus(input));
+    [InlineData("Healthy", "Healthy")]
+    [InlineData("Degraded", "Degraded")]
+    [InlineData("Warning", "Warning")]
+    [InlineData("Failed", "Failed")]
+    [InlineData("Offline", "Offline")]
+    [InlineData("Unknown", "Unknown")]
+    [InlineData("Maintenance", "Maintenance")]
+    [InlineData("Not Supported", "NotSupported")]
+    [InlineData("something-new", "Unknown")]
+    public void Health_statuses_do_not_manufacture_healthy(string input, string expected)
+        => Assert.Equal(expected, OperationalStateSemantics.FromHealthStatus(input).ToString());
 
     [Fact]
     public void Missing_health_status_is_unknown()
