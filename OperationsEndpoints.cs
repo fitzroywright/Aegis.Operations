@@ -559,15 +559,20 @@ internal static class OperationsEndpoints
             new(false, 0, 0, 0, 0, 0, 0, 0, 0, error);
     }
 
-    private static async Task<object> ProbeAsync(HttpClient client, string url, CancellationToken ct)
+    private static async Task<OperationalObservation> ProbeAsync(HttpClient client, string url, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(url))
-            return new { available = false, status = "Not configured", url = string.Empty };
+            return OperationalStateSemantics.Unknown(
+                "Provider URL is not configured.");
 
         string trimmedUrl = url.Trim();
         if (!Uri.TryCreate(trimmedUrl, UriKind.Absolute, out Uri? baseUri) ||
             (baseUri.Scheme != Uri.UriSchemeHttp && baseUri.Scheme != Uri.UriSchemeHttps))
-            return new { available = false, status = "Invalid configuration", url = trimmedUrl };
+        {
+            return OperationalStateSemantics.Unknown(
+                "Provider URL configuration is invalid.",
+                url: trimmedUrl);
+        }
 
         Uri healthUri = new($"{baseUri.AbsoluteUri.TrimEnd('/')}/health", UriKind.Absolute);
 
@@ -575,18 +580,42 @@ internal static class OperationsEndpoints
         {
             using HttpResponseMessage response = await client.GetAsync(healthUri, ct);
             if (!response.IsSuccessStatusCode)
-                return new { available = false, status = "Unavailable", url = trimmedUrl };
+            {
+                return OperationalStateSemantics.Unknown(
+                    $"Health endpoint returned HTTP {(int)response.StatusCode}.",
+                    healthUri.AbsoluteUri,
+                    trimmedUrl);
+            }
 
-            using JsonDocument document = JsonDocument.Parse(await response.Content.ReadAsStringAsync(ct));
-            string status = document.RootElement.TryGetProperty("status", out JsonElement value)
-                ? value.GetString() ?? "Available"
-                : "Available";
-
-            return new { available = true, status, url = trimmedUrl };
+            try
+            {
+                using JsonDocument document = JsonDocument.Parse(await response.Content.ReadAsStringAsync(ct));
+                return OperationalStateSemantics.FromHealthDocument(
+                    document.RootElement,
+                    healthUri.AbsoluteUri,
+                    trimmedUrl);
+            }
+            catch (JsonException ex)
+            {
+                return OperationalStateSemantics.Unknown(
+                    $"Health endpoint returned malformed telemetry: {ex.Message}",
+                    healthUri.AbsoluteUri,
+                    trimmedUrl);
+            }
         }
-        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+        catch (TaskCanceledException) when (!ct.IsCancellationRequested)
         {
-            return new { available = false, status = "Unavailable", url = trimmedUrl };
+            return OperationalStateSemantics.Unknown(
+                "Health observation timed out.",
+                healthUri.AbsoluteUri,
+                trimmedUrl);
+        }
+        catch (HttpRequestException ex)
+        {
+            return OperationalStateSemantics.Unknown(
+                $"Health endpoint could not be reached: {ex.Message}",
+                healthUri.AbsoluteUri,
+                trimmedUrl);
         }
     }
 
