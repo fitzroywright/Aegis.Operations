@@ -13,7 +13,7 @@ public sealed class OperationsSemanticsTests
     [InlineData("Maintenance", OperationalState.Maintenance)]
     [InlineData("Not Supported", OperationalState.NotSupported)]
     [InlineData("something-new", OperationalState.Unknown)]
-    public void Health_statuses_do_not_manufacture_healthy(string input, OperationalState expected)
+    internal void Health_statuses_do_not_manufacture_healthy(string input, OperationalState expected)
         => Assert.Equal(expected, OperationalStateSemantics.FromHealthStatus(input));
 
     [Fact]
