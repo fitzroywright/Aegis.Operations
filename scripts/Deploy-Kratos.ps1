@@ -1,7 +1,7 @@
 [CmdletBinding()]
 param(
     [string]$HostName = "kratos",
-    [string]$UserName = "FWright",
+    [string]$UserName = "fwright",
     [ValidateSet("operations","configuration","diagnostics","hello","requestportal")]
     [string[]]$Applications = @("operations","configuration","diagnostics","hello"),
     [string]$ProjectsRoot = "D:\Projects",
@@ -113,7 +113,10 @@ try {
         "rm -rf '$RemoteWorkRoot'",
         "mkdir -p '$RemoteWorkRoot'",
         "tar -xzf '$RemoteArchive' -C '$RemoteWorkRoot'",
-        "sudo -n install -o root -g root -m 0755 '$RemoteWorkRoot/Deploy-Kratos-Server.sh' '$RemoteDeployCommand' 2>/dev/null || sudo install -o root -g root -m 0755 '$RemoteWorkRoot/Deploy-Kratos-Server.sh' '$RemoteDeployCommand'",
+        "if ! sudo -n install -o root -g root -m 0755 '$RemoteWorkRoot/Deploy-Kratos-Server.sh' '$RemoteDeployCommand'; then",
+        "  echo 'ERROR: passwordless sudo is required to update the Aegis deployer. No interactive sudo fallback is allowed.' >&2",
+        "  exit 4",
+        "fi",
         "if sudo -n '$RemoteDeployCommand' --source '$RemoteWorkRoot/payload' --apps '$appsCsv'; then",
         "  deploy_rc=0",
         "else",
@@ -151,19 +154,19 @@ try {
         }
     }
     else {
-        $scpArgs = @()
-        $sshArgs = @()
+        $scpArgs = @("-o", "BatchMode=yes")
+        $sshArgs = @("-o", "BatchMode=yes")
         if ($IdentityFile) {
             $scpArgs += @("-i", $IdentityFile)
             $sshArgs += @("-i", $IdentityFile)
         }
 
         Write-Host "`nUploading deployment bundle to $remote ..."
-        Write-Host "If SSH key authentication is not configured, SCP will prompt for the SSH password."
+        Write-Host "Using non-interactive SSH authentication (BatchMode=yes)."
         Invoke-Native -FilePath "scp" -ArgumentList ($scpArgs + @($bundleFile, "${remote}:$RemoteArchive"))
 
         Write-Host "`nExecuting deployment remotely on $HostName ..."
-        Invoke-Native -FilePath "ssh" -ArgumentList ($sshArgs + @("-tt", $remote, $remoteCommand))
+        Invoke-Native -FilePath "ssh" -ArgumentList ($sshArgs + @($remote, $remoteCommand))
     }
 
     Write-Host "`n========================================"
