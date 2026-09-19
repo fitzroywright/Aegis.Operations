@@ -31,7 +31,7 @@ Expected staging layout:
   SOURCE/hello/Aegis.Hello.dll
   SOURCE/requestportal/RequestPortal.Web.dll
 
-This script preserves application environment files and secrets. During registration-lifecycle migration it only renames/removes obsolete registration keys after backing the files up.
+This script preserves application environment files and secrets. During registration-lifecycle migration it removes obsolete ordinary-application registration keys after backing the files up.
 EOF
 }
 
@@ -135,7 +135,7 @@ stop_selected() {
 }
 
 start_selected() {
-  # Operations is the registration authority; start it before Configuration and Diagnostics.
+  # Operations provides restricted control-plane bootstrap; Configuration is the ordinary application registration authority.
   for app in operations configuration diagnostics hello requestportal; do
     if is_selected "$app"; then
       systemctl start "${SERVICE[$app]}"
