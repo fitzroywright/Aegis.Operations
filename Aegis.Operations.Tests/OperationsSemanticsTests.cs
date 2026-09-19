@@ -64,6 +64,42 @@ public sealed class OperationsSemanticsTests
     }
 
     [Fact]
+    public void Stale_healthy_observation_becomes_unknown()
+    {
+        DateTimeOffset now = DateTimeOffset.UtcNow;
+        Assert.Equal(
+            OperationalState.Unknown,
+            OperationsFreshness.Apply(
+                OperationalState.Healthy,
+                now.AddMinutes(-10),
+                now,
+                TimeSpan.FromMinutes(5)));
+    }
+
+    [Fact]
+    public void Fresh_offline_state_remains_offline()
+    {
+        DateTimeOffset now = DateTimeOffset.UtcNow;
+        Assert.Equal(
+            OperationalState.Offline,
+            OperationsFreshness.Apply(
+                OperationalState.Offline,
+                now.AddSeconds(-20),
+                now,
+                TimeSpan.FromMinutes(5)));
+    }
+
+    [Fact]
+    public void Branch_states_are_independent()
+    {
+        var email = new FlowStageRecord("Email", FlowStageState.Completed, Branch: "Email");
+        var whatsapp = new FlowStageRecord("WhatsApp", FlowStageState.Failed, Branch: "WhatsApp");
+
+        Assert.Equal(FlowStageState.Completed, email.State);
+        Assert.Equal(FlowStageState.Failed, whatsapp.State);
+    }
+
+    [Fact]
     public void Diagnostic_snapshot_redacts_secret_like_fields_recursively()
     {
         using JsonDocument source = JsonDocument.Parse("""
