@@ -38,7 +38,22 @@ internal sealed class SuiteSecurity(IConfiguration config,IHostEnvironment envir
     SuiteIdentity? AuthenticateInternal(string user,string password){var section=config.GetSection("SuiteSecurity:Internal:Users").GetChildren().FirstOrDefault(x=>x.Key.Equals(user,StringComparison.OrdinalIgnoreCase));if(section is null)return null;string? hash=section["PasswordHash"];if(hash is null||!Verify(password,hash))return null;return new(user,section["DisplayName"]??user,section["Title"]??"User",section.GetSection("Permissions").Get<string[]>()??DefaultPermissions());}
     SuiteIdentity FromResult(string user,AuthenticationResult r)=>new(user,r.UserInfo?.DisplayName??user,r.UserInfo?.Title??"User",r.IsAdministrative?AdminPermissions():DefaultPermissions());
     static string[] DefaultPermissions()=>["Operations.View","Configuration.View","Diagnostics.View"];
-    static string[] AdminPermissions()=>["Operations.View","Configuration.View","Configuration.Manage","Diagnostics.View","Diagnostics.Run","Diagnostics.Repair","Diagnostics.Critical","Security.Manage"];
+    static string[] AdminPermissions()=>[
+        "Operations.View",
+        "Operations.Telemetry.Publish",
+        "Operations.Alerts.Acknowledge",
+        "Operations.Alerts.Resolve",
+        "Operations.EngineerLog.Create",
+        "Operations.Runbooks.Manage",
+        "Operations.Audit.View",
+        "Configuration.View",
+        "Configuration.Manage",
+        "Diagnostics.View",
+        "Diagnostics.Run",
+        "Diagnostics.Repair",
+        "Diagnostics.Critical",
+        "Security.Manage"
+    ];
     static bool Verify(string password,string encoded){try{var p=encoded.Split('$');if(p.Length!=4||p[0]!="PBKDF2")return false;int iterations=int.Parse(p[1]);byte[] salt=Convert.FromBase64String(p[2]),expected=Convert.FromBase64String(p[3]);byte[] actual=Rfc2898DeriveBytes.Pbkdf2(password,salt,iterations,HashAlgorithmName.SHA256,expected.Length);return CryptographicOperations.FixedTimeEquals(actual,expected);}catch{return false;}}
     public string CreateSession(SuiteIdentity i)=>Sign(new SuiteTicket(i.UserName,i.DisplayName,i.Title,i.Permissions,"Aegis.Operations",DateTimeOffset.UtcNow.AddHours(8).ToUnixTimeSeconds(),Guid.NewGuid().ToString("N")));
     public string CreateHandoff(SuiteIdentity i,string audience)=>Sign(new SuiteTicket(i.UserName,i.DisplayName,i.Title,i.Permissions,audience,DateTimeOffset.UtcNow.AddSeconds(45).ToUnixTimeSeconds(),Guid.NewGuid().ToString("N")));
@@ -57,10 +72,21 @@ internal static class SuiteSecurityExtensions
             ctx.Request.Path.Equals("/api/registration/validate", StringComparison.OrdinalIgnoreCase) ||
             ctx.Request.Path.Equals("/api/registration/control-plane/auto", StringComparison.OrdinalIgnoreCase);
 
+        bool lifecycleAuthenticatedTelemetry =
+            HttpMethods.IsPost(ctx.Request.Method) &&
+            (ctx.Request.Path.Equals("/api/operations/applications/observe", StringComparison.OrdinalIgnoreCase) ||
+             ctx.Request.Path.Equals("/api/operations/flows/observe", StringComparison.OrdinalIgnoreCase) ||
+             ctx.Request.Path.Equals("/api/operations/alerts", StringComparison.OrdinalIgnoreCase) ||
+             ctx.Request.Path.Equals("/api/operations/diagnostics/observe", StringComparison.OrdinalIgnoreCase) ||
+             ctx.Request.Path.Equals("/api/operations/messaging/observe", StringComparison.OrdinalIgnoreCase) ||
+             ctx.Request.Path.Equals("/api/operations/messages/trace", StringComparison.OrdinalIgnoreCase) ||
+             ctx.Request.Path.Equals("/api/operations/synchronization/observe", StringComparison.OrdinalIgnoreCase));
+
         if(ctx.Request.Path.StartsWithSegments("/health")||
            ctx.Request.Path.StartsWithSegments("/login")||
            ctx.Request.Path.StartsWithSegments("/auth")||
-           publicRegistrationEndpoint)
+           publicRegistrationEndpoint||
+           lifecycleAuthenticatedTelemetry)
         {
             await next();
             return;
