@@ -294,6 +294,8 @@ small{color:#9fb7c8}
 </section>
 <script>
 const e=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const localTime=v=>{if(!v)return '—';const d=new Date(v);return Number.isNaN(d.getTime())?String(v):d.toLocaleString(undefined,{dateStyle:'medium',timeStyle:'medium'});};
+const localTimeOnly=v=>{if(!v)return '—';const d=new Date(v);return Number.isNaN(d.getTime())?String(v):d.toLocaleTimeString();};
 const journeys=document.getElementById('journeys');
 const flowLight=document.getElementById('flowLight');
 const flowMeta=document.getElementById('flowMeta');
@@ -336,7 +338,7 @@ function renderFlow(){
   '<div><small>STAGE AGE</small><b>'+e(fmtAge(x.stageAgeSeconds))+'</b></div>'+
   '<div><small>CORRELATION</small><b class="mono">'+e(x.correlationId||'—')+'</b></div>';
  const ev=(flowSnapshot.events||[]).filter(v=>!selectedRegistrationId||v.registrationId===selectedRegistrationId).slice(0,30);
- flowEvents.innerHTML=ev.length?ev.map(v=>'<div class="flow-event"><span>'+e(new Date(v.atUtc).toLocaleTimeString())+'</span><b>'+e(v.stage)+'</b><span class="outcome-'+e(String(v.outcome).toLowerCase())+'">'+e(v.outcome)+'</span><span class="app">'+e(v.action)+(v.reason?' · '+e(v.reason):'')+'</span><code class="corr">'+e(v.correlationId||'—')+'</code></div>').join(''):'<div class="empty">No flow events for this journey.</div>';
+ flowEvents.innerHTML=ev.length?ev.map(v=>'<div class="flow-event"><span>'+e(localTimeOnly(v.atUtc))+'</span><b>'+e(v.stage)+'</b><span class="outcome-'+e(String(v.outcome).toLowerCase())+'">'+e(v.outcome)+'</span><span class="app">'+e(v.action)+(v.reason?' · '+e(v.reason):'')+'</span><code class="corr">'+e(v.correlationId||'—')+'</code></div>').join(''):'<div class="empty">No flow events for this journey.</div>';
 }
 async function loadFlow(){
  try{
@@ -385,14 +387,14 @@ async function load(){
    }
    const audit=Array.isArray(x.audit)?x.audit:[];
    const history=audit.length
-     ? '<details><summary>'+e(audit.length)+' event(s)</summary>'+audit.slice().reverse().map(a=>'<div class="audit"><b>'+e(a.action)+'</b> · '+e(a.atUtc)+'<br><small>Actor: '+e(a.actor)+' · IP: '+e(a.sourceIp||'—')+' · '+e(a.previousState||'—')+' → '+e(a.resultingState||'—')+(a.reason?'<br>Reason: '+e(a.reason):'')+(a.correlationId?'<br>Correlation: <span class="mono">'+e(a.correlationId)+'</span>':'')+'</small></div>').join('')+'</details>'
+     ? '<details><summary>'+e(audit.length)+' event(s)</summary>'+audit.slice().reverse().map(a=>'<div class="audit"><b>'+e(a.action)+'</b> · '+e(localTime(a.atUtc))+'<br><small>Actor: '+e(a.actor)+' · IP: '+e(a.sourceIp||'—')+' · '+e(a.previousState||'—')+' → '+e(a.resultingState||'—')+(a.reason?'<br>Reason: '+e(a.reason):'')+(a.correlationId?'<br>Correlation: <span class="mono">'+e(a.correlationId)+'</span>':'')+'</small></div>').join('')+'</details>'
      : '—';
    const metadata=x.metadata?'<details><summary>Request metadata</summary><pre class="mono">'+e(JSON.stringify(x.metadata,null,2))+'</pre></details>':'';
    return '<tr><td><b>'+e(x.applicationId)+'</b><br><small>'+e(x.registrationId)+'</small></td>'+
      '<td>'+e(x.instanceId)+'</td>'+
      '<td class="mono">'+e(x.installationId)+'</td>'+
      '<td><span class="badge '+e(x.state.toLowerCase())+'">'+e(x.state)+'</span></td>'+
-     '<td>'+e(x.updatedAtUtc)+'</td>'+
+     '<td>'+e(localTime(x.updatedAtUtc))+'</td>'+
      '<td>'+history+metadata+'</td>'+
      '<td>'+(actions||'—')+'</td></tr>';
  }).join(''):'<tr><td colspan="7" class="empty">No lifecycle registrations.</td></tr>';
