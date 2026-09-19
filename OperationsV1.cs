@@ -228,7 +228,42 @@ internal static class OperationsV1Endpoints
         {
             var all = await store.LoadAsync<ApplicationOperationalRecord>("applications", ct);
             var matches = all.Where(x => x.ApplicationId.Equals(applicationId, StringComparison.OrdinalIgnoreCase)).ToList();
-            return matches.Count == 0 ? Results.NotFound() : Results.Ok(matches);
+            if (matches.Count == 0) return Results.NotFound();
+
+            var diagnostics = (await store.LoadAsync<DiagnosticRecord>("diagnostics", ct))
+                .Where(x => x.ApplicationId.Equals(applicationId, StringComparison.OrdinalIgnoreCase))
+                .OrderByDescending(x => x.ObservedAtUtc)
+                .ToList();
+            var flows = (await store.LoadAsync<FlowRecord>("flows", ct))
+                .Where(x => x.ApplicationId.Equals(applicationId, StringComparison.OrdinalIgnoreCase))
+                .OrderByDescending(x => x.ObservedAtUtc)
+                .Take(100)
+                .ToList();
+            var alerts = (await store.LoadAsync<AlertRecord>("alerts", ct))
+                .Where(x => x.ApplicationId.Equals(applicationId, StringComparison.OrdinalIgnoreCase))
+                .OrderByDescending(x => x.RaisedAtUtc)
+                .ToList();
+            var runbooks = (await store.LoadAsync<RunbookRecord>("runbooks", ct))
+                .Where(x => x.ApplicationId.Equals(applicationId, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+            var messaging = (await store.LoadAsync<MessagingOperationalRecord>("messaging", ct))
+                .Where(x => x.ApplicationId.Equals(applicationId, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+            var synchronization = (await store.LoadAsync<SynchronizationEndpointRecord>("synchronization", ct))
+                .Where(x => x.ApplicationId.Equals(applicationId, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+
+            return Results.Ok(new
+            {
+                applicationId,
+                instances = matches,
+                diagnostics,
+                flows,
+                alerts,
+                runbooks,
+                messaging,
+                synchronization
+            });
         });
 
         app.MapPost("/api/operations/applications/observe", async (
