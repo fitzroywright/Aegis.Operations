@@ -140,7 +140,6 @@ internal static class OperationsSpecializedEndpoints
             CancellationToken ct) =>
         {
             if (!await telemetryAuthenticator.IsAuthorizedAsync(context, record.ApplicationId, ct)) return Results.Forbid();
-            List<DiagnosticRecord> all = [.. await store.LoadAsync<DiagnosticRecord>("diagnostics", ct)];
             string id = string.IsNullOrWhiteSpace(record.DiagnosticId)
                 ? $"{record.ApplicationId}:{record.Component}:{record.Category}"
                 : record.DiagnosticId;
@@ -149,9 +148,12 @@ internal static class OperationsSpecializedEndpoints
                 DiagnosticId = id,
                 ObservedAtUtc = record.ObservedAtUtc == default ? DateTimeOffset.UtcNow : record.ObservedAtUtc
             };
-            int index = all.FindIndex(x => x.DiagnosticId.Equals(id, StringComparison.OrdinalIgnoreCase));
-            if (index >= 0) all[index] = safe; else all.Add(safe);
-            await store.SaveAsync("diagnostics", all, ct);
+            await store.MutateAsync<DiagnosticRecord>("diagnostics", all =>
+            {
+                int index = all.FindIndex(x => x.DiagnosticId.Equals(id, StringComparison.OrdinalIgnoreCase));
+                if (index >= 0) all[index] = safe; else all.Add(safe);
+                return all;
+            }, ct);
             return Results.Accepted();
         });
 
@@ -193,17 +195,19 @@ internal static class OperationsSpecializedEndpoints
             CancellationToken ct) =>
         {
             if (!await telemetryAuthenticator.IsAuthorizedAsync(context, record.ApplicationId, ct)) return Results.Forbid();
-            List<MessagingOperationalRecord> all = [.. await store.LoadAsync<MessagingOperationalRecord>("messaging", ct)];
             var safe = record with
             {
                 ObservedAtUtc = record.ObservedAtUtc == default ? DateTimeOffset.UtcNow : record.ObservedAtUtc,
                 Providers = record.Providers ?? []
             };
-            int index = all.FindIndex(x =>
-                x.ApplicationId.Equals(safe.ApplicationId, StringComparison.OrdinalIgnoreCase) &&
-                x.InstanceId.Equals(safe.InstanceId, StringComparison.OrdinalIgnoreCase));
-            if (index >= 0) all[index] = safe; else all.Add(safe);
-            await store.SaveAsync("messaging", all, ct);
+            await store.MutateAsync<MessagingOperationalRecord>("messaging", all =>
+            {
+                int index = all.FindIndex(x =>
+                    x.ApplicationId.Equals(safe.ApplicationId, StringComparison.OrdinalIgnoreCase) &&
+                    x.InstanceId.Equals(safe.InstanceId, StringComparison.OrdinalIgnoreCase));
+                if (index >= 0) all[index] = safe; else all.Add(safe);
+                return all;
+            }, ct);
             return Results.Accepted();
         });
 
@@ -225,16 +229,17 @@ internal static class OperationsSpecializedEndpoints
             CancellationToken ct) =>
         {
             if (!await telemetryAuthenticator.IsAuthorizedAsync(context, record.ApplicationId, ct)) return Results.Forbid();
-            List<MessageTraceRecord> all = [.. await store.LoadAsync<MessageTraceRecord>("message-traces", ct)];
             var safe = record with
             {
                 ObservedAtUtc = record.ObservedAtUtc == default ? DateTimeOffset.UtcNow : record.ObservedAtUtc,
                 Stages = record.Stages ?? []
             };
-            int index = all.FindIndex(x => x.MessageId.Equals(record.MessageId, StringComparison.OrdinalIgnoreCase));
-            if (index >= 0) all[index] = safe; else all.Add(safe);
-            all = [.. all.OrderByDescending(x => x.ObservedAtUtc).Take(2000)];
-            await store.SaveAsync("message-traces", all, ct);
+            await store.MutateAsync<MessageTraceRecord>("message-traces", all =>
+            {
+                int index = all.FindIndex(x => x.MessageId.Equals(record.MessageId, StringComparison.OrdinalIgnoreCase));
+                if (index >= 0) all[index] = safe; else all.Add(safe);
+                return [.. all.OrderByDescending(x => x.ObservedAtUtc).Take(2000)];
+            }, ct);
             return Results.Accepted();
         });
 
