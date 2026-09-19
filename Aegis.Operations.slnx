@@ -1,6 +1,7 @@
 <Solution>
   <Folder Name="/System Operations/">
     <Project Path="Aegis.Operations.csproj" />
+    <Project Path="Aegis.Operations.Tests/Aegis.Operations.Tests.csproj" />
   </Folder>
   <Folder Name="/System Configuration/">
     <Project Path="../Aegis.Configuration/Aegis.Configuration.Domain/Aegis.Configuration.Domain.csproj" />
