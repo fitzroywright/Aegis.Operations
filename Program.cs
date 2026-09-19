@@ -6,6 +6,7 @@ builder.Services.AddHttpClient("ops", client =>
     client.Timeout = TimeSpan.FromSeconds(timeoutSeconds);
 });
 builder.Services.AddSuiteSecurity();
+builder.Services.AddSingleton<OperationsV1Store>();
 
 WebApplication app = builder.Build();
 ILogger startupLogger = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("Aegis.Operations.Startup");
@@ -32,4 +33,5 @@ app.MapSuiteSecurity(configurationUrl, diagnosticsUrl);
 app.UseSuiteSecurity();
 app.MapOperationsEndpoints(configurationUrl, diagnosticsUrl, site, environment);
 app.MapLifecycleRegistrationProxy(configurationUrl);
+app.MapOperationsV1();
 app.Run();
