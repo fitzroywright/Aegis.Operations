@@ -279,17 +279,18 @@ internal static class OperationsSpecializedEndpoints
             CancellationToken ct) =>
         {
             if (!await telemetryAuthenticator.IsAuthorizedAsync(context, record.ApplicationId, ct)) return Results.Forbid();
-            List<SynchronizationEndpointRecord> all =
-                [.. await store.LoadAsync<SynchronizationEndpointRecord>("synchronization", ct)];
             var safe = record with
             {
                 ObservedAtUtc = record.ObservedAtUtc == default ? DateTimeOffset.UtcNow : record.ObservedAtUtc
             };
-            int index = all.FindIndex(x =>
-                x.ApplicationId.Equals(safe.ApplicationId, StringComparison.OrdinalIgnoreCase) &&
-                x.EndpointId.Equals(safe.EndpointId, StringComparison.OrdinalIgnoreCase));
-            if (index >= 0) all[index] = safe; else all.Add(safe);
-            await store.SaveAsync("synchronization", all, ct);
+            await store.MutateAsync<SynchronizationEndpointRecord>("synchronization", all =>
+            {
+                int index = all.FindIndex(x =>
+                    x.ApplicationId.Equals(safe.ApplicationId, StringComparison.OrdinalIgnoreCase) &&
+                    x.EndpointId.Equals(safe.EndpointId, StringComparison.OrdinalIgnoreCase));
+                if (index >= 0) all[index] = safe; else all.Add(safe);
+                return all;
+            }, ct);
             return Results.Accepted();
         });
 
@@ -311,7 +312,6 @@ internal static class OperationsSpecializedEndpoints
             CancellationToken ct) =>
         {
             if (!Has(context, "Operations.Runbooks.Manage")) return Results.Forbid();
-            List<RunbookRecord> all = [.. await store.LoadAsync<RunbookRecord>("runbooks", ct)];
             string id = string.IsNullOrWhiteSpace(record.RunbookId)
                 ? "RB-" + Guid.NewGuid().ToString("N")[..12].ToUpperInvariant()
                 : record.RunbookId;
@@ -321,9 +321,12 @@ internal static class OperationsSpecializedEndpoints
                 Sections = record.Sections ?? [],
                 UpdatedAtUtc = DateTimeOffset.UtcNow
             };
-            int index = all.FindIndex(x => x.RunbookId.Equals(id, StringComparison.OrdinalIgnoreCase));
-            if (index >= 0) all[index] = safe; else all.Add(safe);
-            await store.SaveAsync("runbooks", all, ct);
+            await store.MutateAsync<RunbookRecord>("runbooks", all =>
+            {
+                int index = all.FindIndex(x => x.RunbookId.Equals(id, StringComparison.OrdinalIgnoreCase));
+                if (index >= 0) all[index] = safe; else all.Add(safe);
+                return all;
+            }, ct);
             await AuditAsync(store, context, "RunbookChanged", record.ApplicationId, id, null, ct);
             return Results.Ok(safe);
         });
@@ -377,8 +380,7 @@ internal static class OperationsSpecializedEndpoints
         CancellationToken ct,
         string? detail = null)
     {
-        List<OperationsAuditRecord> all = [.. await store.LoadAsync<OperationsAuditRecord>("audit", ct)];
-        all.Add(new(
+        var audit = new OperationsAuditRecord(
             "AUD-" + Guid.NewGuid().ToString("N")[..12].ToUpperInvariant(),
             DateTimeOffset.UtcNow,
             context.User?.Identity?.Name ?? "unknown",
@@ -386,9 +388,12 @@ internal static class OperationsSpecializedEndpoints
             applicationId,
             targetId,
             correlationId,
-            detail));
-        all = [.. all.OrderByDescending(x => x.AtUtc).Take(10000)];
-        await store.SaveAsync("audit", all, ct);
+            detail);
+        await store.MutateAsync<OperationsAuditRecord>("audit", all =>
+        {
+            all.Add(audit);
+            return [.. all.OrderByDescending(x => x.AtUtc).Take(10000)];
+        }, ct);
     }
 
     private static bool Has(HttpContext context, string permission) =>
