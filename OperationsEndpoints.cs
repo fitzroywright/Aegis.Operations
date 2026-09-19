@@ -12,6 +12,15 @@ using Common.Security;
 
 internal static class OperationsEndpoints
 {
+    private sealed record RegisteredApplicationJourney(
+        string RegistrationId,
+        string ApplicationId,
+        string InstanceId,
+        string InstallationId,
+        string State,
+        string Health,
+        DateTimeOffset? LastEventAtUtc);
+
     internal static void MapOperationsEndpoints(
         this WebApplication app,
         string configurationUrl,
@@ -348,6 +357,201 @@ internal static class OperationsEndpoints
                 response.Content.Headers.ContentType?.ToString() ?? "application/json",
                 statusCode: (int)response.StatusCode);
         }).AllowAnonymous();
+
+        app.MapGet("/api/operations/registered-applications", async (
+            HttpContext context,
+            SuiteSecurity suiteSecurity,
+            IHttpClientFactory factory,
+            OperationsV1Store store,
+            CancellationToken ct) =>
+        {
+            IReadOnlyList<ApplicationOperationalRecord> telemetry =
+                await store.LoadAsync<ApplicationOperationalRecord>("applications", ct);
+            DateTimeOffset now = DateTimeOffset.UtcNow;
+            TimeSpan staleAfter = TimeSpan.FromSeconds(
+                app.Configuration.GetValue("Operations:StaleAfterSeconds", 300));
+
+            var registrations = new List<RegisteredApplicationJourney>();
+            bool authorityAvailable = false;
+            string? authorityError = null;
+
+            if (!context.Items.TryGetValue("SuiteIdentity", out object? identityValue) ||
+                identityValue is not SuiteIdentity identity)
+            {
+                authorityError = "No authenticated Operations identity is available for the Configuration handoff.";
+            }
+            else
+            {
+                try
+                {
+                    using var request = new HttpRequestMessage(
+                        HttpMethod.Get,
+                        configurationUrl.TrimEnd('/') + "/api/registration/flow?limit=500");
+                    request.Headers.TryAddWithoutValidation(
+                        "X-Aegis-Suite-Handoff",
+                        suiteSecurity.CreateHandoff(identity, "Aegis.Configuration"));
+
+                    HttpClient client = factory.CreateClient("ops");
+                    using HttpResponseMessage response = await client.SendAsync(request, ct);
+                    if (!response.IsSuccessStatusCode)
+                    {
+                        authorityError =
+                            $"Configuration registration inventory returned HTTP {(int)response.StatusCode}.";
+                    }
+                    else
+                    {
+                        using JsonDocument document =
+                            JsonDocument.Parse(await response.Content.ReadAsStringAsync(ct));
+                        if (document.RootElement.TryGetProperty("journeys", out JsonElement journeys) &&
+                            journeys.ValueKind == JsonValueKind.Array)
+                        {
+                            foreach (JsonElement journey in journeys.EnumerateArray())
+                            {
+                                string state = journey.TryGetProperty("state", out JsonElement stateValue)
+                                    ? stateValue.GetString() ?? "Unknown"
+                                    : "Unknown";
+                                if (!state.Equals("Registered", StringComparison.OrdinalIgnoreCase))
+                                    continue;
+
+                                string applicationId = journey.TryGetProperty("applicationId", out JsonElement applicationValue)
+                                    ? applicationValue.GetString() ?? string.Empty
+                                    : string.Empty;
+                                string instanceId = journey.TryGetProperty("instanceId", out JsonElement instanceValue)
+                                    ? instanceValue.GetString() ?? string.Empty
+                                    : string.Empty;
+                                if (string.IsNullOrWhiteSpace(applicationId) ||
+                                    string.IsNullOrWhiteSpace(instanceId))
+                                    continue;
+
+                                DateTimeOffset? lastEvent = null;
+                                if (journey.TryGetProperty("lastEventAtUtc", out JsonElement lastEventValue) &&
+                                    lastEventValue.ValueKind == JsonValueKind.String &&
+                                    DateTimeOffset.TryParse(lastEventValue.GetString(), out DateTimeOffset parsedLastEvent))
+                                {
+                                    lastEvent = parsedLastEvent;
+                                }
+
+                                registrations.Add(new RegisteredApplicationJourney(
+                                    journey.TryGetProperty("registrationId", out JsonElement registrationIdValue)
+                                        ? registrationIdValue.GetString() ?? string.Empty
+                                        : string.Empty,
+                                    applicationId,
+                                    instanceId,
+                                    journey.TryGetProperty("installationId", out JsonElement installationValue)
+                                        ? installationValue.GetString() ?? string.Empty
+                                        : string.Empty,
+                                    state,
+                                    journey.TryGetProperty("health", out JsonElement healthValue)
+                                        ? healthValue.GetString() ?? "Unknown"
+                                        : "Unknown",
+                                    lastEvent));
+                            }
+                        }
+
+                        authorityAvailable = true;
+                    }
+                }
+                catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException)
+                {
+                    authorityError = ex.Message;
+                }
+            }
+
+            static string Key(string applicationId, string instanceId) =>
+                applicationId.Trim() + "\u001f" + instanceId.Trim();
+
+            Dictionary<string, ApplicationOperationalRecord> telemetryByKey = telemetry
+                .GroupBy(x => Key(x.ApplicationId, x.InstanceId), StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(
+                    x => x.Key,
+                    x => x.OrderByDescending(y => y.ObservedAtUtc).First(),
+                    StringComparer.OrdinalIgnoreCase);
+
+            var applications = new List<object>();
+            var registeredKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (RegisteredApplicationJourney registration in registrations
+                .OrderBy(x => x.ApplicationId, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(x => x.InstanceId, StringComparer.OrdinalIgnoreCase))
+            {
+                string key = Key(registration.ApplicationId, registration.InstanceId);
+                registeredKeys.Add(key);
+                telemetryByKey.TryGetValue(key, out ApplicationOperationalRecord? observed);
+                bool telemetryAvailable = observed is not null;
+                bool stale = telemetryAvailable &&
+                    OperationsFreshness.IsStale(observed!.ObservedAtUtc, now, staleAfter);
+                string state = !telemetryAvailable || stale
+                    ? OperationalState.Unknown.ToString()
+                    : observed!.State.ToString();
+                string reason = !telemetryAvailable
+                    ? "Registered in Configuration; no operational telemetry has been received."
+                    : stale
+                        ? "Operational telemetry is stale."
+                        : observed!.Reason ?? string.Empty;
+
+                applications.Add(new
+                {
+                    registration.RegistrationId,
+                    registration.ApplicationId,
+                    displayName = observed?.DisplayName ?? registration.ApplicationId,
+                    registration.InstanceId,
+                    registration.InstallationId,
+                    registrationStatus = registration.State,
+                    registrationHealth = registration.Health,
+                    registrationObservedAtUtc = registration.LastEventAtUtc,
+                    state,
+                    telemetryAvailable,
+                    stale,
+                    observedAtUtc = observed?.ObservedAtUtc,
+                    environment = observed?.Environment ?? "—",
+                    version = observed?.Version ?? "—",
+                    configurationStatus = observed?.ConfigurationStatus,
+                    build = observed?.Build,
+                    runbook = observed?.Runbook,
+                    reason
+                });
+            }
+
+            foreach (ApplicationOperationalRecord observed in telemetry
+                .Where(x => !registeredKeys.Contains(Key(x.ApplicationId, x.InstanceId)))
+                .OrderBy(x => x.ApplicationId, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(x => x.InstanceId, StringComparer.OrdinalIgnoreCase))
+            {
+                bool stale = OperationsFreshness.IsStale(observed.ObservedAtUtc, now, staleAfter);
+                applications.Add(new
+                {
+                    registrationId = string.Empty,
+                    observed.ApplicationId,
+                    observed.DisplayName,
+                    observed.InstanceId,
+                    installationId = string.Empty,
+                    registrationStatus = authorityAvailable ? "NotRegistered" : observed.RegistrationStatus,
+                    registrationHealth = authorityAvailable ? "Attention" : "Unknown",
+                    registrationObservedAtUtc = (DateTimeOffset?)null,
+                    state = stale ? OperationalState.Unknown.ToString() : observed.State.ToString(),
+                    telemetryAvailable = true,
+                    stale,
+                    observedAtUtc = (DateTimeOffset?)observed.ObservedAtUtc,
+                    observed.Environment,
+                    observed.Version,
+                    observed.ConfigurationStatus,
+                    observed.Build,
+                    observed.Runbook,
+                    reason = authorityAvailable
+                        ? "Operational telemetry exists, but Configuration does not report this instance as registered."
+                        : observed.Reason ?? "Registration authority is unavailable; telemetry is shown without authoritative registration confirmation."
+                });
+            }
+
+            context.Response.Headers.CacheControl = "no-store";
+            return Results.Ok(new
+            {
+                authorityAvailable,
+                authorityError,
+                generatedAtUtc = now,
+                applications
+            });
+        });
 
         app.MapGet("/legacy", () => Results.Content(
             OperationsPage.Render(configurationUrl, diagnosticsUrl, site, environment),
