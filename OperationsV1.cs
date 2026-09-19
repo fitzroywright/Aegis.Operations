@@ -114,6 +114,9 @@ internal interface IOperationsAdvisor { }
 internal sealed class OperationsV1Store
 {
     private readonly string _root;
+    private readonly int _flowRetention;
+    private readonly int _alertRetention;
+    private readonly int _engineerLogRetention;
     private readonly SemaphoreSlim _gate = new(1, 1);
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
     {
@@ -124,6 +127,9 @@ internal sealed class OperationsV1Store
     {
         _root = configuration["Operations:DataDirectory"]?.Trim()
             ?? "/var/lib/aegis/operations/v1";
+        _flowRetention = Math.Clamp(configuration.GetValue("Operations:Retention:Flows", 1000), 100, 100000);
+        _alertRetention = Math.Clamp(configuration.GetValue("Operations:Retention:Alerts", 5000), 100, 100000);
+        _engineerLogRetention = Math.Clamp(configuration.GetValue("Operations:Retention:EngineerLog", 5000), 100, 100000);
         Directory.CreateDirectory(_root);
     }
 
@@ -175,7 +181,7 @@ internal sealed class OperationsV1Store
             int index = all.FindIndex(x =>
                 x.CorrelationId.Equals(incoming.CorrelationId, StringComparison.OrdinalIgnoreCase));
             if (index >= 0) all[index] = incoming; else all.Add(incoming);
-            return [.. all.OrderByDescending(x => x.ObservedAtUtc).Take(1000)];
+            return [.. all.OrderByDescending(x => x.ObservedAtUtc).Take(_flowRetention)];
         }, ct);
     }
 
@@ -186,7 +192,7 @@ internal sealed class OperationsV1Store
             int index = all.FindIndex(x =>
                 x.AlertId.Equals(incoming.AlertId, StringComparison.OrdinalIgnoreCase));
             if (index >= 0) all[index] = incoming; else all.Add(incoming);
-            return all;
+            return [.. all.OrderByDescending(x => x.RaisedAtUtc).Take(_alertRetention)];
         }, ct);
     }
 
@@ -195,7 +201,7 @@ internal sealed class OperationsV1Store
         await MutateAsync<EngineerLogRecord>("engineer-log", all =>
         {
             all.Add(incoming);
-            return [.. all.OrderByDescending(x => x.AtUtc).Take(5000)];
+            return [.. all.OrderByDescending(x => x.AtUtc).Take(_engineerLogRetention)];
         }, ct);
     }
 
@@ -508,11 +514,21 @@ internal static class OperationsV1Endpoints
             var alerts = await store.LoadAsync<AlertRecord>("alerts", ct);
             var logs = await store.LoadAsync<EngineerLogRecord>("engineer-log", ct);
             var flows = await store.LoadAsync<FlowRecord>("flows", ct);
-            var events = alerts.Select(x => new { at = x.RaisedAtUtc, type = "Alert", id = x.AlertId, application = x.ApplicationId, text = x.Title })
+            var alertRaised = alerts.Select(x => new { at = x.RaisedAtUtc, type = "AlertRaised", id = x.AlertId, application = x.ApplicationId, text = x.Title });
+            var alertAcknowledged = alerts
+                .Where(x => x.AcknowledgedAtUtc.HasValue)
+                .Select(x => new { at = x.AcknowledgedAtUtc!.Value, type = "AlertAcknowledged", id = x.AlertId, application = x.ApplicationId, text = x.Title });
+            var alertResolved = alerts
+                .Where(x => x.ResolvedAtUtc.HasValue)
+                .Select(x => new { at = x.ResolvedAtUtc!.Value, type = "AlertResolved", id = x.AlertId, application = x.ApplicationId, text = x.Title });
+
+            var events = alertRaised
+                .Concat(alertAcknowledged)
+                .Concat(alertResolved)
                 .Concat(logs.Select(x => new { at = x.AtUtc, type = "EngineerLog", id = x.EntryId, application = x.ApplicationId ?? "", text = x.Title }))
-                .Concat(flows.Select(x => new { at = x.ObservedAtUtc, type = "Flow", id = x.CorrelationId, application = x.ApplicationId, text = x.FlowType }))
+                .Concat(flows.Select(x => new { at = x.ObservedAtUtc, type = "FlowObserved", id = x.CorrelationId, application = x.ApplicationId, text = x.FlowType }))
                 .OrderByDescending(x => x.at)
-                .Take(500);
+                .Take(Math.Clamp(app.Configuration.GetValue("Operations:Retention:HistoryView", 500), 100, 5000));
             return Results.Ok(events);
         });
 
