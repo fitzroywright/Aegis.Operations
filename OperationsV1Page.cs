@@ -23,7 +23,7 @@ input,textarea,select{width:100%;background:#081b28;color:var(--text);border:1px
 </style>
 </head>
 <body>
-<header><div><h1>Aegis Operations</h1><small>See the state. Know where to act.</small></div></header>
+<header><div><h1>Aegis Operations</h1><small>See the state. Know where to act.</small></div><div style="margin-left:auto;min-width:280px"><input id="searchBox" placeholder="Search application, correlation, alert, log…" onkeydown="if(event.key==='Enter')runSearch()"></div></header>
 <nav id="nav">
 <button data-view="overview" class="active">Overview</button>
 <button data-view="applications">Applications</button>
@@ -38,6 +38,8 @@ input,textarea,select{width:100%;background:#081b28;color:var(--text);border:1px
 </nav>
 <main>
 <section id="overview"><div class="metrics" id="metrics"></div><div class="grid" id="estate"></div></section>
+<section id="appdetail" class="hidden"><div class="sectionhead"><h2 id="appDetailTitle">Application</h2><button class="action" onclick="showView('applications')">← Applications</button></div><div id="appDetailBody"></div></section>
+<section id="search" class="hidden"><div class="sectionhead"><h2>Search Results</h2><button class="action" onclick="showView('overview')">Close</button></div><div id="searchResults"></div></section>
 <section id="applications" class="hidden"><div class="sectionhead"><h2>Applications</h2></div><div id="appsTable"></div></section>
 <section id="flows" class="hidden"><div class="sectionhead"><h2>Flows</h2></div><div id="flowsList"></div></section>
 <section id="diagnostics" class="hidden"><div class="sectionhead"><h2>Diagnostics</h2></div><div id="diagnosticsList"></div></section>
@@ -52,7 +54,8 @@ input,textarea,select{width:100%;background:#081b28;color:var(--text);border:1px
 const e=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const time=v=>v?new Date(v).toLocaleString():'—';
 const cls=v=>String(v??'unknown').toLowerCase();
-document.querySelectorAll('#nav button').forEach(b=>b.onclick=()=>{document.querySelectorAll('main>section').forEach(s=>s.classList.add('hidden'));document.getElementById(b.dataset.view).classList.remove('hidden');document.querySelectorAll('#nav button').forEach(x=>x.classList.remove('active'));b.classList.add('active')});
+function showView(id){document.querySelectorAll('main>section').forEach(s=>s.classList.add('hidden'));document.getElementById(id).classList.remove('hidden');document.querySelectorAll('#nav button').forEach(x=>x.classList.toggle('active',x.dataset.view===id))}
+document.querySelectorAll('#nav button').forEach(b=>b.onclick=()=>showView(b.dataset.view));
 async function json(url,opts){const r=await fetch(url,{cache:'no-store',...opts});if(!r.ok)throw new Error('HTTP '+r.status);return await r.json()}
 async function load(){
  let apps=[],flows=[],diagnostics=[],messaging=[],sync=[],alerts=[],runbooks=[],logs=[],history=[];
@@ -69,16 +72,40 @@ async function load(){
  ])}catch(err){console.error(err)}
  const count=s=>apps.filter(x=>x.state===s).length;
  metrics.innerHTML=[['Applications',apps.length],['Healthy',count('Healthy')],['Degraded',count('Degraded')+count('Warning')],['Failed',count('Failed')+count('Offline')],['Unknown',count('Unknown')],['Active Alerts',alerts.filter(x=>x.state!=='Resolved').length]].map(x=>'<div class="metric"><b>'+e(x[1])+'</b><span>'+e(x[0])+'</span></div>').join('');
- estate.innerHTML=apps.length?apps.map(x=>'<article class="card"><h3>'+e(x.displayName)+'</h3><div class="state '+cls(x.state)+'">'+e(x.state)+'</div><p>'+e(x.instanceId)+' · '+e(x.environment)+'</p><small class="muted">Observed '+e(time(x.observedAtUtc))+(x.stale?' · STALE':'')+'</small></article>').join(''):'<div class="panel muted">No application telemetry has been published yet.</div>';
- appsTable.innerHTML='<div class="panel"><table><thead><tr><th>Application</th><th>Instance</th><th>State</th><th>Registration</th><th>Configuration</th><th>Observed</th></tr></thead><tbody>'+apps.map(x=>'<tr><td><b>'+e(x.displayName)+'</b><br><small>'+e(x.applicationId)+'</small></td><td>'+e(x.instanceId)+'</td><td class="state '+cls(x.state)+'">'+e(x.state)+'</td><td>'+e(x.registrationStatus)+'</td><td>'+e(x.configurationStatus??'—')+'</td><td>'+e(time(x.observedAtUtc))+'</td></tr>').join('')+'</tbody></table></div>';
+ estate.innerHTML=apps.length?apps.map(x=>'<article class="card" style="cursor:pointer" onclick="openApp(\''+e(x.applicationId)+'\')"><h3>'+e(x.displayName)+'</h3><div class="state '+cls(x.state)+'">'+e(x.state)+'</div><p>'+e(x.instanceId)+' · '+e(x.environment)+'</p><small class="muted">Observed '+e(time(x.observedAtUtc))+(x.stale?' · STALE':'')+'</small></article>').join(''):'<div class="panel muted">No application telemetry has been published yet.</div>';
+ appsTable.innerHTML='<div class="panel"><table><thead><tr><th>Application</th><th>Instance</th><th>State</th><th>Registration</th><th>Configuration</th><th>Observed</th></tr></thead><tbody>'+apps.map(x=>'<tr style="cursor:pointer" onclick="openApp(\''+e(x.applicationId)+'\')"><td><b>'+e(x.displayName)+'</b><br><small>'+e(x.applicationId)+'</small></td><td>'+e(x.instanceId)+'</td><td class="state '+cls(x.state)+'">'+e(x.state)+'</td><td>'+e(x.registrationStatus)+'</td><td>'+e(x.configurationStatus??'—')+'</td><td>'+e(time(x.observedAtUtc))+'</td></tr>').join('')+'</tbody></table></div>';
  flowsList.innerHTML=flows.length?flows.map(x=>'<article class="panel"><b>'+e(x.flowType)+'</b> · <code>'+e(x.correlationId)+'</code><div class="muted">'+e(x.applicationId)+' · '+e(time(x.observedAtUtc))+'</div><div class="flow">'+x.stages.map(s=>'<span class="stage '+cls(s.state)+'">'+e(s.name)+' · '+e(s.state)+'</span>').join(' → ')+'</div></article>').join(''):'<div class="panel muted">No flow telemetry available.</div>';
  diagnosticsList.innerHTML=diagnostics.length?diagnostics.map(x=>'<article class="panel"><b>'+e(x.component)+'</b> · '+e(x.category)+'<div class="state '+cls(x.state)+'">'+e(x.state)+'</div><p>'+e(x.summary)+'</p><small class="muted">'+e(x.applicationId)+' · '+e(time(x.observedAtUtc))+'</small></article>').join(''):'<div class="panel muted">No specialized diagnostics published.</div>';
  messagingList.innerHTML=messaging.length?messaging.map(x=>'<article class="panel"><b>'+e(x.applicationId)+'</b><p>Pending '+e(x.outboundPending)+' · Dispatching '+e(x.dispatching)+' · Retrying '+e(x.retrying)+' · Dead Letter '+e(x.deadLetter)+'</p><div class="flow">'+(x.providers||[]).map(p=>'<span class="stage '+cls(p.state)+'">'+e(p.provider)+' · '+e(p.state)+'</span>').join('')+'</div><small class="muted">Observed '+e(time(x.observedAtUtc))+'</small></article>').join(''):'<div class="panel muted">Messaging diagnostics not supported or not yet published.</div>';
  syncList.innerHTML=sync.length?'<div class="panel"><table><thead><tr><th>Application</th><th>Endpoint</th><th>Connectivity</th><th>Queue</th><th>Pending</th><th>Failed</th><th>Observed</th></tr></thead><tbody>'+sync.map(x=>'<tr><td>'+e(x.applicationId)+'</td><td>'+e(x.endpointId)+'</td><td>'+e(x.online?'Online':'Offline')+'</td><td class="state '+cls(x.queueState)+'">'+e(x.queueState)+'</td><td>'+e(x.pending)+'</td><td>'+e(x.failed)+'</td><td>'+e(time(x.observedAtUtc))+'</td></tr>').join('')+'</tbody></table></div>':'<div class="panel muted">No synchronization telemetry available.</div>';
  runbooksList.innerHTML=runbooks.length?runbooks.map(x=>'<article class="panel"><b>'+e(x.title)+'</b><div class="muted">'+e(x.applicationId)+' · '+e(x.runbookId)+'</div><p>'+e((x.sections||[]).join(' · '))+'</p><details><summary>Open runbook</summary><pre>'+e(x.content)+'</pre></details></article>').join(''):'<div class="panel muted">No runbooks registered.</div>';
- alertsTable.innerHTML='<div class="panel"><table><thead><tr><th>Severity</th><th>Alert</th><th>Application</th><th>State</th><th>Raised</th></tr></thead><tbody>'+alerts.map(x=>'<tr><td>'+e(x.severity)+'</td><td><b>'+e(x.title)+'</b><br><small>'+e(x.alertId)+'</small></td><td>'+e(x.applicationId)+'</td><td>'+e(x.state)+'</td><td>'+e(time(x.raisedAtUtc))+'</td></tr>').join('')+'</tbody></table></div>';
+ alertsTable.innerHTML='<div class="panel"><table><thead><tr><th>Severity</th><th>Alert</th><th>Application</th><th>State</th><th>Raised</th><th>Actions</th></tr></thead><tbody>'+alerts.map(x=>'<tr><td>'+e(x.severity)+'</td><td><b>'+e(x.title)+'</b><br><small>'+e(x.alertId)+'</small></td><td>'+e(x.applicationId)+'</td><td>'+e(x.state)+'</td><td>'+e(time(x.raisedAtUtc))+'</td><td>'+(x.state==='Raised'?'<button class="action" onclick="alertAction(\''+e(x.alertId)+'\',\'acknowledge\')">Acknowledge</button> ':'')+(x.state!=='Resolved'?'<button class="action" onclick="alertAction(\''+e(x.alertId)+'\',\'resolve\')">Resolve</button>':'')+'</td></tr>').join('')+'</tbody></table></div>';
  logList.innerHTML=logs.map(x=>'<article class="panel"><b>'+e(x.title)+'</b> · '+e(x.severity)+'<p>'+e(x.text)+'</p><small class="muted">'+e(x.author)+' · '+e(time(x.atUtc))+' · '+e(x.entryId)+'</small></article>').join('');
  historyList.innerHTML=history.map(x=>'<div class="panel"><b>'+e(x.type)+'</b> · '+e(x.text)+'<br><small class="muted">'+e(x.application)+' · '+e(time(x.at))+' · '+e(x.id)+'</small></div>').join('');
+}
+async function openApp(id){
+ try{
+  const d=await json('/api/operations/applications/'+encodeURIComponent(id));
+  appDetailTitle.textContent=id;
+  const inst=(d.instances||[]).map(x=>'<article class="card"><b>'+e(x.instanceId)+'</b><div class="state '+cls(x.state)+'">'+e(x.state)+'</div><small>'+e(time(x.observedAtUtc))+'</small></article>').join('');
+  const di=(d.diagnostics||[]).map(x=>'<div class="panel"><b>'+e(x.component)+'</b> · '+e(x.category)+' · <span class="state '+cls(x.state)+'">'+e(x.state)+'</span><br>'+e(x.summary)+'</div>').join('');
+  const fl=(d.flows||[]).map(x=>'<div class="panel"><b>'+e(x.flowType)+'</b> · <code>'+e(x.correlationId)+'</code></div>').join('');
+  const al=(d.alerts||[]).map(x=>'<div class="panel"><b>'+e(x.severity)+' · '+e(x.title)+'</b><br><small>'+e(x.state)+' · '+e(x.alertId)+'</small></div>').join('');
+  const rb=(d.runbooks||[]).map(x=>'<div class="panel"><b>'+e(x.title)+'</b><br><small>'+e(x.runbookId)+'</small></div>').join('');
+  appDetailBody.innerHTML='<h3>Instances</h3><div class="grid">'+(inst||'<div class="panel muted">None</div>')+'</div><h3>Diagnostics</h3>'+(di||'<div class="panel muted">Not Supported</div>')+'<h3>Recent Flows</h3>'+(fl||'<div class="panel muted">Not Supported</div>')+'<h3>Alerts</h3>'+(al||'<div class="panel muted">None</div>')+'<h3>Runbooks</h3>'+(rb||'<div class="panel muted">Not Supported</div>');
+  showView('appdetail');
+ }catch(err){alert('Unable to load application detail: '+err.message)}
+}
+async function alertAction(id,action){
+ try{await json('/api/operations/alerts/'+encodeURIComponent(id)+'/'+action,{method:'POST'});await load()}catch(err){alert('Alert action failed: '+err.message)}
+}
+async function runSearch(){
+ const q=searchBox.value.trim();if(q.length<2)return;
+ try{
+  const results=await json('/api/operations/search?q='+encodeURIComponent(q));
+  searchResults.innerHTML=results.length?results.map(x=>'<div class="panel"><b>'+e(x.type)+' · '+e(x.title)+'</b><br><small>'+e(x.id)+' · '+e(x.detail)+'</small></div>').join(''):'<div class="panel muted">No matches.</div>';
+  showView('search');
+ }catch(err){alert('Search failed: '+err.message)}
 }
 async function createLog(){
  const body={entryId:'',atUtc:new Date().toISOString(),author:'',title:logTitle.value,text:logText.value,severity:logSeverity.value,tags:[]};
