@@ -112,7 +112,24 @@ internal static class OperationsSpecializedEndpoints
                 q = q.Where(x => x.ApplicationId.Equals(applicationId, StringComparison.OrdinalIgnoreCase));
             if (!string.IsNullOrWhiteSpace(category))
                 q = q.Where(x => x.Category.ToString().Equals(category, StringComparison.OrdinalIgnoreCase));
-            return Results.Ok(q.OrderByDescending(x => x.ObservedAtUtc).Take(500));
+            DateTimeOffset now = DateTimeOffset.UtcNow;
+            TimeSpan staleAfter = TimeSpan.FromSeconds(app.Configuration.GetValue("Operations:StaleAfterSeconds", 300));
+            return Results.Ok(q.OrderByDescending(x => x.ObservedAtUtc).Take(500).Select(x => new
+            {
+                x.DiagnosticId,
+                x.ApplicationId,
+                x.Component,
+                x.Category,
+                state = OperationsFreshness.Apply(x.State, x.ObservedAtUtc, now, staleAfter).ToString(),
+                publishedState = x.State.ToString(),
+                x.Summary,
+                x.ObservedAtUtc,
+                stale = OperationsFreshness.IsStale(x.ObservedAtUtc, now, staleAfter),
+                x.Detail,
+                x.CorrelationId,
+                x.Runbook,
+                x.Data
+            }));
         });
 
         app.MapPost("/api/operations/diagnostics/observe", async (
@@ -139,8 +156,34 @@ internal static class OperationsSpecializedEndpoints
         });
 
         app.MapGet("/api/operations/messaging", async (OperationsV1Store store, CancellationToken ct) =>
-            Results.Ok((await store.LoadAsync<MessagingOperationalRecord>("messaging", ct))
-                .OrderByDescending(x => x.ObservedAtUtc)));
+        {
+            DateTimeOffset now = DateTimeOffset.UtcNow;
+            TimeSpan staleAfter = TimeSpan.FromSeconds(app.Configuration.GetValue("Operations:StaleAfterSeconds", 300));
+            return Results.Ok((await store.LoadAsync<MessagingOperationalRecord>("messaging", ct))
+                .OrderByDescending(x => x.ObservedAtUtc)
+                .Select(x => new
+                {
+                    x.ApplicationId,
+                    x.InstanceId,
+                    x.OutboundPending,
+                    x.Dispatching,
+                    x.Retrying,
+                    x.DeadLetter,
+                    x.Delivered,
+                    x.Inbound,
+                    x.ObservedAtUtc,
+                    x.OldestPendingAtUtc,
+                    stale = OperationsFreshness.IsStale(x.ObservedAtUtc, now, staleAfter),
+                    providers = x.Providers.Select(p => new
+                    {
+                        p.Provider,
+                        state = OperationsFreshness.Apply(p.State, p.ObservedAtUtc, now, staleAfter).ToString(),
+                        publishedState = p.State.ToString(),
+                        p.ObservedAtUtc,
+                        p.Reason
+                    })
+                }));
+        });
 
         app.MapPost("/api/operations/messaging/observe", async (
             HttpContext context,
@@ -204,7 +247,23 @@ internal static class OperationsSpecializedEndpoints
                 await store.LoadAsync<SynchronizationEndpointRecord>("synchronization", ct);
             if (!string.IsNullOrWhiteSpace(applicationId))
                 q = q.Where(x => x.ApplicationId.Equals(applicationId, StringComparison.OrdinalIgnoreCase));
-            return Results.Ok(q.OrderBy(x => x.ApplicationId).ThenBy(x => x.EndpointId));
+            DateTimeOffset now = DateTimeOffset.UtcNow;
+            TimeSpan staleAfter = TimeSpan.FromSeconds(app.Configuration.GetValue("Operations:StaleAfterSeconds", 300));
+            return Results.Ok(q.OrderBy(x => x.ApplicationId).ThenBy(x => x.EndpointId).Select(x => new
+            {
+                x.EndpointId,
+                x.ApplicationId,
+                x.InstanceId,
+                x.Online,
+                queueState = OperationsFreshness.Apply(x.QueueState, x.ObservedAtUtc, now, staleAfter).ToString(),
+                publishedQueueState = x.QueueState.ToString(),
+                x.Pending,
+                x.Failed,
+                x.ObservedAtUtc,
+                x.OldestPendingAtUtc,
+                stale = OperationsFreshness.IsStale(x.ObservedAtUtc, now, staleAfter),
+                x.Reason
+            }));
         });
 
         app.MapPost("/api/operations/synchronization/observe", async (
