@@ -283,10 +283,33 @@ internal static class OperationsV1Endpoints
                 .Where(x => x.ApplicationId.Equals(applicationId, StringComparison.OrdinalIgnoreCase))
                 .ToList();
 
+            DateTimeOffset now = DateTimeOffset.UtcNow;
+            TimeSpan staleAfter = TimeSpan.FromSeconds(
+                app.Configuration.GetValue("Operations:StaleAfterSeconds", 300));
+
             return Results.Ok(new
             {
                 applicationId,
-                instances = matches,
+                instances = matches.Select(x => new
+                {
+                    x.ApplicationId,
+                    x.DisplayName,
+                    x.InstanceId,
+                    x.Environment,
+                    x.Version,
+                    x.RegistrationStatus,
+                    state = OperationsFreshness.Apply(x.State, x.ObservedAtUtc, now, staleAfter).ToString(),
+                    publishedState = x.State.ToString(),
+                    x.ObservedAtUtc,
+                    stale = OperationsFreshness.IsStale(x.ObservedAtUtc, now, staleAfter),
+                    reason = OperationsFreshness.IsStale(x.ObservedAtUtc, now, staleAfter)
+                        ? "Telemetry is stale."
+                        : x.Reason,
+                    x.ConfigurationStatus,
+                    dependencies = x.Dependencies ?? [],
+                    x.Build,
+                    x.Runbook
+                }),
                 diagnostics,
                 flows,
                 alerts,
@@ -411,6 +434,10 @@ internal static class OperationsV1Endpoints
             List<AlertRecord> all = [.. await store.LoadAsync<AlertRecord>("alerts", ct)];
             int index = all.FindIndex(x => x.AlertId.Equals(alertId, StringComparison.OrdinalIgnoreCase));
             if (index < 0) return Results.NotFound();
+            if (all[index].State == AlertLifecycleState.Resolved)
+                return Results.Conflict(new { error = "Resolved alerts cannot be acknowledged." });
+            if (all[index].State == AlertLifecycleState.Acknowledged)
+                return Results.Ok(all[index]);
             all[index] = all[index] with
             {
                 State = AlertLifecycleState.Acknowledged,
@@ -432,6 +459,8 @@ internal static class OperationsV1Endpoints
             List<AlertRecord> all = [.. await store.LoadAsync<AlertRecord>("alerts", ct)];
             int index = all.FindIndex(x => x.AlertId.Equals(alertId, StringComparison.OrdinalIgnoreCase));
             if (index < 0) return Results.NotFound();
+            if (all[index].State == AlertLifecycleState.Resolved)
+                return Results.Ok(all[index]);
             all[index] = all[index] with
             {
                 State = AlertLifecycleState.Resolved,
