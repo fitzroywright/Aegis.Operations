@@ -7,6 +7,7 @@ builder.Services.AddHttpClient("ops", client =>
 });
 builder.Services.AddSuiteSecurity();
 builder.Services.AddSingleton<OperationsV1Store>();
+builder.Services.AddSingleton<OperationsTelemetryAuthenticator>();
 
 WebApplication app = builder.Build();
 ILogger startupLogger = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("Aegis.Operations.Startup");
