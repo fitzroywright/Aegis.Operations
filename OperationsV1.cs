@@ -51,7 +51,9 @@ internal sealed record FlowStageRecord(
     DateTimeOffset? CompletedAtUtc = null,
     int? WarningAfterSeconds = null,
     int? CriticalAfterSeconds = null,
-    string? Error = null);
+    string? Error = null,
+    string? ParentStage = null,
+    string? Branch = null);
 
 internal sealed record FlowRecord(
     string CorrelationId,
@@ -200,9 +202,10 @@ internal static class OperationsV1Endpoints
             var all = await store.LoadAsync<ApplicationOperationalRecord>("applications", ct);
             DateTimeOffset now = DateTimeOffset.UtcNow;
             int staleSeconds = app.Configuration.GetValue("Operations:StaleAfterSeconds", 300);
+            TimeSpan staleAfter = TimeSpan.FromSeconds(staleSeconds);
             return Results.Ok(all.Select(x =>
             {
-                bool stale = now - x.ObservedAtUtc > TimeSpan.FromSeconds(staleSeconds);
+                bool stale = OperationsFreshness.IsStale(x.ObservedAtUtc, now, staleAfter);
                 return new
                 {
                     x.ApplicationId,
@@ -318,7 +321,9 @@ internal static class OperationsV1Endpoints
                     stage.CompletedAtUtc,
                     stage.WarningAfterSeconds,
                     stage.CriticalAfterSeconds,
-                    stage.Error
+                    stage.Error,
+                    stage.ParentStage,
+                    stage.Branch
                 })
             }));
         });
@@ -474,7 +479,48 @@ internal static class OperationsV1Endpoints
             var logs = (await store.LoadAsync<EngineerLogRecord>("engineer-log", ct))
                 .Where(x => Contains(x.EntryId, q) || Contains(x.Title, q) || Contains(x.Text, q) || Contains(x.CorrelationId, q))
                 .Select(x => new { type = "EngineerLog", id = x.EntryId, title = x.Title, detail = x.ApplicationId ?? "" });
-            return Results.Ok(apps.Concat(flows).Concat(alerts).Concat(logs).Take(100));
+            var runbooks = (await store.LoadAsync<RunbookRecord>("runbooks", ct))
+                .Where(x => Contains(x.RunbookId, q) || Contains(x.Title, q) || Contains(x.ApplicationId, q) || Contains(x.Content, q))
+                .Select(x => new { type = "Runbook", id = x.RunbookId, title = x.Title, detail = x.ApplicationId });
+            var messages = (await store.LoadAsync<MessageTraceRecord>("message-traces", ct))
+                .Where(x => Contains(x.MessageId, q) || Contains(x.CorrelationId, q) || Contains(x.ApplicationId, q) || Contains(x.Provider, q))
+                .Select(x => new { type = "Message", id = x.MessageId, title = x.Provider, detail = x.ApplicationId });
+            return Results.Ok(apps.Concat(flows).Concat(alerts).Concat(logs).Concat(runbooks).Concat(messages).Take(100));
+        });
+
+        app.MapGet("/api/operations/flow-definitions", async (
+            string? applicationId,
+            OperationsV1Store store,
+            CancellationToken ct) =>
+        {
+            IEnumerable<FlowDefinitionRecord> q = await store.LoadAsync<FlowDefinitionRecord>("flow-definitions", ct);
+            if (!string.IsNullOrWhiteSpace(applicationId))
+                q = q.Where(x => x.ApplicationId.Equals(applicationId, StringComparison.OrdinalIgnoreCase));
+            return Results.Ok(q.OrderBy(x => x.ApplicationId).ThenBy(x => x.DisplayName));
+        });
+
+        app.MapPost("/api/operations/flow-definitions", async (
+            HttpContext context,
+            FlowDefinitionRecord record,
+            OperationsV1Store store,
+            OperationsTelemetryAuthenticator telemetryAuthenticator,
+            CancellationToken ct) =>
+        {
+            if (!await telemetryAuthenticator.IsAuthorizedAsync(context, record.ApplicationId, ct)) return Results.Forbid();
+            if (string.IsNullOrWhiteSpace(record.ApplicationId) ||
+                string.IsNullOrWhiteSpace(record.FlowType) ||
+                record.Stages is null ||
+                record.Stages.Count == 0)
+                return Results.BadRequest(new { error = "applicationId, flowType and at least one stage are required." });
+
+            List<FlowDefinitionRecord> all = [.. await store.LoadAsync<FlowDefinitionRecord>("flow-definitions", ct)];
+            var safe = record with { UpdatedAtUtc = DateTimeOffset.UtcNow };
+            int index = all.FindIndex(x =>
+                x.ApplicationId.Equals(safe.ApplicationId, StringComparison.OrdinalIgnoreCase) &&
+                x.FlowType.Equals(safe.FlowType, StringComparison.OrdinalIgnoreCase));
+            if (index >= 0) all[index] = safe; else all.Add(safe);
+            await store.SaveAsync("flow-definitions", all, ct);
+            return Results.Ok(safe);
         });
 
         app.MapGet("/operations-v1", () => Results.Content(OperationsV1Page.Render(), "text/html; charset=utf-8"));
