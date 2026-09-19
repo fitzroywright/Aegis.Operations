@@ -60,6 +60,16 @@ jobs:
           fi
           exit "$code"
 
+      - name: Restore tests
+        if: steps.build.outcome == 'success'
+        working-directory: Aegis.Operations
+        run: dotnet restore Aegis.Operations.Tests/Aegis.Operations.Tests.csproj -p:CommonRoot="${{ github.workspace }}/Common"
+
+      - name: Test operational semantics
+        if: steps.build.outcome == 'success'
+        working-directory: Aegis.Operations
+        run: dotnet test Aegis.Operations.Tests/Aegis.Operations.Tests.csproj --no-restore --configuration Release -p:CommonRoot="${{ github.workspace }}/Common"
+
       - name: Publish build diagnostic status
         if: always()
         env:
