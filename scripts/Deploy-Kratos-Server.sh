@@ -162,20 +162,17 @@ backup_current() {
 }
 
 cleanup_legacy_registration() {
-  log "Migrating legacy registration configuration"
+  log "Removing obsolete ordinary-application registration keys"
 
   shopt -s nullglob
   for env_file in /etc/aegis/*.env; do
-    # Preserve an existing new key. Otherwise migrate the old suite registration key in place.
-    if grep -q '^AEGIS_REGISTRATION_KEY=' "$env_file"; then
-      sed -i '/^AEGIS_CONFIGURATION_REGISTRATION_KEY=/d' "$env_file"
-    else
-      sed -i 's/^AEGIS_CONFIGURATION_REGISTRATION_KEY=/AEGIS_REGISTRATION_KEY=/' "$env_file"
-    fi
-
-    # These were Configuration-specific bootstrap keys and are no longer consumed.
+    # Normal applications no longer consume any pre-shared registration key.
+    # Control-plane bootstrap credentials are file-backed and are not stored here.
+    sed -i '/^AEGIS_REGISTRATION_KEY=/d' "$env_file"
+    sed -i '/^AEGIS_CONFIGURATION_REGISTRATION_KEY=/d' "$env_file"
     sed -i '/^Operations__ConfigurationRegistrationKey=/d' "$env_file"
     sed -i '/^AegisConfiguration__RegistrationKey=/d' "$env_file"
+    sed -i '/^Aegis__Registration__Key=/d' "$env_file"
   done
   shopt -u nullglob
 
@@ -194,6 +191,9 @@ deploy_payload() {
       rm -rf "$target/contracts"
     fi
     chown -R "$OWNER" "$target"
+    if [[ -d "$target/scripts" ]]; then
+      find "$target/scripts" -maxdepth 1 -type f \( -name '*.sh' -o -name 'aegis-hello' \) -exec chmod 0755 {} +
+    fi
   done
 }
 
@@ -234,8 +234,9 @@ log "Ensuring persistent control-plane state storage"
 mkdir -p /var/lib/aegis/operations/registration
 mkdir -p /var/lib/aegis/configuration/contracts/retired
 mkdir -p /var/lib/aegis/diagnostics
-chown -R "$OWNER" /var/lib/aegis/operations /var/lib/aegis/configuration /var/lib/aegis/diagnostics
-chmod 700 /var/lib/aegis/operations/registration /var/lib/aegis/configuration /var/lib/aegis/diagnostics
+mkdir -p /var/lib/aegis/hello
+chown -R "$OWNER" /var/lib/aegis/operations /var/lib/aegis/configuration /var/lib/aegis/diagnostics /var/lib/aegis/hello
+chmod 700 /var/lib/aegis/operations/registration /var/lib/aegis/configuration /var/lib/aegis/diagnostics /var/lib/aegis/hello
 
 if is_selected hello; then
   log "Ensuring Aegis.Hello systemd service"
