@@ -349,7 +349,7 @@ internal static class OperationsEndpoints
                 statusCode: (int)response.StatusCode);
         }).AllowAnonymous();
 
-        app.MapGet("/", () => Results.Content(
+        app.MapGet("/legacy", () => Results.Content(
             OperationsPage.Render(configurationUrl, diagnosticsUrl, site, environment),
             "text/html"));
 
