@@ -119,9 +119,10 @@ internal static class OperationsSpecializedEndpoints
             HttpContext context,
             DiagnosticRecord record,
             OperationsV1Store store,
+            OperationsTelemetryAuthenticator telemetryAuthenticator,
             CancellationToken ct) =>
         {
-            if (!CanPublish(context, record.ApplicationId)) return Results.Forbid();
+            if (!await telemetryAuthenticator.IsAuthorizedAsync(context, record.ApplicationId, ct)) return Results.Forbid();
             List<DiagnosticRecord> all = [.. await store.LoadAsync<DiagnosticRecord>("diagnostics", ct)];
             string id = string.IsNullOrWhiteSpace(record.DiagnosticId)
                 ? $"{record.ApplicationId}:{record.Component}:{record.Category}"
@@ -145,9 +146,10 @@ internal static class OperationsSpecializedEndpoints
             HttpContext context,
             MessagingOperationalRecord record,
             OperationsV1Store store,
+            OperationsTelemetryAuthenticator telemetryAuthenticator,
             CancellationToken ct) =>
         {
-            if (!CanPublish(context, record.ApplicationId)) return Results.Forbid();
+            if (!await telemetryAuthenticator.IsAuthorizedAsync(context, record.ApplicationId, ct)) return Results.Forbid();
             List<MessagingOperationalRecord> all = [.. await store.LoadAsync<MessagingOperationalRecord>("messaging", ct)];
             var safe = record with
             {
@@ -176,9 +178,10 @@ internal static class OperationsSpecializedEndpoints
             HttpContext context,
             MessageTraceRecord record,
             OperationsV1Store store,
+            OperationsTelemetryAuthenticator telemetryAuthenticator,
             CancellationToken ct) =>
         {
-            if (!CanPublish(context, record.ApplicationId)) return Results.Forbid();
+            if (!await telemetryAuthenticator.IsAuthorizedAsync(context, record.ApplicationId, ct)) return Results.Forbid();
             List<MessageTraceRecord> all = [.. await store.LoadAsync<MessageTraceRecord>("message-traces", ct)];
             var safe = record with
             {
@@ -208,9 +211,10 @@ internal static class OperationsSpecializedEndpoints
             HttpContext context,
             SynchronizationEndpointRecord record,
             OperationsV1Store store,
+            OperationsTelemetryAuthenticator telemetryAuthenticator,
             CancellationToken ct) =>
         {
-            if (!CanPublish(context, record.ApplicationId)) return Results.Forbid();
+            if (!await telemetryAuthenticator.IsAuthorizedAsync(context, record.ApplicationId, ct)) return Results.Forbid();
             List<SynchronizationEndpointRecord> all =
                 [.. await store.LoadAsync<SynchronizationEndpointRecord>("synchronization", ct)];
             var safe = record with
@@ -321,15 +325,6 @@ internal static class OperationsSpecializedEndpoints
             detail));
         all = [.. all.OrderByDescending(x => x.AtUtc).Take(10000)];
         await store.SaveAsync("audit", all, ct);
-    }
-
-    private static bool CanPublish(HttpContext context, string applicationId)
-    {
-        if (Has(context, "Operations.Telemetry.Publish")) return true;
-        string supplied = context.Request.Headers["X-Aegis-Application-Id"].ToString();
-        return !string.IsNullOrWhiteSpace(supplied) &&
-               supplied.Equals(applicationId, StringComparison.OrdinalIgnoreCase) &&
-               context.Items.ContainsKey("SuiteIdentity");
     }
 
     private static bool Has(HttpContext context, string permission) =>
