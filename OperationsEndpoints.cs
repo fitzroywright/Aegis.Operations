@@ -93,22 +93,12 @@ internal static class OperationsEndpoints
                                 operationsInstanceId);
                         }
 
-                        IReadOnlyList<string> activeApplicationIds =
-                            await registrationStore.RegisteredApplicationIdsAsync(stoppingToken);
-                        ConfigurationSyncResult sync = await ReconcileConfigurationAsync(
-                            app,
-                            factory,
-                            configurationUrl,
-                            operationsInstanceId,
-                            operationsCredential,
-                            activeApplicationIds,
-                            stoppingToken);
-                        if (!sync.Success)
-                            registrationLogger.LogWarning("Configuration reconciliation failed: {Message}", sync.Message);
-                        else
-                            registrationLogger.LogInformation(
-                                "Configuration reconciliation completed for {ApplicationCount} registered applications.",
-                                activeApplicationIds.Count);
+                        // Do not reconcile Configuration contracts from the Operations
+                        // control-plane registry. That registry intentionally contains only
+                        // control-plane identities and is not authoritative for ordinary
+                        // Common.Registration applications such as Aegis.Hello.
+                        registrationLogger.LogDebug(
+                            "Configuration contract reconciliation is owned by Configuration registration state.");
                     }
                     catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
                     {
