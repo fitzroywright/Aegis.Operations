@@ -203,6 +203,59 @@ internal static class OperationsEndpoints
             });
         }).AllowAnonymous();
 
+        app.MapPost("/api/registration/validate", async (
+            HttpContext context,
+            CancellationToken ct) =>
+        {
+            string applicationId = context.Request.Headers["X-Aegis-Application-Id"].ToString().Trim();
+            string instanceId = context.Request.Headers["X-Aegis-Instance-Id"].ToString().Trim();
+            string credential = string.Empty;
+
+            if (AuthenticationHeaderValue.TryParse(
+                    context.Request.Headers.Authorization.ToString(),
+                    out AuthenticationHeaderValue? authorization) &&
+                string.Equals(
+                    authorization.Scheme,
+                    "Bearer",
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                credential = authorization.Parameter?.Trim() ?? string.Empty;
+            }
+
+            if (string.IsNullOrWhiteSpace(applicationId) ||
+                string.IsNullOrWhiteSpace(instanceId) ||
+                string.IsNullOrWhiteSpace(credential))
+            {
+                return Results.Unauthorized();
+            }
+
+            RegistrationValidation validation = await registrationStore.ValidateAsync(
+                applicationId,
+                instanceId,
+                credential,
+                ct);
+
+            return validation switch
+            {
+                RegistrationValidation.Valid => Results.Ok(new
+                {
+                    applicationId,
+                    instanceId,
+                    valid = true
+                }),
+                RegistrationValidation.Revoked => Results.Json(
+                    new
+                    {
+                        applicationId,
+                        instanceId,
+                        valid = false,
+                        revoked = true
+                    },
+                    statusCode: StatusCodes.Status410Gone),
+                _ => Results.Unauthorized()
+            };
+        }).AllowAnonymous();
+
         app.MapPost("/api/registration/contracts", async (
             HttpContext context,
             IHttpClientFactory factory,
