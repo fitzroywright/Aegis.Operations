@@ -235,9 +235,10 @@ internal static class OperationsV1Endpoints
             HttpContext context,
             ApplicationOperationalRecord record,
             OperationsV1Store store,
+            OperationsTelemetryAuthenticator telemetryAuthenticator,
             CancellationToken ct) =>
         {
-            if (!CanPublish(context, record.ApplicationId)) return Results.Forbid();
+            if (!await telemetryAuthenticator.IsAuthorizedAsync(context, record.ApplicationId, ct)) return Results.Forbid();
             var safe = record with
             {
                 ObservedAtUtc = record.ObservedAtUtc == default ? DateTimeOffset.UtcNow : record.ObservedAtUtc,
@@ -291,9 +292,10 @@ internal static class OperationsV1Endpoints
             HttpContext context,
             FlowRecord record,
             OperationsV1Store store,
+            OperationsTelemetryAuthenticator telemetryAuthenticator,
             CancellationToken ct) =>
         {
-            if (!CanPublish(context, record.ApplicationId)) return Results.Forbid();
+            if (!await telemetryAuthenticator.IsAuthorizedAsync(context, record.ApplicationId, ct)) return Results.Forbid();
             if (string.IsNullOrWhiteSpace(record.CorrelationId) ||
                 string.IsNullOrWhiteSpace(record.ApplicationId) ||
                 record.Stages is null ||
@@ -315,9 +317,10 @@ internal static class OperationsV1Endpoints
             HttpContext context,
             AlertRecord record,
             OperationsV1Store store,
+            OperationsTelemetryAuthenticator telemetryAuthenticator,
             CancellationToken ct) =>
         {
-            if (!CanPublish(context, record.ApplicationId)) return Results.Forbid();
+            if (!await telemetryAuthenticator.IsAuthorizedAsync(context, record.ApplicationId, ct)) return Results.Forbid();
             string id = string.IsNullOrWhiteSpace(record.AlertId)
                 ? "ALT-" + Guid.NewGuid().ToString("N")[..12].ToUpperInvariant()
                 : record.AlertId;
@@ -444,15 +447,6 @@ internal static class OperationsV1Endpoints
 
     private static bool Contains(string? value, string q) =>
         value?.Contains(q, StringComparison.OrdinalIgnoreCase) == true;
-
-    private static bool CanPublish(HttpContext context, string applicationId)
-    {
-        if (Has(context, "Operations.Telemetry.Publish")) return true;
-        string supplied = context.Request.Headers["X-Aegis-Application-Id"].ToString();
-        return !string.IsNullOrWhiteSpace(supplied) &&
-               supplied.Equals(applicationId, StringComparison.OrdinalIgnoreCase) &&
-               context.Items.ContainsKey("SuiteIdentity");
-    }
 
     private static bool Has(HttpContext context, string permission) =>
         context.Items.TryGetValue("SuiteIdentity", out object? value) &&
