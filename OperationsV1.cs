@@ -261,7 +261,30 @@ internal static class OperationsV1Endpoints
                 query = query.Where(x => x.CorrelationId.Equals(correlationId, StringComparison.OrdinalIgnoreCase));
             if (!string.IsNullOrWhiteSpace(state))
                 query = query.Where(x => x.Stages.Any(s => s.State.ToString().Equals(state, StringComparison.OrdinalIgnoreCase)));
-            return Results.Ok(query.OrderByDescending(x => x.ObservedAtUtc).Take(250));
+            DateTimeOffset now = DateTimeOffset.UtcNow;
+            return Results.Ok(query.OrderByDescending(x => x.ObservedAtUtc).Take(250).Select(x => new
+            {
+                x.CorrelationId,
+                x.ApplicationId,
+                x.FlowType,
+                x.InstanceId,
+                x.StartedAtUtc,
+                x.ObservedAtUtc,
+                x.CurrentStage,
+                x.RelatedBusinessId,
+                x.Runbook,
+                stages = x.Stages.Select(stage => new
+                {
+                    stage.Name,
+                    state = FlowStateEvaluator.EffectiveState(stage, now).ToString(),
+                    publishedState = stage.State.ToString(),
+                    stage.StartedAtUtc,
+                    stage.CompletedAtUtc,
+                    stage.WarningAfterSeconds,
+                    stage.CriticalAfterSeconds,
+                    stage.Error
+                })
+            }));
         });
 
         app.MapPost("/api/operations/flows/observe", async (
@@ -325,6 +348,7 @@ internal static class OperationsV1Endpoints
                 AcknowledgedBy = Actor(context)
             };
             await store.SaveAsync("alerts", all, ct);
+            await OperationsSpecializedEndpoints.AuditAsync(store, context, "AlertAcknowledged", all[index].ApplicationId, alertId, all[index].CorrelationId, ct);
             return Results.Ok(all[index]);
         });
 
@@ -345,6 +369,7 @@ internal static class OperationsV1Endpoints
                 ResolvedBy = Actor(context)
             };
             await store.SaveAsync("alerts", all, ct);
+            await OperationsSpecializedEndpoints.AuditAsync(store, context, "AlertResolved", all[index].ApplicationId, alertId, all[index].CorrelationId, ct);
             return Results.Ok(all[index]);
         });
 
@@ -367,11 +392,13 @@ internal static class OperationsV1Endpoints
                 AtUtc = record.AtUtc == default ? DateTimeOffset.UtcNow : record.AtUtc,
                 Author = Actor(context),
                 Tags = record.Tags ?? [],
+                DiagnosticSnapshot = OperationsSanitizer.Sanitize(record.DiagnosticSnapshot),
                 TranscriptionStatus = string.IsNullOrWhiteSpace(record.AudioReference)
                     ? null
                     : record.TranscriptionStatus ?? "Pending"
             };
             await store.AppendEngineerLogAsync(safe, ct);
+            await OperationsSpecializedEndpoints.AuditAsync(store, context, "EngineerLogCreated", safe.ApplicationId, safe.EntryId, safe.CorrelationId, ct);
             return Results.Ok(safe);
         });
 
