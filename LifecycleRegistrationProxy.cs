@@ -58,7 +58,7 @@ internal static class LifecycleRegistrationProxy
         app.MapPost("/api/lifecycle-registrations/{registrationId}/approve", async (
             HttpContext context,
             string registrationId,
-            LifecycleDecision request,
+            [Microsoft.AspNetCore.Mvc.FromBody] LifecycleDecision request,
             SuiteSecurity suiteSecurity,
             IHttpClientFactory factory,
             CancellationToken ct) =>
@@ -77,7 +77,7 @@ internal static class LifecycleRegistrationProxy
         app.MapPost("/api/lifecycle-registrations/{registrationId}/reject", async (
             HttpContext context,
             string registrationId,
-            LifecycleDecision request,
+            [Microsoft.AspNetCore.Mvc.FromBody] LifecycleDecision request,
             SuiteSecurity suiteSecurity,
             IHttpClientFactory factory,
             CancellationToken ct) =>
@@ -96,7 +96,7 @@ internal static class LifecycleRegistrationProxy
         app.MapPost("/api/lifecycle-registrations/{registrationId}/revoke", async (
             HttpContext context,
             string registrationId,
-            LifecycleDecision request,
+            [Microsoft.AspNetCore.Mvc.FromBody] LifecycleDecision request,
             SuiteSecurity suiteSecurity,
             IHttpClientFactory factory,
             CancellationToken ct) =>
@@ -115,7 +115,7 @@ internal static class LifecycleRegistrationProxy
         app.MapDelete("/api/lifecycle-registrations/{registrationId}", async (
             HttpContext context,
             string registrationId,
-            LifecycleDecision request,
+            [Microsoft.AspNetCore.Mvc.FromBody] LifecycleDecision request,
             SuiteSecurity suiteSecurity,
             IHttpClientFactory factory,
             CancellationToken ct) =>
@@ -134,7 +134,7 @@ internal static class LifecycleRegistrationProxy
         app.MapPost("/api/lifecycle-registrations/{registrationId}/conflict/retain-existing", async (
             HttpContext context,
             string registrationId,
-            LifecycleDecision request,
+            [Microsoft.AspNetCore.Mvc.FromBody] LifecycleDecision request,
             SuiteSecurity suiteSecurity,
             IHttpClientFactory factory,
             CancellationToken ct) =>
@@ -154,7 +154,7 @@ internal static class LifecycleRegistrationProxy
         app.MapPost("/api/lifecycle-registrations/{registrationId}/conflict/replace-with-incoming", async (
             HttpContext context,
             string registrationId,
-            LifecycleDecision request,
+            [Microsoft.AspNetCore.Mvc.FromBody] LifecycleDecision request,
             SuiteSecurity suiteSecurity,
             IHttpClientFactory factory,
             CancellationToken ct) =>
