@@ -523,6 +523,7 @@ internal static class OperationsV1Endpoints
             return Results.Ok(safe);
         });
 
+        app.MapGet("/", () => Results.Content(OperationsV1Page.Render(), "text/html; charset=utf-8"));
         app.MapGet("/operations-v1", () => Results.Content(OperationsV1Page.Render(), "text/html; charset=utf-8"));
     }
 
