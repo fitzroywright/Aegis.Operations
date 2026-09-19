@@ -37,4 +37,5 @@ app.MapOperationsEndpoints(configurationUrl, diagnosticsUrl, site, environment);
 app.MapLifecycleRegistrationProxy(configurationUrl);
 app.MapOperationsV1();
 app.MapOperationsSpecialized();
+app.MapOperationsAdvisor();
 app.Run();
