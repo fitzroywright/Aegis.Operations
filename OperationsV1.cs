@@ -1,0 +1,437 @@
+using System.Collections.Concurrent;
+using System.Text.Json;
+using Common.Security;
+
+internal enum FlowStageState
+{
+    Pending,
+    Active,
+    Completed,
+    Warning,
+    Failed,
+    Skipped,
+    TimedOut,
+    Unknown
+}
+
+internal enum AlertSeverity
+{
+    Informational,
+    Warning,
+    High,
+    Critical
+}
+
+internal enum AlertLifecycleState
+{
+    Raised,
+    Acknowledged,
+    Resolved
+}
+
+internal sealed record ApplicationOperationalRecord(
+    string ApplicationId,
+    string DisplayName,
+    string InstanceId,
+    string Environment,
+    string Version,
+    string RegistrationStatus,
+    OperationalState State,
+    DateTimeOffset ObservedAtUtc,
+    string? ConfigurationStatus = null,
+    string[]? Dependencies = null,
+    string? Build = null,
+    string? Runbook = null,
+    string? Reason = null);
+
+internal sealed record FlowStageRecord(
+    string Name,
+    FlowStageState State,
+    DateTimeOffset? StartedAtUtc = null,
+    DateTimeOffset? CompletedAtUtc = null,
+    int? WarningAfterSeconds = null,
+    int? CriticalAfterSeconds = null,
+    string? Error = null);
+
+internal sealed record FlowRecord(
+    string CorrelationId,
+    string ApplicationId,
+    string FlowType,
+    string InstanceId,
+    DateTimeOffset StartedAtUtc,
+    DateTimeOffset ObservedAtUtc,
+    IReadOnlyList<FlowStageRecord> Stages,
+    string? CurrentStage = null,
+    string? RelatedBusinessId = null,
+    string? Runbook = null);
+
+internal sealed record AlertRecord(
+    string AlertId,
+    string ApplicationId,
+    string? InstanceId,
+    AlertSeverity Severity,
+    string Title,
+    string Detail,
+    AlertLifecycleState State,
+    DateTimeOffset RaisedAtUtc,
+    DateTimeOffset? AcknowledgedAtUtc = null,
+    string? AcknowledgedBy = null,
+    DateTimeOffset? ResolvedAtUtc = null,
+    string? ResolvedBy = null,
+    string? CorrelationId = null,
+    string? Runbook = null);
+
+internal sealed record EngineerLogRecord(
+    string EntryId,
+    DateTimeOffset AtUtc,
+    string Author,
+    string Title,
+    string Text,
+    AlertSeverity Severity,
+    string[] Tags,
+    string? ApplicationId = null,
+    string? Component = null,
+    string? AlertId = null,
+    string? DeploymentId = null,
+    string? CorrelationId = null,
+    JsonElement? DiagnosticSnapshot = null,
+    string[]? Attachments = null,
+    string? AudioReference = null,
+    string? Transcription = null,
+    string? TranscriptionStatus = null);
+
+internal interface IRegistrationOperationsProvider { }
+internal interface IConfigurationOperationsProvider { }
+internal interface IDiagnosticsOperationsProvider { }
+internal interface IMessagingOperationsProvider { }
+internal interface IFlowOperationsProvider { }
+internal interface IRunbookProvider { }
+internal interface IOperationsEventProvider { }
+internal interface IOperationsAdvisor { }
+
+internal sealed class OperationsV1Store
+{
+    private readonly string _root;
+    private readonly SemaphoreSlim _gate = new(1, 1);
+    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
+    {
+        WriteIndented = true
+    };
+
+    internal OperationsV1Store(IConfiguration configuration)
+    {
+        _root = configuration["Operations:DataDirectory"]?.Trim()
+            ?? "/var/lib/aegis/operations/v1";
+        Directory.CreateDirectory(_root);
+    }
+
+    internal async Task<IReadOnlyList<T>> LoadAsync<T>(string bucket, CancellationToken ct)
+    {
+        await _gate.WaitAsync(ct);
+        try
+        {
+            string path = Path.Combine(_root, bucket + ".json");
+            if (!File.Exists(path)) return [];
+            string json = await File.ReadAllTextAsync(path, ct);
+            return JsonSerializer.Deserialize<List<T>>(json, JsonOptions) ?? [];
+        }
+        finally { _gate.Release(); }
+    }
+
+    internal async Task SaveAsync<T>(string bucket, IReadOnlyList<T> values, CancellationToken ct)
+    {
+        await _gate.WaitAsync(ct);
+        try
+        {
+            string path = Path.Combine(_root, bucket + ".json");
+            string temp = path + ".tmp-" + Guid.NewGuid().ToString("N");
+            await File.WriteAllTextAsync(temp, JsonSerializer.Serialize(values, JsonOptions), ct);
+            if (!OperatingSystem.IsWindows())
+                File.SetUnixFileMode(temp, UnixFileMode.UserRead | UnixFileMode.UserWrite);
+            File.Move(temp, path, true);
+            if (!OperatingSystem.IsWindows())
+                File.SetUnixFileMode(path, UnixFileMode.UserRead | UnixFileMode.UserWrite);
+        }
+        finally { _gate.Release(); }
+    }
+
+    internal async Task UpsertApplicationAsync(ApplicationOperationalRecord incoming, CancellationToken ct)
+    {
+        List<ApplicationOperationalRecord> all = [.. await LoadAsync<ApplicationOperationalRecord>("applications", ct)];
+        int index = all.FindIndex(x =>
+            x.ApplicationId.Equals(incoming.ApplicationId, StringComparison.OrdinalIgnoreCase) &&
+            x.InstanceId.Equals(incoming.InstanceId, StringComparison.OrdinalIgnoreCase));
+        if (index >= 0) all[index] = incoming; else all.Add(incoming);
+        await SaveAsync("applications", all, ct);
+    }
+
+    internal async Task UpsertFlowAsync(FlowRecord incoming, CancellationToken ct)
+    {
+        List<FlowRecord> all = [.. await LoadAsync<FlowRecord>("flows", ct)];
+        int index = all.FindIndex(x => x.CorrelationId.Equals(incoming.CorrelationId, StringComparison.OrdinalIgnoreCase));
+        if (index >= 0) all[index] = incoming; else all.Add(incoming);
+        all = [.. all.OrderByDescending(x => x.ObservedAtUtc).Take(1000)];
+        await SaveAsync("flows", all, ct);
+    }
+
+    internal async Task UpsertAlertAsync(AlertRecord incoming, CancellationToken ct)
+    {
+        List<AlertRecord> all = [.. await LoadAsync<AlertRecord>("alerts", ct)];
+        int index = all.FindIndex(x => x.AlertId.Equals(incoming.AlertId, StringComparison.OrdinalIgnoreCase));
+        if (index >= 0) all[index] = incoming; else all.Add(incoming);
+        await SaveAsync("alerts", all, ct);
+    }
+
+    internal async Task AppendEngineerLogAsync(EngineerLogRecord incoming, CancellationToken ct)
+    {
+        List<EngineerLogRecord> all = [.. await LoadAsync<EngineerLogRecord>("engineer-log", ct)];
+        all.Add(incoming);
+        all = [.. all.OrderByDescending(x => x.AtUtc).Take(5000)];
+        await SaveAsync("engineer-log", all, ct);
+    }
+}
+
+internal static class OperationsV1Endpoints
+{
+    internal static void MapOperationsV1(this WebApplication app)
+    {
+        app.MapGet("/api/operations/applications", async (OperationsV1Store store, CancellationToken ct) =>
+        {
+            var all = await store.LoadAsync<ApplicationOperationalRecord>("applications", ct);
+            DateTimeOffset now = DateTimeOffset.UtcNow;
+            int staleSeconds = app.Configuration.GetValue("Operations:StaleAfterSeconds", 300);
+            return Results.Ok(all.Select(x =>
+            {
+                bool stale = now - x.ObservedAtUtc > TimeSpan.FromSeconds(staleSeconds);
+                return new
+                {
+                    x.ApplicationId,
+                    x.DisplayName,
+                    x.InstanceId,
+                    x.Environment,
+                    x.Version,
+                    x.RegistrationStatus,
+                    state = stale ? OperationalState.Unknown.ToString() : x.State.ToString(),
+                    observedAtUtc = x.ObservedAtUtc,
+                    stale,
+                    reason = stale ? "Telemetry is stale." : x.Reason,
+                    x.ConfigurationStatus,
+                    dependencies = x.Dependencies ?? [],
+                    x.Build,
+                    x.Runbook
+                };
+            }));
+        });
+
+        app.MapGet("/api/operations/applications/{applicationId}", async (
+            string applicationId, OperationsV1Store store, CancellationToken ct) =>
+        {
+            var all = await store.LoadAsync<ApplicationOperationalRecord>("applications", ct);
+            var matches = all.Where(x => x.ApplicationId.Equals(applicationId, StringComparison.OrdinalIgnoreCase)).ToList();
+            return matches.Count == 0 ? Results.NotFound() : Results.Ok(matches);
+        });
+
+        app.MapPost("/api/operations/applications/observe", async (
+            HttpContext context,
+            ApplicationOperationalRecord record,
+            OperationsV1Store store,
+            CancellationToken ct) =>
+        {
+            if (!CanPublish(context, record.ApplicationId)) return Results.Forbid();
+            var safe = record with
+            {
+                ObservedAtUtc = record.ObservedAtUtc == default ? DateTimeOffset.UtcNow : record.ObservedAtUtc,
+                Dependencies = record.Dependencies ?? []
+            };
+            await store.UpsertApplicationAsync(safe, ct);
+            return Results.Accepted();
+        });
+
+        app.MapGet("/api/operations/flows", async (
+            string? applicationId,
+            string? state,
+            string? correlationId,
+            OperationsV1Store store,
+            CancellationToken ct) =>
+        {
+            IEnumerable<FlowRecord> query = await store.LoadAsync<FlowRecord>("flows", ct);
+            if (!string.IsNullOrWhiteSpace(applicationId))
+                query = query.Where(x => x.ApplicationId.Equals(applicationId, StringComparison.OrdinalIgnoreCase));
+            if (!string.IsNullOrWhiteSpace(correlationId))
+                query = query.Where(x => x.CorrelationId.Equals(correlationId, StringComparison.OrdinalIgnoreCase));
+            if (!string.IsNullOrWhiteSpace(state))
+                query = query.Where(x => x.Stages.Any(s => s.State.ToString().Equals(state, StringComparison.OrdinalIgnoreCase)));
+            return Results.Ok(query.OrderByDescending(x => x.ObservedAtUtc).Take(250));
+        });
+
+        app.MapPost("/api/operations/flows/observe", async (
+            HttpContext context,
+            FlowRecord record,
+            OperationsV1Store store,
+            CancellationToken ct) =>
+        {
+            if (!CanPublish(context, record.ApplicationId)) return Results.Forbid();
+            if (string.IsNullOrWhiteSpace(record.CorrelationId) ||
+                string.IsNullOrWhiteSpace(record.ApplicationId) ||
+                record.Stages is null ||
+                record.Stages.Count == 0)
+                return Results.BadRequest(new { error = "correlationId, applicationId and at least one stage are required." });
+
+            var safe = record with
+            {
+                ObservedAtUtc = record.ObservedAtUtc == default ? DateTimeOffset.UtcNow : record.ObservedAtUtc
+            };
+            await store.UpsertFlowAsync(safe, ct);
+            return Results.Accepted();
+        });
+
+        app.MapGet("/api/operations/alerts", async (OperationsV1Store store, CancellationToken ct) =>
+            Results.Ok((await store.LoadAsync<AlertRecord>("alerts", ct)).OrderByDescending(x => x.RaisedAtUtc)));
+
+        app.MapPost("/api/operations/alerts", async (
+            HttpContext context,
+            AlertRecord record,
+            OperationsV1Store store,
+            CancellationToken ct) =>
+        {
+            if (!CanPublish(context, record.ApplicationId)) return Results.Forbid();
+            string id = string.IsNullOrWhiteSpace(record.AlertId)
+                ? "ALT-" + Guid.NewGuid().ToString("N")[..12].ToUpperInvariant()
+                : record.AlertId;
+            var safe = record with
+            {
+                AlertId = id,
+                RaisedAtUtc = record.RaisedAtUtc == default ? DateTimeOffset.UtcNow : record.RaisedAtUtc,
+                State = AlertLifecycleState.Raised
+            };
+            await store.UpsertAlertAsync(safe, ct);
+            return Results.Ok(safe);
+        });
+
+        app.MapPost("/api/operations/alerts/{alertId}/acknowledge", async (
+            HttpContext context,
+            string alertId,
+            OperationsV1Store store,
+            CancellationToken ct) =>
+        {
+            if (!Has(context, "Operations.Alerts.Acknowledge")) return Results.Forbid();
+            List<AlertRecord> all = [.. await store.LoadAsync<AlertRecord>("alerts", ct)];
+            int index = all.FindIndex(x => x.AlertId.Equals(alertId, StringComparison.OrdinalIgnoreCase));
+            if (index < 0) return Results.NotFound();
+            all[index] = all[index] with
+            {
+                State = AlertLifecycleState.Acknowledged,
+                AcknowledgedAtUtc = DateTimeOffset.UtcNow,
+                AcknowledgedBy = Actor(context)
+            };
+            await store.SaveAsync("alerts", all, ct);
+            return Results.Ok(all[index]);
+        });
+
+        app.MapPost("/api/operations/alerts/{alertId}/resolve", async (
+            HttpContext context,
+            string alertId,
+            OperationsV1Store store,
+            CancellationToken ct) =>
+        {
+            if (!Has(context, "Operations.Alerts.Resolve")) return Results.Forbid();
+            List<AlertRecord> all = [.. await store.LoadAsync<AlertRecord>("alerts", ct)];
+            int index = all.FindIndex(x => x.AlertId.Equals(alertId, StringComparison.OrdinalIgnoreCase));
+            if (index < 0) return Results.NotFound();
+            all[index] = all[index] with
+            {
+                State = AlertLifecycleState.Resolved,
+                ResolvedAtUtc = DateTimeOffset.UtcNow,
+                ResolvedBy = Actor(context)
+            };
+            await store.SaveAsync("alerts", all, ct);
+            return Results.Ok(all[index]);
+        });
+
+        app.MapGet("/api/operations/engineer-log", async (OperationsV1Store store, CancellationToken ct) =>
+            Results.Ok((await store.LoadAsync<EngineerLogRecord>("engineer-log", ct)).OrderByDescending(x => x.AtUtc)));
+
+        app.MapPost("/api/operations/engineer-log", async (
+            HttpContext context,
+            EngineerLogRecord record,
+            OperationsV1Store store,
+            CancellationToken ct) =>
+        {
+            if (!Has(context, "Operations.EngineerLog.Create")) return Results.Forbid();
+            string id = string.IsNullOrWhiteSpace(record.EntryId)
+                ? "ENG-" + Guid.NewGuid().ToString("N")[..12].ToUpperInvariant()
+                : record.EntryId;
+            var safe = record with
+            {
+                EntryId = id,
+                AtUtc = record.AtUtc == default ? DateTimeOffset.UtcNow : record.AtUtc,
+                Author = Actor(context),
+                Tags = record.Tags ?? [],
+                TranscriptionStatus = string.IsNullOrWhiteSpace(record.AudioReference)
+                    ? null
+                    : record.TranscriptionStatus ?? "Pending"
+            };
+            await store.AppendEngineerLogAsync(safe, ct);
+            return Results.Ok(safe);
+        });
+
+        app.MapGet("/api/operations/history", async (
+            OperationsV1Store store,
+            CancellationToken ct) =>
+        {
+            var alerts = await store.LoadAsync<AlertRecord>("alerts", ct);
+            var logs = await store.LoadAsync<EngineerLogRecord>("engineer-log", ct);
+            var flows = await store.LoadAsync<FlowRecord>("flows", ct);
+            var events = alerts.Select(x => new { at = x.RaisedAtUtc, type = "Alert", id = x.AlertId, application = x.ApplicationId, text = x.Title })
+                .Concat(logs.Select(x => new { at = x.AtUtc, type = "EngineerLog", id = x.EntryId, application = x.ApplicationId ?? "", text = x.Title }))
+                .Concat(flows.Select(x => new { at = x.ObservedAtUtc, type = "Flow", id = x.CorrelationId, application = x.ApplicationId, text = x.FlowType }))
+                .OrderByDescending(x => x.at)
+                .Take(500);
+            return Results.Ok(events);
+        });
+
+        app.MapGet("/api/operations/search", async (
+            string q,
+            OperationsV1Store store,
+            CancellationToken ct) =>
+        {
+            q = q?.Trim() ?? "";
+            if (q.Length < 2) return Results.BadRequest(new { error = "Search requires at least two characters." });
+            var apps = (await store.LoadAsync<ApplicationOperationalRecord>("applications", ct))
+                .Where(x => Contains(x.ApplicationId, q) || Contains(x.DisplayName, q) || Contains(x.InstanceId, q))
+                .Select(x => new { type = "Application", id = x.ApplicationId, title = x.DisplayName, detail = x.InstanceId });
+            var flows = (await store.LoadAsync<FlowRecord>("flows", ct))
+                .Where(x => Contains(x.CorrelationId, q) || Contains(x.ApplicationId, q) || Contains(x.FlowType, q) || Contains(x.RelatedBusinessId, q))
+                .Select(x => new { type = "Flow", id = x.CorrelationId, title = x.FlowType, detail = x.ApplicationId });
+            var alerts = (await store.LoadAsync<AlertRecord>("alerts", ct))
+                .Where(x => Contains(x.AlertId, q) || Contains(x.Title, q) || Contains(x.ApplicationId, q))
+                .Select(x => new { type = "Alert", id = x.AlertId, title = x.Title, detail = x.ApplicationId });
+            var logs = (await store.LoadAsync<EngineerLogRecord>("engineer-log", ct))
+                .Where(x => Contains(x.EntryId, q) || Contains(x.Title, q) || Contains(x.Text, q) || Contains(x.CorrelationId, q))
+                .Select(x => new { type = "EngineerLog", id = x.EntryId, title = x.Title, detail = x.ApplicationId ?? "" });
+            return Results.Ok(apps.Concat(flows).Concat(alerts).Concat(logs).Take(100));
+        });
+
+        app.MapGet("/operations-v1", () => Results.Content(OperationsV1Page.Render(), "text/html; charset=utf-8"));
+    }
+
+    private static bool Contains(string? value, string q) =>
+        value?.Contains(q, StringComparison.OrdinalIgnoreCase) == true;
+
+    private static bool CanPublish(HttpContext context, string applicationId)
+    {
+        if (Has(context, "Operations.Telemetry.Publish")) return true;
+        string supplied = context.Request.Headers["X-Aegis-Application-Id"].ToString();
+        return !string.IsNullOrWhiteSpace(supplied) &&
+               supplied.Equals(applicationId, StringComparison.OrdinalIgnoreCase) &&
+               context.Items.ContainsKey("SuiteIdentity");
+    }
+
+    private static bool Has(HttpContext context, string permission) =>
+        context.Items.TryGetValue("SuiteIdentity", out object? value) &&
+        value is SuiteIdentity identity &&
+        identity.Permissions.Contains(permission, StringComparer.OrdinalIgnoreCase);
+
+    private static string Actor(HttpContext context) =>
+        context.User?.Identity?.Name ?? "unknown";
+}
