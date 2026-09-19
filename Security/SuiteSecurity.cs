@@ -76,6 +76,7 @@ internal static class SuiteSecurityExtensions
             HttpMethods.IsPost(ctx.Request.Method) &&
             (ctx.Request.Path.Equals("/api/operations/applications/observe", StringComparison.OrdinalIgnoreCase) ||
              ctx.Request.Path.Equals("/api/operations/flows/observe", StringComparison.OrdinalIgnoreCase) ||
+             ctx.Request.Path.Equals("/api/operations/flow-definitions", StringComparison.OrdinalIgnoreCase) ||
              ctx.Request.Path.Equals("/api/operations/alerts", StringComparison.OrdinalIgnoreCase) ||
              ctx.Request.Path.Equals("/api/operations/diagnostics/observe", StringComparison.OrdinalIgnoreCase) ||
              ctx.Request.Path.Equals("/api/operations/messaging/observe", StringComparison.OrdinalIgnoreCase) ||
