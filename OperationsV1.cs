@@ -130,66 +130,93 @@ internal sealed class OperationsV1Store
     internal async Task<IReadOnlyList<T>> LoadAsync<T>(string bucket, CancellationToken ct)
     {
         await _gate.WaitAsync(ct);
-        try
-        {
-            string path = Path.Combine(_root, bucket + ".json");
-            if (!File.Exists(path)) return [];
-            string json = await File.ReadAllTextAsync(path, ct);
-            return JsonSerializer.Deserialize<List<T>>(json, JsonOptions) ?? [];
-        }
+        try { return await LoadUnsafeAsync<T>(bucket, ct); }
         finally { _gate.Release(); }
     }
 
     internal async Task SaveAsync<T>(string bucket, IReadOnlyList<T> values, CancellationToken ct)
     {
         await _gate.WaitAsync(ct);
+        try { await SaveUnsafeAsync(bucket, values, ct); }
+        finally { _gate.Release(); }
+    }
+
+    internal async Task MutateAsync<T>(
+        string bucket,
+        Func<List<T>, List<T>> mutation,
+        CancellationToken ct)
+    {
+        await _gate.WaitAsync(ct);
         try
         {
-            string path = Path.Combine(_root, bucket + ".json");
-            string temp = path + ".tmp-" + Guid.NewGuid().ToString("N");
-            await File.WriteAllTextAsync(temp, JsonSerializer.Serialize(values, JsonOptions), ct);
-            if (!OperatingSystem.IsWindows())
-                File.SetUnixFileMode(temp, UnixFileMode.UserRead | UnixFileMode.UserWrite);
-            File.Move(temp, path, true);
-            if (!OperatingSystem.IsWindows())
-                File.SetUnixFileMode(path, UnixFileMode.UserRead | UnixFileMode.UserWrite);
+            List<T> all = [.. await LoadUnsafeAsync<T>(bucket, ct)];
+            List<T> updated = mutation(all);
+            await SaveUnsafeAsync(bucket, updated, ct);
         }
         finally { _gate.Release(); }
     }
 
     internal async Task UpsertApplicationAsync(ApplicationOperationalRecord incoming, CancellationToken ct)
     {
-        List<ApplicationOperationalRecord> all = [.. await LoadAsync<ApplicationOperationalRecord>("applications", ct)];
-        int index = all.FindIndex(x =>
-            x.ApplicationId.Equals(incoming.ApplicationId, StringComparison.OrdinalIgnoreCase) &&
-            x.InstanceId.Equals(incoming.InstanceId, StringComparison.OrdinalIgnoreCase));
-        if (index >= 0) all[index] = incoming; else all.Add(incoming);
-        await SaveAsync("applications", all, ct);
+        await MutateAsync<ApplicationOperationalRecord>("applications", all =>
+        {
+            int index = all.FindIndex(x =>
+                x.ApplicationId.Equals(incoming.ApplicationId, StringComparison.OrdinalIgnoreCase) &&
+                x.InstanceId.Equals(incoming.InstanceId, StringComparison.OrdinalIgnoreCase));
+            if (index >= 0) all[index] = incoming; else all.Add(incoming);
+            return all;
+        }, ct);
     }
 
     internal async Task UpsertFlowAsync(FlowRecord incoming, CancellationToken ct)
     {
-        List<FlowRecord> all = [.. await LoadAsync<FlowRecord>("flows", ct)];
-        int index = all.FindIndex(x => x.CorrelationId.Equals(incoming.CorrelationId, StringComparison.OrdinalIgnoreCase));
-        if (index >= 0) all[index] = incoming; else all.Add(incoming);
-        all = [.. all.OrderByDescending(x => x.ObservedAtUtc).Take(1000)];
-        await SaveAsync("flows", all, ct);
+        await MutateAsync<FlowRecord>("flows", all =>
+        {
+            int index = all.FindIndex(x =>
+                x.CorrelationId.Equals(incoming.CorrelationId, StringComparison.OrdinalIgnoreCase));
+            if (index >= 0) all[index] = incoming; else all.Add(incoming);
+            return [.. all.OrderByDescending(x => x.ObservedAtUtc).Take(1000)];
+        }, ct);
     }
 
     internal async Task UpsertAlertAsync(AlertRecord incoming, CancellationToken ct)
     {
-        List<AlertRecord> all = [.. await LoadAsync<AlertRecord>("alerts", ct)];
-        int index = all.FindIndex(x => x.AlertId.Equals(incoming.AlertId, StringComparison.OrdinalIgnoreCase));
-        if (index >= 0) all[index] = incoming; else all.Add(incoming);
-        await SaveAsync("alerts", all, ct);
+        await MutateAsync<AlertRecord>("alerts", all =>
+        {
+            int index = all.FindIndex(x =>
+                x.AlertId.Equals(incoming.AlertId, StringComparison.OrdinalIgnoreCase));
+            if (index >= 0) all[index] = incoming; else all.Add(incoming);
+            return all;
+        }, ct);
     }
 
     internal async Task AppendEngineerLogAsync(EngineerLogRecord incoming, CancellationToken ct)
     {
-        List<EngineerLogRecord> all = [.. await LoadAsync<EngineerLogRecord>("engineer-log", ct)];
-        all.Add(incoming);
-        all = [.. all.OrderByDescending(x => x.AtUtc).Take(5000)];
-        await SaveAsync("engineer-log", all, ct);
+        await MutateAsync<EngineerLogRecord>("engineer-log", all =>
+        {
+            all.Add(incoming);
+            return [.. all.OrderByDescending(x => x.AtUtc).Take(5000)];
+        }, ct);
+    }
+
+    private async Task<IReadOnlyList<T>> LoadUnsafeAsync<T>(string bucket, CancellationToken ct)
+    {
+        string path = Path.Combine(_root, bucket + ".json");
+        if (!File.Exists(path)) return [];
+        string json = await File.ReadAllTextAsync(path, ct);
+        return JsonSerializer.Deserialize<List<T>>(json, JsonOptions) ?? [];
+    }
+
+    private async Task SaveUnsafeAsync<T>(string bucket, IReadOnlyList<T> values, CancellationToken ct)
+    {
+        string path = Path.Combine(_root, bucket + ".json");
+        string temp = path + ".tmp-" + Guid.NewGuid().ToString("N");
+        await File.WriteAllTextAsync(temp, JsonSerializer.Serialize(values, JsonOptions), ct);
+        if (!OperatingSystem.IsWindows())
+            File.SetUnixFileMode(temp, UnixFileMode.UserRead | UnixFileMode.UserWrite);
+        File.Move(temp, path, true);
+        if (!OperatingSystem.IsWindows())
+            File.SetUnixFileMode(path, UnixFileMode.UserRead | UnixFileMode.UserWrite);
     }
 }
 
