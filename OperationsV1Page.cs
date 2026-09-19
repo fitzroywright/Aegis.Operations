@@ -36,6 +36,7 @@ input,textarea,select{width:100%;background:#081b28;color:var(--text);border:1px
 <button data-view="runbooks">Runbooks</button>
 <button data-view="log">Engineer's Log</button>
 <button data-view="history">History</button>
+<button data-view="advisor">Advisor</button>
 </nav>
 <main>
 <section id="overview"><div class="metrics" id="metrics"></div><div class="grid" id="estate"></div></section>
@@ -50,6 +51,7 @@ input,textarea,select{width:100%;background:#081b28;color:var(--text);border:1px
 <section id="runbooks" class="hidden"><div class="sectionhead"><h2>Runbooks</h2></div><div id="runbooksList"></div></section>
 <section id="log" class="hidden"><div class="sectionhead"><h2>Engineer's Log</h2></div><div class="panel"><input id="logTitle" placeholder="Title"><br><br><textarea id="logText" rows="5" placeholder="What happened?"></textarea><br><br><select id="logSeverity"><option>Informational</option><option>Warning</option><option>High</option><option>Critical</option></select><br><br><button class="action" onclick="createLog()">Record Entry</button></div><div id="logList"></div></section>
 <section id="history" class="hidden"><div class="sectionhead"><h2>Operational History</h2></div><div id="historyList"></div></section>
+<section id="advisor" class="hidden"><div class="sectionhead"><h2>Operations Advisor</h2><button class="action" onclick="loadAdvisor()">Refresh Analysis</button></div><div class="panel muted">Read-only, evidence-based guidance. It does not execute repairs or infer health from missing telemetry.</div><div id="advisorList"></div></section>
 </main>
 <script>
 const e=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -68,7 +70,7 @@ function flowViz(x){
  return '<div class="flowmap" style="--stage-count:'+stages.length+'"><div class="flowrail"></div><div class="flowlight '+cls(active?.state)+'" style="left:'+pct+'%"></div><div class="flownodes">'+nodes+'</div></div><div class="flowdetail">Current: <b>'+e(active?.name??'Unknown')+'</b> · '+e(active?.state??'Unknown')+err+'</div>';
 }
 function showView(id){document.querySelectorAll('main>section').forEach(s=>s.classList.add('hidden'));document.getElementById(id).classList.remove('hidden');document.querySelectorAll('#nav button').forEach(x=>x.classList.toggle('active',x.dataset.view===id))}
-document.querySelectorAll('#nav button').forEach(b=>b.onclick=()=>showView(b.dataset.view));
+document.querySelectorAll('#nav button').forEach(b=>b.onclick=()=>{showView(b.dataset.view);if(b.dataset.view==='advisor')loadAdvisor()});
 async function json(url,opts){const r=await fetch(url,{cache:'no-store',...opts});if(!r.ok)throw new Error('HTTP '+r.status);return await r.json()}
 async function load(){
  let apps=[],flows=[],diagnostics=[],messaging=[],sync=[],alerts=[],runbooks=[],logs=[],history=[];
@@ -119,6 +121,14 @@ async function runSearch(){
   searchResults.innerHTML=results.length?results.map(x=>'<div class="panel"><b>'+e(x.type)+' · '+e(x.title)+'</b><br><small>'+e(x.id)+' · '+e(x.detail)+'</small></div>').join(''):'<div class="panel muted">No matches.</div>';
   showView('search');
  }catch(err){alert('Search failed: '+err.message)}
+}
+async function loadAdvisor(){
+ try{
+  const d=await json('/api/operations/advisor');
+  const findings=d.findings||[];
+  advisorList.innerHTML='<div class="panel"><b>'+e(d.summary)+'</b><br><small class="muted">Generated '+e(time(d.generatedAtUtc))+' · '+e(d.mode)+'</small></div>'+
+   (findings.length?findings.map(x=>'<article class="panel"><b>'+e(x.severity)+' · '+e(x.area)+'</b><h3>'+e(x.summary)+'</h3><p>'+e(x.evidence)+'</p><p><b>Next check:</b> '+e(x.suggestedNextCheck)+'</p><small class="muted">'+e(x.applicationId??'Estate')+(x.correlationId?' · '+e(x.correlationId):'')+(x.runbook?' · Runbook: '+e(x.runbook):'')+'</small></article>').join(''):'');
+ }catch(err){advisorList.innerHTML='<div class="panel state failed">Advisor unavailable: '+e(err.message)+'</div>'}
 }
 async function createLog(){
  const body={entryId:'',atUtc:new Date().toISOString(),author:'',title:logTitle.value,text:logText.value,severity:logSeverity.value,tags:[]};
