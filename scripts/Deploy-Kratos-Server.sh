@@ -290,7 +290,14 @@ start_selected
 
 log "Validating services"
 for app in "${SELECTED[@]}"; do
-  systemctl --no-pager --full status "${SERVICE[$app]}" >/dev/null
+  service="${SERVICE[$app]}"
+  if ! systemctl is-active --quiet "$service"; then
+    echo "FAIL: $app service $service is not active" >&2
+    systemctl --no-pager --full status "$service" >&2 || true
+    journalctl -u "$service" -n 80 --no-pager >&2 || true
+    false
+  fi
+
   health_check "$app"
 done
 
