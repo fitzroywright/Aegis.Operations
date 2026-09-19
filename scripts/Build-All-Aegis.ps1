@@ -75,6 +75,19 @@ function Assert-CleanMain {
     Write-Host "Authoritative main: $sha" -ForegroundColor DarkCyan
 }
 
+function Sync-AuthoritativeMain {
+    param(
+        [Parameter(Mandatory = $true)][string]$Name,
+        [Parameter(Mandatory = $true)][string]$Path
+    )
+
+    Write-Host ""
+    Write-Host "----------------------------------------------------" -ForegroundColor DarkYellow
+    Write-Host " Syncing dependency: $Name" -ForegroundColor DarkYellow
+    Write-Host "----------------------------------------------------" -ForegroundColor DarkYellow
+    Assert-CleanMain $Path
+}
+
 function Build-Project {
     param(
         [Parameter(Mandatory = $true)][string]$Name,
@@ -142,6 +155,17 @@ try {
     Write-Host "`n========================================" -ForegroundColor Cyan
     Write-Host " AEGIS AUTHORITATIVE MAIN BUILD / TEST" -ForegroundColor Cyan
     Write-Host "========================================" -ForegroundColor Cyan
+
+    # Synchronize every repository before any solution build starts. Some solutions
+    # reference sibling repositories directly, so building before those siblings are
+    # updated can compile stale source from disk.
+    $synced = @{}
+    foreach ($project in $projects) {
+        if (-not $synced.ContainsKey($project.Path)) {
+            Sync-AuthoritativeMain -Name $project.Name -Path $project.Path
+            $synced[$project.Path] = $true
+        }
+    }
 
     foreach ($project in $projects) {
         $testEnvironment = $null
