@@ -1,7 +1,7 @@
 [CmdletBinding()]
 param(
     [string]$HostName = "kratos",
-    [string]$UserName = "fwright",
+    [string]$UserName = "fwright@fftpj.local",
     [ValidateSet("operations","configuration","diagnostics","hello","requestportal")]
     [string[]]$Applications = @("operations","configuration","diagnostics","hello"),
     [string]$ProjectsRoot = "D:\Projects",
@@ -102,7 +102,7 @@ try {
     }
     finally { Pop-Location }
 
-    $remote = "$UserName@$HostName"
+    $remoteDisplay = "$UserName@$HostName"
     $appsCsv = ($Applications -join ",")
 
     # Build the remote shell program from individual lines joined with LF only.
@@ -138,16 +138,16 @@ try {
 
         if ($Credential.UserName) {
             $UserName = $Credential.UserName
-            $remote = "$UserName@$HostName"
+            $remoteDisplay = "$UserName@$HostName"
         }
 
         $password = ConvertTo-PlainText $Credential.Password
         try {
-            Write-Host "`nUploading deployment bundle to $remote ..."
-            Invoke-Native -FilePath $pscp.Source -ArgumentList @("-batch", "-pw", $password, $bundleFile, "${remote}:$RemoteArchive")
+            Write-Host "`nUploading deployment bundle to $remoteDisplay ..."
+            Invoke-Native -FilePath $pscp.Source -ArgumentList @("-batch", "-pw", $password, "-l", $UserName, $bundleFile, "${HostName}:$RemoteArchive")
 
             Write-Host "`nExecuting deployment remotely on $HostName ..."
-            Invoke-Native -FilePath $plink.Source -ArgumentList @("-batch", "-pw", $password, $remote, $remoteCommand)
+            Invoke-Native -FilePath $plink.Source -ArgumentList @("-batch", "-pw", $password, "-l", $UserName, $HostName, $remoteCommand)
         }
         finally {
             $password = $null
@@ -161,12 +161,12 @@ try {
             $sshArgs += @("-i", $IdentityFile)
         }
 
-        Write-Host "`nUploading deployment bundle to $remote ..."
+        Write-Host "`nUploading deployment bundle to $remoteDisplay ..."
         Write-Host "Using non-interactive SSH authentication (BatchMode=yes)."
-        Invoke-Native -FilePath "scp" -ArgumentList ($scpArgs + @($bundleFile, "${remote}:$RemoteArchive"))
+        Invoke-Native -FilePath "scp" -ArgumentList ($scpArgs + @("-o", "User=$UserName", $bundleFile, "${HostName}:$RemoteArchive"))
 
         Write-Host "`nExecuting deployment remotely on $HostName ..."
-        Invoke-Native -FilePath "ssh" -ArgumentList ($sshArgs + @($remote, $remoteCommand))
+        Invoke-Native -FilePath "ssh" -ArgumentList ($sshArgs + @("-l", $UserName, $HostName, $remoteCommand))
     }
 
     Write-Host "`n========================================"
