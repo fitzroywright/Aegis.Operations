@@ -1,5 +1,6 @@
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
+builder.Services.ConfigureHttpJsonOptions(options => options.SerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter()));
 builder.Services.AddHttpClient("ops", client =>
 {
     int timeoutSeconds = builder.Configuration.GetValue("Operations:RequestTimeoutSeconds", 3);
