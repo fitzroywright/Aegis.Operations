@@ -115,7 +115,7 @@ try {
         "tar -xzf '$RemoteArchive' -C '$RemoteWorkRoot'",
         "if sudo -n install -o root -g root -m 0755 '$RemoteWorkRoot/Deploy-Kratos-Server.sh' '$RemoteDeployCommand' 2>/dev/null; then",
         "  echo 'Updated Aegis server deployer.'",
-        "elif sudo -n test -x '$RemoteDeployCommand' 2>/dev/null; then",
+        "elif [ -x '$RemoteDeployCommand' ]; then",
         "  echo 'NOTICE: Cannot update $RemoteDeployCommand without sudo password; reusing existing installed deployer.'",
         "else",
         "  echo 'ERROR: $RemoteDeployCommand is not installed and passwordless sudo is unavailable for installation.' >&2",
