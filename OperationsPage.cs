@@ -189,7 +189,7 @@ a{color:inherit;text-decoration:none}
     <section class="metrics">
       <a class="metric" href="#systems"><b id="registeredCount">—</b><small>Registered Applications</small></a>
       <a class="metric good" href="#systems"><b id="healthyCount">—</b><small>Healthy Applications</small></a>
-      <a class="metric warn" href="#systems"><b id="warningCount">—</b><small>Warnings / Unknown</small></a>
+      <a class="metric" id="warningCard" href="#systems"><b id="warningCount">—</b><small>Warnings / Unknown</small></a>
       <a class="metric" id="activeAlertCard" href="#attention"><b id="activeAlertCount">—</b><small>Active Alerts</small></a>
       <a class="metric" href="#flow"><b id="activeFlowCount">—</b><small>Active Flows</small></a>
     </section>
@@ -358,7 +358,7 @@ async function load(){
     const activeAlerts=(alerts??[]).filter(a=>String(a.state).toLowerCase()!=='resolved').length;
     registeredCount.textContent=apps.length||summary.registeredApplications||0;
     healthyCount.textContent=healthyApps;
-    warningCount.textContent=warnings;
+    warningCount.textContent=warnings;warningCard.classList.toggle('issue-card',warnings>0);
     activeAlertCount.textContent=activeAlerts;
     const activeFlows=(flows??[]).filter(flowIsActive);
     activeFlowCount.textContent=activeFlows.length;
