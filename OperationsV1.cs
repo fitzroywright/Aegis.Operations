@@ -228,7 +228,7 @@ internal sealed class OperationsV1Store
 
 internal static class OperationsV1Endpoints
 {
-    internal static void MapOperationsV1(this WebApplication app)
+    internal static void MapOperationsV1(this WebApplication app, string configurationUrl, string diagnosticsUrl, string site, string environment)
     {
         app.MapGet("/api/operations/applications", async (OperationsV1Store store, CancellationToken ct) =>
         {
