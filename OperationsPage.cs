@@ -89,7 +89,10 @@ a{color:inherit;text-decoration:none}
 .workspace-shell{position:fixed;left:8px;right:14px;top:162px;bottom:10px;z-index:10}
 .workspace-arm{position:absolute;left:96px;right:0;top:0;height:48px;background:var(--alpha-blue);display:flex;align-items:center;padding:0 14px;z-index:3;border-radius:0 9px 9px 0}
 .workspace-leg{position:absolute;left:0;top:0;bottom:0;width:96px;background:var(--alpha-blue);border-radius:28px 0 0 28px}
-.workspace-arm .workspace-title{font-weight:900;text-transform:uppercase;color:var(--starship-white);letter-spacing:.045em;font-size:28px;line-height:1;background:#02060a;padding:6px 18px;border-radius:5px}
+.workspace-arm .workspace-title{position:relative;font-weight:900;text-transform:uppercase;color:var(--night-cloud);letter-spacing:.045em;font-size:28px;line-height:1;padding:0 18px;background:transparent}
+.workspace-arm .workspace-title::before,.workspace-arm .workspace-title::after{content:"";position:absolute;top:50%;width:8px;height:24px;transform:translateY(-50%);border-top:4px solid var(--night-cloud);border-bottom:4px solid var(--night-cloud)}
+.workspace-arm .workspace-title::before{left:0;border-left:4px solid var(--night-cloud)}
+.workspace-arm .workspace-title::after{right:0;border-right:4px solid var(--night-cloud)}
 .workspace-arm .workspace-stamp{margin-left:auto;font-weight:900;text-transform:uppercase;color:#06111b;letter-spacing:.04em;font-size:18px;line-height:1;white-space:nowrap;text-align:right;padding-right:4px}
 .workspace-leg::before{display:none}
 .workspace-leg::after{display:none}
