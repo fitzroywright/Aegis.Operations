@@ -107,7 +107,7 @@ a{color:inherit;text-decoration:none}
 .workspace-nav{position:absolute;left:0;top:calc(var(--workspace-arm-height) + var(--scroll-arrow-space));width:var(--rail-width);z-index:2}
 .workspace-nav a{display:flex;align-items:center;height:48px;padding-left:11px;color:#071018;font-weight:900;text-transform:uppercase;font-size:12px;border-bottom:3px solid #000}
 .workspace-nav a:last-child{border-bottom:0}
-.workspace-nav a.active{font-size:13px}
+.workspace-nav a.active{font-size:13px;background:var(--title-gold);color:#071018}
 .top-buttons a,.workspace-nav a{transition:background .12s ease,color .12s ease,filter .12s ease}
 .top-buttons a.nav-flash,.workspace-nav a.nav-flash{background:var(--title-gold)!important;color:#071018!important;filter:brightness(1.08)}
 
@@ -181,7 +181,7 @@ a{color:inherit;text-decoration:none}
 
   <main class="detail-scroll" id="detail">
     <section class="page-head" id="overview">
-      <div><p>Command view: suite state → applications → flows → attention → control-plane health</p></div>
+      <div></div>
       <div class="scan" id="checked">SCANNING</div>
     </section>
 
@@ -259,11 +259,27 @@ function updateBrandClock(){
 updateBrandClock();
 setInterval(updateBrandClock,1000);
 document.querySelectorAll('.top-buttons a,.workspace-nav a').forEach(a=>a.addEventListener('pointerdown',()=>{a.classList.add('nav-flash');setTimeout(()=>a.classList.remove('nav-flash'),180)}));
-document.querySelectorAll('.workspace-nav a').forEach(a=>a.addEventListener('click',e=>{
+const workspaceLinks=[...document.querySelectorAll('.workspace-nav a[href^="#"]')];
+function setActiveWorkspaceLink(link){
+  workspaceLinks.forEach(x=>x.classList.toggle('active',x===link));
+}
+workspaceLinks.forEach(a=>a.addEventListener('click',e=>{
   const id=a.getAttribute('href'); if(!id?.startsWith('#')) return; e.preventDefault();
-  const target=document.querySelector(id); if(target) detail.scrollTo({top:target.offsetTop-24,behavior:'smooth'});
-  document.querySelectorAll('.workspace-nav a').forEach(x=>x.classList.remove('active')); a.classList.add('active');
+  const target=document.querySelector(id);
+  if(target) detail.scrollTo({top:Math.max(0,target.offsetTop-24),behavior:'smooth'});
+  setActiveWorkspaceLink(a);
 }));
+function syncWorkspaceNav(){
+  const anchor=detail.scrollTop+80;
+  let active=workspaceLinks[0]??null;
+  for(const link of workspaceLinks){
+    const target=document.querySelector(link.getAttribute('href'));
+    if(target && target.offsetTop<=anchor) active=link;
+  }
+  if(active) setActiveWorkspaceLink(active);
+}
+detail.addEventListener('scroll',syncWorkspaceNav,{passive:true});
+syncWorkspaceNav();
 
 function esc(v){return String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
 function addLog(level,source,message){
