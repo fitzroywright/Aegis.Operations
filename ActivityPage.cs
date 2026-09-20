@@ -106,8 +106,7 @@ body{position:relative}a{color:inherit;text-decoration:none}
   <button class="lcars-back" type="button" onclick="if(history.length>1){history.back()}else{location.href='/'}">Back</button>
 
   <main class="detail-scroll">
-    <section class="page-head"><div><p>Live lifecycle telemetry, centralized application logs, and correlated transaction flow reconstruction.</p></div></section>
-    <section class="filters">
+<section class="filters">
       <select id="application"><option value="">All applications</option></select>
       <select id="instance"><option value="">All instances</option></select>
       <select id="flow"><option value="">All flows</option></select>
