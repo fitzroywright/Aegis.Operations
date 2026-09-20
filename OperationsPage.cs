@@ -190,7 +190,7 @@ a{color:inherit;text-decoration:none}
       <div class="metric good"><b id="healthyCount">—</b><small>Healthy Applications</small></div>
       <div class="metric warn"><b id="warningCount">—</b><small>Warnings / Unknown</small></div>
       <div class="metric"><b id="activeAlertCount">—</b><small>Active Alerts</small></div>
-      <div class="metric"><b id="activeFlowCount">—</b><small>Recent Flows</small></div>
+      <div class="metric"><b id="activeFlowCount">—</b><small>Active Flows</small></div>
     </section>
 
     <section class="content-grid" id="systems">
@@ -299,6 +299,14 @@ function flowHealth(flow){
   if(stages.some(s=>String(s.state).toLowerCase()==='active'))return 'Running';
   return 'Healthy';
 }
+function flowIsActive(flow){
+  const stages=flow?.stages??[];
+  if(!stages.length)return false;
+  const states=stages.map(s=>String(s.state??'').toLowerCase());
+  if(states.some(x=>x==='active'||x==='warning'))return true;
+  const terminal=new Set(['completed','failed','timedout']);
+  return states.some(x=>!terminal.has(x));
+}
 function appInitials(a){const src=String(a?.shortName||a?.displayName||a?.applicationId||'AE').replace(/^Aegis[. ]/i,'');const parts=src.split(/[ ._-]+/).filter(Boolean);return parts.length>1?(parts[0][0]+parts[1][0]).toUpperCase():src.slice(0,2).toUpperCase()}
 function safeIconUrl(v){if(!v)return'';try{if(v.startsWith('/')&&!v.startsWith('//')&&!v.includes('..'))return v;const u=new URL(v,location.origin);return u.protocol==='https:'?u.href:''}catch{return''}}
 function appIcon(a){const initials=esc(appInitials(a)),url=safeIconUrl(String(a?.iconUrl||''));return url?'<span class="op-appicon"><img src="'+esc(url)+'" alt="" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'grid\'"><span style="display:none">'+initials+'</span></span>':'<span class="op-appicon">'+initials+'</span>'}
@@ -323,7 +331,7 @@ function renderAlerts(items){
   alertList.innerHTML=rows.map(a=>'<div class="activity-row"><i class="dot" style="background:var(--yellow)"></i><span>'+esc(a.applicationId||a.application||a.type||'Alert')+'</span><b>'+esc(a.message||a.text||a.title||a.state||'Attention required')+'</b></div>').join('');
 }
 function renderFlows(flows){
-  const rows=(flows??[]).slice(0,8);
+  const rows=(flows??[]).filter(flowIsActive).slice(0,8);
   if(!rows.length){flowList.innerHTML='<div class="flow-row"><b>No flows</b><span>Telemetry</span><div class="lights"><i></i><i></i><i></i><i></i></div><span>—</span></div>';return}
   flowList.innerHTML=rows.map(f=>{
     const health=flowHealth(f), stages=f.stages??[], current=f.currentStage??stages.find(s=>String(s.state).toLowerCase()==='active')?.name??stages.at(-1)?.name??'—';
@@ -349,7 +357,8 @@ async function load(){
     healthyCount.textContent=healthyApps;
     warningCount.textContent=warnings;
     activeAlertCount.textContent=activeAlerts;
-    activeFlowCount.textContent=(flows??[]).length;
+    const activeFlows=(flows??[]).filter(flowIsActive);
+    activeFlowCount.textContent=activeFlows.length;
 
     const cfg=setPill('cfgStatus',summary.configuration), diag=setPill('diagStatus',summary.diagnostics);
     cfgReason.textContent=summary.configuration?.reason||summary.configuration?.url||'Configuration health endpoint responded.';
