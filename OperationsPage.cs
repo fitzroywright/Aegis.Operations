@@ -265,9 +265,6 @@ document.querySelectorAll('.workspace-nav a').forEach(a=>a.addEventListener('cli
   document.querySelectorAll('.workspace-nav a').forEach(x=>x.classList.remove('active')); a.classList.add('active');
 }));
 
-function clockTick(){const d=new Date();date.textContent=d.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}).toUpperCase();time.textContent=d.toLocaleTimeString('en-GB',{hour12:false});}
-clockTick();setInterval(clockTick,1000);
-
 function esc(v){return String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
 function addLog(level,source,message){
   const row=document.createElement('div'); row.className='row';
@@ -358,7 +355,11 @@ async function load(){
 
   }catch(err){
     document.title='Operations · Telemetry Unavailable';
-    addLog('ERR','Operations',err?.message??'Status telemetry unavailable');
+    const message=err?.message??'Status telemetry unavailable';
+    addLog('ERR','Operations',message);
+    registrationAuthority.textContent='Operations overview telemetry failed: '+message;
+    applicationsList.innerHTML='<div class="activity-row"><i class="dot" style="background:var(--red)"></i><span>ERROR</span><b>'+esc(message)+'</b></div>';
+    console.error('Operations overview load failed',err);
   }
 }
 load();setInterval(load,30000);
