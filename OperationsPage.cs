@@ -46,17 +46,17 @@ a{color:inherit;text-decoration:none}
 
 /* --- fixed TOP L: deliberately open on top/right --- */
 .lcars-top{position:fixed;left:8px;right:14px;top:10px;height:166px;z-index:20;background:#000}
-.lcars-top .left-vertical{position:absolute;left:0;top:0;width:58px;height:160px;background:var(--lav);border-radius:28px 0 0 28px}
-.lcars-top .left-gold{position:absolute;left:58px;top:118px;width:195px;height:42px;background:var(--gold);border-radius:0 0 0 22px}
-.lcars-top .bottom-arm{position:absolute;left:253px;right:0;bottom:0;height:18px;background:var(--lav);border-radius:0 9px 9px 0}
-.lcars-top .join-dot{position:absolute;left:255px;bottom:0;width:18px;height:18px;border-radius:50%;background:var(--gold);transform:translateX(-8px)}
+.lcars-top .left-vertical{position:absolute;left:0;top:0;width:64px;height:160px;background:var(--lav);border-radius:28px 0 0 28px}
+.lcars-top .left-gold{position:absolute;left:64px;top:118px;width:236px;height:42px;background:var(--gold);border-radius:0 0 0 22px}
+.lcars-top .bottom-arm{position:absolute;left:300px;right:0;bottom:0;height:18px;background:var(--lav);border-radius:0 9px 9px 0}
+.lcars-top .join-dot{position:absolute;left:302px;bottom:0;width:18px;height:18px;border-radius:50%;background:var(--gold);transform:translateX(-8px)}
 
-.brand{position:absolute;left:70px;top:14px;width:180px;height:100px}
+.brand{position:absolute;left:78px;top:14px;width:215px;height:100px}
 .brand .aegis{font-size:31px;line-height:1;color:var(--gold);font-weight:900;text-transform:uppercase}
 .brand .section{font-size:28px;line-height:1.05;color:var(--blue);font-weight:900;text-transform:uppercase;margin-top:5px}
 .brand .org{font-size:12px;color:var(--cyan);font-weight:900;text-transform:uppercase;margin-top:8px}
 
-.live-log{position:absolute;left:255px;top:13px;width:calc(100% - 900px);height:108px;overflow:hidden;font:15px/1.4 ui-monospace,SFMono-Regular,Consolas,monospace;padding:2px 10px;border-right:2px solid #0c6e97}
+.live-log{position:absolute;left:302px;top:13px;width:calc(100% - 947px);height:108px;overflow:hidden;font:15px/1.4 ui-monospace,SFMono-Regular,Consolas,monospace;padding:2px 10px;border-right:2px solid #0c6e97}
 .live-log .row{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .live-log .t{color:#c8c9ff}.live-log .inf{color:var(--green);font-weight:900}.live-log .wrn{color:var(--yellow);font-weight:900}.live-log .src{color:var(--cyan)}
 
@@ -73,17 +73,17 @@ a{color:inherit;text-decoration:none}
 
 /* --- fixed mirrored workspace L --- */
 .workspace-shell{position:fixed;left:8px;right:14px;top:184px;bottom:108px;z-index:10}
-.workspace-arm{position:absolute;left:253px;right:0;top:0;height:18px;background:var(--lav);border-radius:0 9px 9px 0}
-.workspace-leg{position:absolute;left:0;top:0;bottom:0;width:78px;background:var(--lav);border-radius:28px 0 0 28px}
-.workspace-leg::before{content:"";position:absolute;left:58px;top:0;width:195px;height:36px;background:var(--gold);border-radius:0 0 0 22px}
-.workspace-leg::after{content:"";position:absolute;left:58px;bottom:0;width:130px;height:34px;background:var(--gold);border-radius:0 0 0 20px}
+.workspace-arm{position:absolute;left:300px;right:0;top:0;height:18px;background:var(--lav);border-radius:0 9px 9px 0}
+.workspace-leg{position:absolute;left:0;top:0;bottom:0;width:110px;background:var(--lav);border-radius:28px 0 0 28px}
+.workspace-leg::before{content:"";position:absolute;left:64px;top:0;width:236px;height:36px;background:var(--gold);border-radius:0 0 0 22px}
+.workspace-leg::after{content:"";position:absolute;left:64px;bottom:0;width:160px;height:34px;background:var(--gold);border-radius:0 0 0 20px}
 
-.workspace-nav{position:absolute;left:0;top:73px;width:78px;z-index:2}
-.workspace-nav a{display:flex;align-items:center;height:58px;padding-left:12px;color:#071018;font-weight:900;text-transform:uppercase;font-size:12px;border-bottom:3px solid #000}
+.workspace-nav{position:absolute;left:0;top:73px;width:110px;z-index:2}
+.workspace-nav a{display:flex;align-items:center;height:58px;padding-left:14px;color:#071018;font-weight:900;text-transform:uppercase;font-size:12px;border-bottom:3px solid #000}
 .workspace-nav a:last-child{border-bottom:0}
 .workspace-nav a.active{font-size:13px}
 
-.detail-scroll{position:absolute;left:78px;right:0;top:18px;bottom:0;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;background:#000;padding:26px 28px 44px 32px;scrollbar-color:var(--lav) #111}
+.detail-scroll{position:absolute;left:110px;right:0;top:18px;bottom:0;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;background:#000;padding:26px 28px 44px 32px;scrollbar-color:var(--lav) #111}
 .detail-scroll::-webkit-scrollbar{width:10px}.detail-scroll::-webkit-scrollbar-track{background:#090909}.detail-scroll::-webkit-scrollbar-thumb{background:var(--lav);border-radius:10px}
 
 /* --- current Operations content, intentionally inside the L only --- */
