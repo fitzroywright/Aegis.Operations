@@ -59,6 +59,7 @@ internal static class OperationsPage
   --elbow-radius:18px;
   --scroll-arrow-space:18px;
   --workspace-right-inset:18px;
+  --top-right-inset:18px;
   --header-gap:18px;
 }
 *{box-sizing:border-box}
@@ -67,7 +68,7 @@ body{position:relative}
 a{color:inherit;text-decoration:none}
 
 /* --- fixed TOP L: deliberately open on top/right --- */
-.lcars-top{position:fixed;left:8px;right:14px;top:8px;height:140px;z-index:20;background:#000}
+.lcars-top{position:fixed;left:8px;right:var(--top-right-inset);top:8px;height:140px;z-index:20;background:#000}
 .lcars-top .left-vertical{position:absolute;left:0;top:0;width:var(--rail-width);height:140px;background:var(--alpha-blue);border-radius:28px 0 0 28px}
 .lcars-top .left-gold{display:none}
 .lcars-top .bottom-arm{position:absolute;left:var(--rail-width);right:0;top:126px;height:var(--top-arm-height);background:var(--alpha-blue);z-index:1;border-radius:0 9px 9px 0;box-shadow:none}
@@ -77,14 +78,17 @@ a{color:inherit;text-decoration:none}
 .brand{position:absolute;left:calc(var(--rail-width) + 18px);top:8px;width:300px;height:82px;z-index:3}
 .brand .aegis{display:none}
 .brand .section{font-size:36px;line-height:1;color:var(--arctic-ice);font-weight:900;text-transform:uppercase;margin-top:10px}
-.brand .org{font-size:10px;color:var(--arctic-snow);font-weight:800;text-transform:uppercase;margin-top:5px;max-width:165px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.brand .org{font-size:10px;color:var(--arctic-snow);font-weight:800;text-transform:uppercase;margin-top:5px;max-width:220px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.brand .datetime{margin-top:8px;font-weight:900;text-transform:uppercase;color:var(--alpha-blue);letter-spacing:.04em}
+.brand .datetime .date{font-size:14px;line-height:1.1}
+.brand .datetime .time{font-size:20px;line-height:1.05;color:var(--arctic-ice)}
 
 .live-log{position:absolute;left:430px;top:10px;right:calc(250px + var(--header-gap));height:94px;overflow:hidden;font:15px/1.4 ui-monospace,SFMono-Regular,Consolas,monospace;padding:4px 14px}
 .live-log .row{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .live-log .t{color:var(--arctic-snow)}.live-log .inf{color:var(--green);font-weight:900}.live-log .wrn{color:var(--yellow);font-weight:900}.live-log .src{color:var(--cyan)}
 
 
-.top-buttons{position:absolute;right:var(--workspace-right-inset);top:18px;width:250px;height:72px;display:grid;grid-template-columns:1fr 1fr;gap:8px 10px;padding-left:12px}
+.top-buttons{position:absolute;right:0;top:18px;width:250px;height:72px;display:grid;grid-template-columns:1fr 1fr;gap:8px 10px;padding-left:12px}
 .top-buttons a,.top-buttons button{border:0;border-radius:8px;font-weight:900;text-transform:uppercase;color:#071018;cursor:pointer;font-size:12px;display:flex;align-items:center;justify-content:center;line-height:1;padding:0 8px;box-shadow:inset 0 1px 0 rgba(255,255,255,.28),0 1px 0 rgba(0,0,0,.55)}
 .top-buttons .gold{background:var(--gold)}.top-buttons .blue{background:var(--blue)}.top-buttons .salmon{background:var(--salmon)}.top-buttons .gray{background:var(--peach)}
 
@@ -123,7 +127,7 @@ a{color:inherit;text-decoration:none}
 @media(max-width:1250px){
   .brand{width:250px}
   .live-log{left:340px;right:calc(225px + var(--workspace-right-inset) + 14px)}
-  .top-buttons{right:var(--workspace-right-inset);width:225px}
+  .top-buttons{right:0;width:225px}
 }
 </style>
 </head>
@@ -138,6 +142,10 @@ a{color:inherit;text-decoration:none}
   <div class="brand">
     <div class="section">Operations</div>
     <div class="org">Food For The Poor Jamaica</div>
+    <div class="datetime">
+      <div class="date" id="brandDate"></div>
+      <div class="time" id="brandTime"></div>
+    </div>
   </div>
 
   <div class="live-log" id="liveLog">
@@ -232,6 +240,15 @@ a{color:inherit;text-decoration:none}
 
 <script>
 const detail=document.getElementById('detail');
+function updateBrandClock(){
+  const d=new Date();
+  const bd=document.getElementById('brandDate');
+  const bt=document.getElementById('brandTime');
+  if(bd) bd.textContent=d.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}).toUpperCase();
+  if(bt) bt.textContent=d.toLocaleTimeString('en-GB',{hour12:false});
+}
+updateBrandClock();
+setInterval(updateBrandClock,1000);
 document.querySelectorAll('.workspace-nav a').forEach(a=>a.addEventListener('click',e=>{
   const id=a.getAttribute('href'); if(!id?.startsWith('#')) return; e.preventDefault();
   const target=document.querySelector(id); if(target) detail.scrollTo({top:target.offsetTop-24,behavior:'smooth'});
