@@ -58,6 +58,7 @@ internal static class OperationsLogEndpoints
         });
 
         app.MapGet("/api/operations/logs", async (
+            HttpContext context,
             string? applicationId,
             string? instanceId,
             string? level,
@@ -68,8 +69,12 @@ internal static class OperationsLogEndpoints
             DateTimeOffset? since,
             int? take,
             OperationsV1Store store,
+            OperationsTelemetryAuthenticator authenticator,
             CancellationToken ct) =>
         {
+            if (!await CanReadAsync(context, authenticator, ct))
+                return Results.Unauthorized();
+
             IEnumerable<OperationsLogRecord> query =
                 await store.LoadAsync<OperationsLogRecord>("application-logs", ct);
 
@@ -121,9 +126,14 @@ internal static class OperationsLogEndpoints
         });
 
         app.MapGet("/api/operations/logs/filters", async (
+            HttpContext context,
             OperationsV1Store store,
+            OperationsTelemetryAuthenticator authenticator,
             CancellationToken ct) =>
         {
+            if (!await CanReadAsync(context, authenticator, ct))
+                return Results.Unauthorized();
+
             IReadOnlyList<OperationsLogRecord> all =
                 await store.LoadAsync<OperationsLogRecord>("application-logs", ct);
 
@@ -135,6 +145,21 @@ internal static class OperationsLogEndpoints
                 categories = all.Select(x => x.Category).Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(x => x).Take(500)
             });
         });
+    }
+
+    private static async Task<bool> CanReadAsync(
+        HttpContext context,
+        OperationsTelemetryAuthenticator authenticator,
+        CancellationToken ct)
+    {
+        if (context.Items.TryGetValue("SuiteIdentity", out object? value) &&
+            value is SuiteIdentity identity &&
+            identity.Permissions.Contains("Operations.View", StringComparer.OrdinalIgnoreCase))
+            return true;
+
+        string applicationId = context.Request.Headers["X-Aegis-Application-Id"].ToString();
+        return !string.IsNullOrWhiteSpace(applicationId) &&
+               await authenticator.IsAuthorizedAsync(context, applicationId, ct);
     }
 
     private static OperationsLogRecord? Sanitize(OperationsLogRecord item, DateTimeOffset now)
