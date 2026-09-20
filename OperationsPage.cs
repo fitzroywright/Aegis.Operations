@@ -75,18 +75,18 @@ a{color:inherit;text-decoration:none}
 .lcars-top .join-dot{display:none}
 .lcars-top::after{content:"";position:absolute;left:calc(var(--rail-width) - var(--elbow-radius));top:calc(126px - var(--elbow-radius));width:var(--elbow-radius);height:var(--elbow-radius);background:radial-gradient(circle at 100% 100%,transparent 0 calc(var(--elbow-radius) - 1px),var(--black) var(--elbow-radius));z-index:4;pointer-events:none}
 
-.brand{position:absolute;left:calc(var(--rail-width) + 18px);top:8px;width:300px;height:82px;z-index:3}
+.brand{position:absolute;left:calc(var(--rail-width) + 18px);top:8px;width:320px;height:96px;z-index:3}
 .brand .aegis{display:none}
 .brand .section{font-size:36px;line-height:1;color:var(--arctic-ice);font-weight:900;text-transform:uppercase;margin-top:10px}
 .brand .org{font-size:10px;color:var(--arctic-snow);font-weight:800;text-transform:uppercase;margin-top:5px;max-width:220px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .brand .datetime{margin-top:8px;font-weight:900;text-transform:uppercase;color:var(--arctic-ice);letter-spacing:.04em;font-size:14px;line-height:1.1;white-space:nowrap}
 
-.live-log{position:absolute;left:330px;top:8px;right:calc(250px + var(--header-gap));height:108px;overflow:hidden;font:14px/1.35 ui-monospace,SFMono-Regular,Consolas,monospace;padding:4px 12px}
+.live-log{position:absolute;left:470px;top:8px;right:calc(250px + 50px + var(--header-gap));height:108px;overflow:hidden;font:14px/1.35 ui-monospace,SFMono-Regular,Consolas,monospace;padding:4px 12px}
 .live-log .row{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .live-log .t{color:var(--arctic-snow)}.live-log .inf{color:var(--green);font-weight:900}.live-log .wrn{color:var(--yellow);font-weight:900}.live-log .src{color:var(--cyan)}
 
 
-.top-buttons{position:absolute;right:0;top:18px;width:250px;height:72px;display:grid;grid-template-columns:1fr 1fr;gap:8px 10px;padding-left:12px}
+.top-buttons{position:absolute;right:50px;top:18px;width:250px;height:72px;display:grid;grid-template-columns:1fr 1fr;gap:8px 10px;padding-left:12px}
 .top-buttons a,.top-buttons button{border:0;border-radius:8px;font-weight:900;text-transform:uppercase;color:#071018;cursor:pointer;font-size:12px;display:flex;align-items:center;justify-content:center;line-height:1;padding:0 8px;box-shadow:inset 0 1px 0 rgba(255,255,255,.28),0 1px 0 rgba(0,0,0,.55)}
 .top-buttons .gold{background:var(--gold)}.top-buttons .blue{background:var(--blue)}.top-buttons .salmon{background:var(--salmon)}.top-buttons .gray{background:var(--peach)}
 
@@ -123,9 +123,9 @@ a{color:inherit;text-decoration:none}
 .flow-row{display:grid;grid-template-columns:180px 140px 1fr minmax(140px,auto);gap:12px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line-soft)}.flow-row:last-child{border-bottom:0}.lights{display:flex;gap:7px;align-items:center}.lights i{width:11px;height:11px;border-radius:50%;background:#53646f;display:block}.lights i.on{background:var(--green)}.lights i.warn{background:var(--yellow)}
 
 @media(max-width:1250px){
-  .brand{width:250px}
-  .live-log{left:300px;right:calc(225px + 14px)}
-  .top-buttons{right:0;width:225px}
+  .brand{width:280px}
+  .live-log{left:410px;right:calc(225px + 50px + 14px)}
+  .top-buttons{right:50px;width:225px}
 }
 </style>
 </head>
