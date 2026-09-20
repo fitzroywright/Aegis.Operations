@@ -19,7 +19,10 @@ internal static class OperationsEndpoints
         string InstallationId,
         string State,
         string Health,
-        DateTimeOffset? LastEventAtUtc);
+        DateTimeOffset? LastEventAtUtc,
+        string? IconUrl = null,
+        string? ShortName = null,
+        string? Accent = null);
 
     internal static void MapOperationsEndpoints(
         this WebApplication app,
@@ -444,7 +447,10 @@ internal static class OperationsEndpoints
                                     journey.TryGetProperty("health", out JsonElement healthValue)
                                         ? healthValue.GetString() ?? "Unknown"
                                         : "Unknown",
-                                    lastEvent));
+                                    lastEvent,
+                                    journey.TryGetProperty("iconUrl", out JsonElement iconValue) ? iconValue.GetString() : null,
+                                    journey.TryGetProperty("shortName", out JsonElement shortNameValue) ? shortNameValue.GetString() : null,
+                                    journey.TryGetProperty("accent", out JsonElement accentValue) ? accentValue.GetString() : null));
                             }
                         }
 
@@ -508,7 +514,10 @@ internal static class OperationsEndpoints
                     configurationStatus = observed?.ConfigurationStatus,
                     build = observed?.Build,
                     runbook = observed?.Runbook,
-                    reason
+                    reason,
+                    iconUrl = registration.IconUrl,
+                    shortName = registration.ShortName,
+                    accent = registration.Accent
                 });
             }
 
