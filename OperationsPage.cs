@@ -116,6 +116,7 @@ a{color:inherit;text-decoration:none}
 .detail-scroll::-webkit-scrollbar{width:10px}.detail-scroll::-webkit-scrollbar-track{background:#090909}.detail-scroll::-webkit-scrollbar-thumb{background:var(--salmon);border-radius:10px}
 
 /* --- current Operations content, intentionally inside the L only --- */
+.control-plane-health-banner{display:none;margin:0 0 14px;padding:11px 13px;border:1px solid #c88a27;border-top:3px solid #e5a83f;border-radius:9px;background:#6d4911;color:#ffe1a3}.control-plane-health-banner strong{display:block;color:#ffd27a;font-size:12px;letter-spacing:.08em;text-transform:uppercase;margin-bottom:3px}.control-plane-health-banner.critical{background:#4a1711;border-color:#b94832;border-top-color:#e25b40;color:#ffd0c7}.control-plane-health-banner.critical strong{color:#ffb0a1}.control-plane-health-banner.health-unavailable{background:#30280e;border-color:#8f7620;color:#f0dfa0}
 .page-head{display:flex;justify-content:space-between;align-items:flex-start;gap:20px;margin-bottom:16px}
 .page-head h1{margin:0;color:var(--blue);font-size:31px}.page-head p{margin:4px 0 0;color:var(--starship-white)}
 .scan{color:var(--cyan);text-align:right}
@@ -262,6 +263,8 @@ function updateBrandClock(){
 updateBrandClock();
 setInterval(updateBrandClock,1000);
 document.querySelectorAll('.top-buttons a,.workspace-nav a').forEach(a=>a.addEventListener('pointerdown',()=>{a.classList.add('nav-flash');setTimeout(()=>a.classList.remove('nav-flash'),180)}));
+async function refreshControlPlaneHealthBanner(){const host=document.querySelector('.detail-scroll');if(!host)return;let banner=document.getElementById('controlPlaneHealthBanner');if(!banner){banner=document.createElement('section');banner.id='controlPlaneHealthBanner';banner.className='control-plane-health-banner';host.prepend(banner);}try{const response=await fetch('/health',{cache:'no-store'});if(!response.ok)throw new Error('HTTP '+response.status);const h=await response.json(),state=String(h.health||h.status||'Unknown'),summary=String(h.summary||'Health check returned no summary.').trim(),lower=state.toLowerCase();if(lower==='healthy'){banner.style.display='none';banner.classList.remove('critical','health-unavailable');return;}banner.classList.toggle('critical',lower==='unhealthy');banner.classList.remove('health-unavailable');banner.innerHTML='<strong>'+state.toUpperCase()+'</strong><div>'+esc(summary)+'</div>';banner.style.display='block';}catch(error){banner.classList.remove('critical');banner.classList.add('health-unavailable');banner.innerHTML='<strong>HEALTH CHECK UNAVAILABLE</strong><div>'+esc(error?.message||'Unable to read /health.')+'</div>';banner.style.display='block';}}
+refreshControlPlaneHealthBanner();setInterval(refreshControlPlaneHealthBanner,30000);
 const workspaceLinks=[...document.querySelectorAll('.workspace-nav a[href^="#"]')];
 function setActiveWorkspaceLink(link){
   workspaceLinks.forEach(x=>x.classList.toggle('active',x===link));
