@@ -78,7 +78,8 @@ internal static class SuiteSecurityExtensions
 
         bool lifecycleAuthenticatedTelemetry =
             HttpMethods.IsPost(ctx.Request.Method) &&
-            (ctx.Request.Path.Equals("/api/operations/applications/observe", StringComparison.OrdinalIgnoreCase) ||
+            (ctx.Request.Path.Equals("/api/operations/activity/observe", StringComparison.OrdinalIgnoreCase) ||
+             ctx.Request.Path.Equals("/api/operations/applications/observe", StringComparison.OrdinalIgnoreCase) ||
              ctx.Request.Path.Equals("/api/operations/flows/observe", StringComparison.OrdinalIgnoreCase) ||
              ctx.Request.Path.Equals("/api/operations/flow-definitions", StringComparison.OrdinalIgnoreCase) ||
              ctx.Request.Path.Equals("/api/operations/alerts", StringComparison.OrdinalIgnoreCase) ||
