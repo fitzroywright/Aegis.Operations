@@ -87,10 +87,10 @@ a{color:inherit;text-decoration:none}
 
 /* --- fixed mirrored workspace L --- */
 .workspace-shell{position:fixed;left:8px;right:14px;top:162px;bottom:10px;z-index:10}
-.workspace-arm{position:absolute;left:96px;right:0;top:0;height:48px;background:#02060a;display:flex;align-items:center;padding:0 18px;z-index:3;border-top:6px solid var(--alpha-blue);border-bottom:6px solid var(--alpha-blue);}border-radius:0 9px 9px 0;box-shadow:inset 0 1px 0 rgba(255,255,255,.16)}
+.workspace-arm{position:absolute;left:96px;right:0;top:0;height:48px;background:var(--alpha-blue);display:flex;align-items:center;padding:0 14px;z-index:3;}border-radius:0 9px 9px 0;box-shadow:inset 0 1px 0 rgba(255,255,255,.16)}
 .workspace-leg{position:absolute;left:0;top:0;bottom:0;width:96px;background:var(--alpha-blue);
-.workspace-arm .workspace-title{font-weight:900;text-transform:uppercase;color:var(--starship-white);letter-spacing:.045em;font-size:28px;line-height:1}
-.workspace-arm .workspace-stamp{margin-left:auto;font-weight:900;text-transform:uppercase;color:var(--starship-white);letter-spacing:.04em;font-size:18px;line-height:1;white-space:nowrap;text-align:right}
+.workspace-arm .workspace-title{font-weight:900;text-transform:uppercase;color:var(--starship-white);letter-spacing:.045em;font-size:28px;line-height:1;background:#02060a;padding:6px 18px;border-radius:5px}
+.workspace-arm .workspace-stamp{margin-left:auto;font-weight:900;text-transform:uppercase;color:#06111b;letter-spacing:.04em;font-size:18px;line-height:1;white-space:nowrap;text-align:right;padding-right:4px}
 border-radius:28px 0 0 28px}
 .workspace-leg::before{display:none}
 .workspace-leg::after{display:none}
