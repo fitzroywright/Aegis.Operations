@@ -3,13 +3,14 @@ using System.Text.Encodings.Web;
 
 internal static class OperationsPage
 {
-    internal static string Render(string configurationUrl, string diagnosticsUrl, string site, string environment)
+    internal static string Render(string configurationUrl, string diagnosticsUrl, string site, string environment, string? userName = null)
     {
         string version = typeof(OperationsPage).Assembly.GetName().Version?.ToString() ?? "unknown";
         return Template.Value
             .Replace("__SITE__", Encode(site), StringComparison.Ordinal)
             .Replace("__ENVIRONMENT__", Encode(environment), StringComparison.Ordinal)
             .Replace("__VERSION__", Encode(version), StringComparison.Ordinal)
+            .Replace("__USER__", Encode(string.IsNullOrWhiteSpace(userName) ? "Operator" : userName), StringComparison.Ordinal)
             .Replace("__CONFIGURATION_URL__", "/handoff/configuration", StringComparison.Ordinal)
             .Replace("__DIAGNOSTICS_URL__", "/handoff/diagnostics", StringComparison.Ordinal);
     }
@@ -91,12 +92,12 @@ a{color:inherit;text-decoration:none}
 .page-head h1{margin:0;color:var(--blue);font-size:31px}.page-head p{margin:4px 0 0;color:#cad4df}
 .scan{color:var(--cyan);text-align:right}
 .metrics{display:grid;grid-template-columns:repeat(5,minmax(120px,1fr));gap:14px;margin:10px 0 22px}
-.metric{padding:12px 12px 14px;border-top:2px solid #174f72}.metric b{display:block;font-size:29px;color:var(--cyan)}.metric small{color:var(--muted)}.metric.good b{color:var(--green)}.metric.warn b{color:var(--yellow)}
+.metric{padding:14px 14px 15px;border-top:2px solid #174f72;background:linear-gradient(180deg,rgba(12,34,52,.62),rgba(0,0,0,.12));border-radius:0 0 10px 10px}.metric b{display:block;font-size:29px;color:var(--cyan)}.metric small{color:var(--muted)}.metric.good b{color:var(--green)}.metric.warn b{color:var(--yellow)}
 .content-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}
-.panel{border-top:2px solid #174f72;padding-top:15px;min-height:250px}.panel h2{margin:0;color:var(--blue)}.panel p{color:var(--muted)}
+.panel{border-top:2px solid #174f72;padding:15px 4px 8px;min-height:250px;background:linear-gradient(180deg,rgba(8,27,42,.44),rgba(0,0,0,0));border-radius:0 0 12px 12px}.panel h2{margin:0;color:var(--blue)}.panel p{color:var(--muted)}
 .status-pill{display:inline-block;padding:4px 9px;border:1px solid;border-radius:12px;font-weight:900}.ok{color:var(--green)}.bad{color:var(--red)}
 .facts{display:grid;grid-template-columns:1fr 1fr;margin-top:12px}.facts div{padding:9px 12px 9px 0;border-bottom:1px solid #173747}.facts small,.facts b{display:block}.facts small{color:var(--muted)}
-.activity,.flow{margin-top:22px;border-top:2px solid #174f72;padding-top:12px}.activity h2,.flow h2{color:var(--blue);margin:0 0 10px}
+.activity,.flow{margin-top:22px;border-top:2px solid #174f72;padding:12px 4px 4px;background:linear-gradient(180deg,rgba(8,27,42,.32),rgba(0,0,0,0));border-radius:0 0 12px 12px}.activity h2,.flow h2{color:var(--blue);margin:0 0 10px}
 .activity-row{display:grid;grid-template-columns:16px 170px 1fr;gap:10px;padding:10px 0;border-bottom:1px solid #122f3e}.dot{width:12px;height:12px;border-radius:50%;background:var(--green)}
 .flow-row{display:grid;grid-template-columns:180px 140px 1fr 90px;gap:12px;align-items:center;padding:10px 0;border-bottom:1px solid #122f3e}.lights{display:flex;gap:7px}.lights i{width:11px;height:11px;border-radius:50%;background:#53646f}.lights i.on{background:var(--green)}.lights i.warn{background:var(--yellow)}
 
@@ -172,7 +173,7 @@ a{color:inherit;text-decoration:none}
     <a href="#systems">Systems</a>
     <a href="#activity">Activity</a>
     <a href="#flow">Flow</a>
-    <a href="#settings">Settings</a>
+    <a href="#settings">Runtime</a>
   </nav>
 
   <main class="detail-scroll" id="detail">
@@ -182,44 +183,46 @@ a{color:inherit;text-decoration:none}
     </section>
 
     <section class="metrics">
-      <div class="metric"><b id="managedCount">—</b><small>Control Plane Services</small></div>
       <div class="metric"><b id="registeredCount">—</b><small>Registered Applications</small></div>
-      <div class="metric good"><b id="availableCount">—</b><small>Available</small></div>
-      <div class="metric warn"><b id="attentionCount">—</b><small>Needs Attention</small></div>
-      <div class="metric"><b>__ENVIRONMENT__</b><small>Environment</small></div>
+      <div class="metric good"><b id="healthyCount">—</b><small>Healthy Applications</small></div>
+      <div class="metric warn"><b id="warningCount">—</b><small>Warnings / Unknown</small></div>
+      <div class="metric"><b id="activeAlertCount">—</b><small>Active Alerts</small></div>
+      <div class="metric"><b id="activeFlowCount">—</b><small>Recent Flows</small></div>
     </section>
 
     <section class="content-grid" id="systems">
       <article class="panel">
-        <h2>System Configuration</h2><p>Requirements · commissioning · runbooks</p>
+        <h2>System Configuration</h2><p id="cfgReason">Configuration authority status</p>
         <span id="cfgStatus" class="status-pill">SCANNING</span>
         <div class="facts"><div><small>Service</small><b>Aegis.Configuration</b></div><div><small>Role</small><b>Configuration Authority</b></div><div><small>Site</small><b>__SITE__</b></div><div><small>Environment</small><b>__ENVIRONMENT__</b></div></div>
       </article>
       <article class="panel">
-        <h2>System Diagnostics</h2><p>Health · incidents · engineering levels</p>
+        <h2>System Diagnostics</h2><p id="diagReason">Diagnostics authority status</p>
         <span id="diagStatus" class="status-pill">SCANNING</span>
         <div class="facts"><div><small>Service</small><b>Aegis.Diagnostics</b></div><div><small>Role</small><b>Health Authority</b></div><div><small>Site</small><b>__SITE__</b></div><div><small>Environment</small><b>__ENVIRONMENT__</b></div></div>
+      </article>
+      <article class="panel" style="grid-column:1 / -1;min-height:0">
+        <h2>Registered Applications</h2><p id="registrationAuthority">Loading authoritative registration inventory…</p>
+        <div id="applicationsList"></div>
       </article>
     </section>
 
     <section class="activity" id="activity">
       <h2>Operational Activity</h2>
-      <div class="activity-row"><i class="dot"></i><span id="activityChecked">SCANNING</span><b>Management-plane status refresh</b></div>
+      <div id="activityList"><div class="activity-row"><i class="dot"></i><span>LOADING</span><b>Reading operational history…</b></div></div>
     </section>
 
     <section class="flow" id="flow">
       <h2>Flow Analyzer</h2>
-      <div class="flow-row"><b>Operations</b><span>Management Plane</span><div class="lights"><i class="on"></i><i class="on"></i><i></i><i></i></div><span class="ok">Healthy</span></div>
-      <div class="flow-row"><b>Configuration</b><span>Registration</span><div class="lights"><i class="on"></i><i class="on"></i><i class="on"></i><i></i></div><span id="cfgJourney">Scanning</span></div>
-      <div class="flow-row"><b>Diagnostics</b><span>Health</span><div class="lights"><i class="on"></i><i class="on"></i><i></i><i></i></div><span id="diagJourney">Scanning</span></div>
+      <div id="flowList"><div class="flow-row"><b>Loading</b><span>Telemetry</span><div class="lights"><i></i><i></i><i></i><i></i></div><span>—</span></div></div>
     </section>
 
     <section class="activity" id="settings">
-      <h2>Shell Behavior</h2>
-      <div class="activity-row"><i class="dot"></i><span>FIXED</span><b>Top L stays fixed</b></div>
-      <div class="activity-row"><i class="dot"></i><span>FIXED</span><b>Lavender workspace L stays fixed</b></div>
-      <div class="activity-row"><i class="dot"></i><span>SCROLL</span><b>Only this black detail workspace scrolls</b></div>
-      <div class="activity-row"><i class="dot"></i><span>FIXED</span><b>Footer stays fixed</b></div>
+      <h2>Operations Runtime</h2>
+      <div class="activity-row"><i class="dot"></i><span id="runtimeState">LOADING</span><b>Operations service state</b></div>
+      <div class="activity-row"><i class="dot"></i><span id="runtimeStorage">LOADING</span><b>Telemetry storage</b></div>
+      <div class="activity-row"><i class="dot"></i><span>__VERSION__</span><b>Application version</b></div>
+      <div class="activity-row"><i class="dot"></i><span id="runtimeHost">—</span><b>Current host</b></div>
     </section>
   </main>
 </section>
@@ -231,7 +234,7 @@ a{color:inherit;text-decoration:none}
     <a class="footer-item" href="__DIAGNOSTICS_URL__"><span class="footer-icon">⌁</span><span><strong>Diagnostics</strong><small>Health · Logs · Analysis</small></span></a>
     <div class="footer-status"><span><i></i><b id="nominal">All Systems Nominal</b></span><span><i class="warn"></i><b id="warnings">0 Warnings</b></span><span><i class="crit"></i><b>0 Critical</b></span></div>
     <div class="footer-env">__ENVIRONMENT__⌄</div>
-    <div class="footer-user"><span class="footer-icon">♟</span><span><b>FWright</b><small>IT Manager</small></span></div>
+    <div class="footer-user"><span class="footer-icon">♟</span><span><b>__USER__</b><small>Authenticated User</small></span></div>
     <div class="footer-logout">⇥</div>
   </footer>
   <div class="footer-meta">Aegis LCARS v__VERSION__ | Food For The Poor Jamaica</div>
@@ -249,23 +252,92 @@ document.querySelectorAll('.workspace-nav a').forEach(a=>a.addEventListener('cli
 function clockTick(){const d=new Date();date.textContent=d.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}).toUpperCase();time.textContent=d.toLocaleTimeString('en-GB',{hour12:false});}
 clockTick();setInterval(clockTick,1000);
 
+function esc(v){return String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
 function addLog(level,source,message){
   const row=document.createElement('div'); row.className='row';
-  row.innerHTML='<span class="t">'+new Date().toLocaleTimeString('en-GB',{hour12:false})+'</span> <span class="'+level.toLowerCase()+'">'+level+'</span> <span class="src">['+source+']</span> '+message;
+  row.innerHTML='<span class="t">'+new Date().toLocaleTimeString('en-GB',{hour12:false})+'</span> <span class="'+level.toLowerCase()+'">'+esc(level)+'</span> <span class="src">['+esc(source)+']</span> '+esc(message);
   liveLog.appendChild(row); while(liveLog.children.length>5) liveLog.removeChild(liveLog.firstElementChild);
 }
-function stateName(x){return String(x?.stateName??x?.state??(x?.available?'Healthy':'Unavailable'))}
+function stateName(x){return String(x?.stateName??x?.state??(x?.available?'Healthy':'Unknown'))}
 function setPill(id,x){const e=document.getElementById(id);const s=stateName(x);e.textContent=s.toUpperCase();e.className='status-pill '+(s.toLowerCase()==='healthy'?'ok':'bad');return s}
+async function json(url){const r=await fetch(url,{cache:'no-store'});if(!r.ok)throw new Error(url+' HTTP '+r.status);return r.json()}
+function fmtTime(v){if(!v)return '—';const d=new Date(v);return Number.isNaN(d.valueOf())?'—':d.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'})}
+function levelFromType(t){const s=String(t??'').toLowerCase();return s.includes('fail')||s.includes('critical')?'ERR':s.includes('warn')||s.includes('alert')?'WRN':'INF'}
+function flowHealth(flow){
+  const stages=flow?.stages??[];
+  if(stages.some(s=>String(s.state).toLowerCase()==='failed'||String(s.state).toLowerCase()==='timedout'))return 'Failed';
+  if(stages.some(s=>String(s.state).toLowerCase()==='warning'))return 'Warning';
+  if(stages.some(s=>String(s.state).toLowerCase()==='active'))return 'Running';
+  return 'Healthy';
+}
+function renderApplications(data){
+  const apps=data?.applications??[];
+  registrationAuthority.textContent=data?.authorityAvailable?'Configuration registration authority online':'Registration authority unavailable'+(data?.authorityError?': '+data.authorityError:'');
+  if(!apps.length){applicationsList.innerHTML='<div class="activity-row"><i class="dot"></i><span>0</span><b>No registered applications returned.</b></div>';return}
+  applicationsList.innerHTML=apps.slice(0,12).map(a=>{
+    const state=String(a.state??'Unknown'); const cls=state.toLowerCase()==='healthy'?'ok':'bad';
+    return '<div class="activity-row"><i class="dot" style="background:'+(cls==='ok'?'var(--green)':'var(--yellow)')+'"></i><span>'+esc(a.applicationId)+'</span><b>'+esc(a.instanceId)+' · '+esc(state)+(a.stale?' · STALE':'')+'</b></div>'
+  }).join('');
+}
+function renderHistory(items){
+  const rows=(items??[]).slice(0,8);
+  if(!rows.length){activityList.innerHTML='<div class="activity-row"><i class="dot"></i><span>—</span><b>No operational history available.</b></div>';liveLog.innerHTML='<div class="row"><span class="t">'+new Date().toLocaleTimeString('en-GB',{hour12:false})+'</span> <span class="inf">INF</span> <span class="src">[Operations]</span> No operational history available</div>';return}
+  activityList.innerHTML=rows.map(x=>'<div class="activity-row"><i class="dot"></i><span>'+fmtTime(x.at)+'</span><b>'+esc(x.application||x.type)+' · '+esc(x.text)+'</b></div>').join('');
+  liveLog.innerHTML=rows.slice(0,5).reverse().map(x=>'<div class="row"><span class="t">'+fmtTime(x.at)+'</span> <span class="'+levelFromType(x.type).toLowerCase()+'">'+levelFromType(x.type)+'</span> <span class="src">['+esc(x.application||x.type)+']</span> '+esc(x.text)+'</div>').join('');
+}
+function renderFlows(flows){
+  const rows=(flows??[]).slice(0,8);
+  if(!rows.length){flowList.innerHTML='<div class="flow-row"><b>No flows</b><span>Telemetry</span><div class="lights"><i></i><i></i><i></i><i></i></div><span>—</span></div>';return}
+  flowList.innerHTML=rows.map(f=>{
+    const health=flowHealth(f), stages=f.stages??[], current=f.currentStage??stages.find(s=>String(s.state).toLowerCase()==='active')?.name??stages.at(-1)?.name??'—';
+    const lights=stages.slice(0,6).map(s=>'<i class="'+(String(s.state).toLowerCase()==='completed'?'on':String(s.state).toLowerCase()==='warning'?'warn':'')+'"></i>').join('');
+    return '<div class="flow-row"><b>'+esc(f.applicationId)+'</b><span>'+esc(f.flowType)+'</span><div class="lights">'+lights+'</div><span class="'+(health==='Healthy'?'ok':'')+'">'+esc(current)+' · '+esc(health)+'</span></div>'
+  }).join('');
+}
 async function load(){
   try{
-    const r=await fetch('/api/summary',{cache:'no-store'});if(!r.ok)throw new Error('HTTP '+r.status);const d=await r.json();
-    const systems=[d.configuration,d.diagnostics].filter(Boolean);managedCount.textContent=systems.length;registeredCount.textContent=d.registeredApplications??0;
-    const cfg=setPill('cfgStatus',d.configuration),diag=setPill('diagStatus',d.diagnostics);const n=systems.filter(x=>x.available).length;const attention=(systems.length-n)+(d.registration?.attention??0);
-    availableCount.textContent=n;attentionCount.textContent=attention;const stamp='LAST SCAN '+new Date(d.checkedAt).toLocaleString();checked.textContent=stamp;activityChecked.textContent=stamp;
-    const healthy=attention===0;healthText.textContent=healthy?'HEALTHY':'ATTENTION';healthDot.style.background=healthy?'var(--green)':'var(--yellow)';nominal.textContent=healthy?'All Systems Nominal':'Attention Required';warnings.textContent=attention+' Warning'+(attention===1?'':'s');
-    cfgJourney.textContent=cfg;diagJourney.textContent=diag;addLog('INF','Operations','Status refresh completed');addLog(cfg.toLowerCase()==='healthy'?'INF':'WRN','Configuration','State '+cfg);addLog(diag.toLowerCase()==='healthy'?'INF':'WRN','Diagnostics','State '+diag);
-  }catch{
-    healthText.textContent='UNAVAILABLE';healthDot.style.background='var(--red)';nominal.textContent='Telemetry Unavailable';warnings.textContent='1 Warning';addLog('WRN','Operations','Status telemetry unavailable');
+    const [summary,registered,flows,alerts,history,self]=await Promise.all([
+      json('/api/summary'),
+      json('/api/operations/registered-applications').catch(()=>({applications:[],authorityAvailable:false})),
+      json('/api/operations/flows').catch(()=>[]),
+      json('/api/operations/alerts').catch(()=>[]),
+      json('/api/operations/history').catch(()=>[]),
+      json('/api/operations/self').catch(()=>({state:'Unknown',storage:'Unknown'}))
+    ]);
+    const apps=registered?.applications??[];
+    const healthyApps=apps.filter(a=>String(a.state).toLowerCase()==='healthy'&&!a.stale).length;
+    const warnings=apps.filter(a=>String(a.state).toLowerCase()!=='healthy'||a.stale).length;
+    const activeAlerts=(alerts??[]).filter(a=>String(a.state).toLowerCase()!=='resolved').length;
+    registeredCount.textContent=apps.length||summary.registeredApplications||0;
+    healthyCount.textContent=healthyApps;
+    warningCount.textContent=warnings;
+    activeAlertCount.textContent=activeAlerts;
+    activeFlowCount.textContent=(flows??[]).length;
+
+    const cfg=setPill('cfgStatus',summary.configuration), diag=setPill('diagStatus',summary.diagnostics);
+    cfgReason.textContent=summary.configuration?.reason||summary.configuration?.url||'Configuration health endpoint responded.';
+    diagReason.textContent=summary.diagnostics?.reason||summary.diagnostics?.url||'Diagnostics health endpoint responded.';
+    checked.textContent='LAST SCAN '+new Date(summary.checkedAt).toLocaleString();
+
+    const attention=warnings+activeAlerts+(summary.registration?.attention??0)+(cfg.toLowerCase()==='healthy'?0:1)+(diag.toLowerCase()==='healthy'?0:1);
+    const healthy=attention===0;
+    healthText.textContent=healthy?'HEALTHY':'ATTENTION';
+    healthDot.style.background=healthy?'var(--green)':'var(--yellow)';
+    nominal.textContent=healthy?'All Systems Nominal':'Attention Required';
+    warnings.textContent=attention+' Warning'+(attention===1?'':'s');
+
+    renderApplications(registered);
+    renderHistory(history);
+    renderFlows(flows);
+
+    runtimeState.textContent=String(self.state??'Unknown').toUpperCase();
+    runtimeStorage.textContent=String(self.storage??'Unknown').toUpperCase();
+    runtimeHost.textContent=location.hostname;
+
+  }catch(err){
+    healthText.textContent='UNAVAILABLE';healthDot.style.background='var(--red)';
+    nominal.textContent='Telemetry Unavailable';warnings.textContent='1 Warning';
+    addLog('ERR','Operations',err?.message??'Status telemetry unavailable');
   }
 }
 load();setInterval(load,30000);
