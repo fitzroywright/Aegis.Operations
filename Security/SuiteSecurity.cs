@@ -15,6 +15,7 @@ internal sealed class SuiteSecurity(IConfiguration config,IHostEnvironment envir
     readonly byte[] key=Encoding.UTF8.GetBytes(GetSigningKey(config,environment));
     static string GetSigningKey(IConfiguration config,IHostEnvironment environment){string? configured=config["SuiteSecurity:SigningKey"];if(!string.IsNullOrWhiteSpace(configured))return configured;if(environment.IsDevelopment())return DevelopmentSigningKey;throw new InvalidOperationException("SuiteSecurity:SigningKey is required outside Development. Supply it through protected deployment configuration/OpenBao.");}
     public string Mode=>config["SuiteSecurity:Mode"]??"Mock";
+    public int IdleTimeoutMinutes=>Math.Clamp(config.GetValue("SuiteSecurity:IdleTimeoutMinutes",30),5,60);
     public SuiteIdentity? Authenticate(string user,string password){if(Mode.Equals("ActiveDirectory",StringComparison.OrdinalIgnoreCase))return AuthenticateAd(user,password);if(Mode.Equals("Internal",StringComparison.OrdinalIgnoreCase))return AuthenticateInternal(user,password);if(Mode.Equals("Mock",StringComparison.OrdinalIgnoreCase))return AuthenticateMock(user,password);return null;}
     SuiteIdentity? AuthenticateAd(string user,string password){var o=new ActiveDirectoryAuthenticationOptions{Domain=config["SuiteSecurity:ActiveDirectory:Domain"]??"",SearchBase=config["SuiteSecurity:ActiveDirectory:SearchBase"]??"",Servers=config.GetSection("SuiteSecurity:ActiveDirectory:Servers").Get<string[]>()??[]};AuthenticationResult r=new ActiveDirectory(o).Authenticate(user,password);return r.IsAuthenticated?FromResult(user,r):null;}
     SuiteIdentity? AuthenticateMock(string user,string password)
@@ -55,13 +56,13 @@ internal sealed class SuiteSecurity(IConfiguration config,IHostEnvironment envir
         "Security.Manage"
     ];
     static bool Verify(string password,string encoded){try{var p=encoded.Split('$');if(p.Length!=4||p[0]!="PBKDF2")return false;int iterations=int.Parse(p[1]);byte[] salt=Convert.FromBase64String(p[2]),expected=Convert.FromBase64String(p[3]);byte[] actual=Rfc2898DeriveBytes.Pbkdf2(password,salt,iterations,HashAlgorithmName.SHA256,expected.Length);return CryptographicOperations.FixedTimeEquals(actual,expected);}catch{return false;}}
-    public string CreateSession(SuiteIdentity i)=>Sign(new SuiteTicket(i.UserName,i.DisplayName,i.Title,i.Permissions,"Aegis.Operations",DateTimeOffset.UtcNow.AddHours(8).ToUnixTimeSeconds(),Guid.NewGuid().ToString("N")));
+    public string CreateSession(SuiteIdentity i)=>Sign(new SuiteTicket(i.UserName,i.DisplayName,i.Title,i.Permissions,"Aegis.Operations",DateTimeOffset.UtcNow.AddMinutes(IdleTimeoutMinutes).ToUnixTimeSeconds(),Guid.NewGuid().ToString("N")));
     public string CreateHandoff(SuiteIdentity i,string audience)=>Sign(new SuiteTicket(i.UserName,i.DisplayName,i.Title,i.Permissions,audience,DateTimeOffset.UtcNow.AddSeconds(45).ToUnixTimeSeconds(),Guid.NewGuid().ToString("N")));
     public SuiteIdentity? AcceptHandoff(string token)=>Validate(token,"Aegis.Operations");
     public SuiteIdentity? ReadSession(HttpRequest req)=>req.Cookies.TryGetValue(Cookie,out var v)?Validate(v,"Aegis.Operations"):null;
     SuiteIdentity? Validate(string token,string audience){var parts=token.Split('.');if(parts.Length!=2)return null;try{byte[] data=WebEncoders.Base64UrlDecode(parts[0]),sig=WebEncoders.Base64UrlDecode(parts[1]);using var h=new HMACSHA256(key);if(!CryptographicOperations.FixedTimeEquals(h.ComputeHash(data),sig))return null;var t=JsonSerializer.Deserialize<SuiteTicket>(data);if(t is null||t.Audience!=audience||t.Expires<DateTimeOffset.UtcNow.ToUnixTimeSeconds())return null;return new(t.Sub,t.Name,t.Title,t.Permissions);}catch{return null;}}
     string Sign(SuiteTicket ticket){byte[] data=JsonSerializer.SerializeToUtf8Bytes(ticket);using var h=new HMACSHA256(key);return WebEncoders.Base64UrlEncode(data)+"."+WebEncoders.Base64UrlEncode(h.ComputeHash(data));}
-    public void SetSession(HttpResponse response,SuiteIdentity i)=>response.Cookies.Append(Cookie,CreateSession(i),new CookieOptions{HttpOnly=true,Secure=!environment.IsDevelopment(),SameSite=SameSiteMode.Lax,MaxAge=TimeSpan.FromHours(8)});
+    public void SetSession(HttpResponse response,SuiteIdentity i)=>response.Cookies.Append(Cookie,CreateSession(i),new CookieOptions{HttpOnly=true,Secure=!environment.IsDevelopment(),SameSite=SameSiteMode.Lax,MaxAge=TimeSpan.FromMinutes(IdleTimeoutMinutes)});
     public void Clear(HttpResponse response)=>response.Cookies.Delete(Cookie);
 }
 internal static class SuiteSecurityExtensions
@@ -127,6 +128,7 @@ internal static class SuiteSecurityExtensions
         }
 
         ctx.Items["SuiteIdentity"]=id;
+        sec.SetSession(ctx.Response,id);
         await next();
     });
     public static void MapSuiteSecurity(this WebApplication app,string configurationPublicUrl,string diagnosticsPublicUrl)
@@ -134,7 +136,7 @@ internal static class SuiteSecurityExtensions
         app.MapGet("/login",(SuiteSecurity s,string? returnUrl,string? username,string? error)=>Results.Content(LoginPage.Render(s.Mode,returnUrl,username,!string.IsNullOrWhiteSpace(error)),"text/html; charset=utf-8"));
         app.MapPost("/auth/login",async(HttpContext c,SuiteSecurity s)=>{var f=await c.Request.ReadFormAsync();string user=f["username"].ToString();string password=f["password"].ToString();string r=f["returnUrl"].ToString();var id=s.Authenticate(user,password);if(id is null)return Results.Redirect("/login?error=1&username="+Uri.EscapeDataString(user)+"&returnUrl="+Uri.EscapeDataString(SafeLocal(r)?r:"/"));s.SetSession(c.Response,id);return Results.Redirect(SafeLocal(r)?r:"/");});
         app.MapPost("/auth/handoff",async(HttpContext c,SuiteSecurity s)=>{var f=await c.Request.ReadFormAsync();var id=s.AcceptHandoff(f["token"].ToString());if(id is null)return Results.Redirect("/login?error=handoff");s.SetSession(c.Response,id);c.Response.Headers.CacheControl="no-store";string r=f["returnUrl"].ToString();return Results.Redirect(SafeLocal(r)?r:"/");});
-        app.MapGet("/auth/me",(HttpContext c,SuiteSecurity s)=>{var id=s.ReadSession(c.Request);return id is null?Results.Unauthorized():Results.Ok(new { id.UserName, id.DisplayName, id.Title });});
+        app.MapGet("/auth/me",(HttpContext c,SuiteSecurity s)=>{var id=s.ReadSession(c.Request);if(id is null)return Results.Unauthorized();s.SetSession(c.Response,id);return Results.Ok(new { id.UserName, id.DisplayName, id.Title, idleTimeoutMinutes=s.IdleTimeoutMinutes });});
         app.MapGet("/auth/logout",(HttpContext c,SuiteSecurity s)=>{s.Clear(c.Response);return Results.Redirect("/login");});
         app.MapGet("/handoff/{target}",(string target,HttpContext c,SuiteSecurity s)=>
         {
