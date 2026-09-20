@@ -64,7 +64,7 @@ a{color:inherit;text-decoration:none}
 .lcars-top .left-gold{display:none}
 .lcars-top .bottom-arm{position:absolute;left:58px;right:0;top:126px;height:14px;background:var(--alpha-blue);z-index:1;border-radius:0 9px 9px 0;box-shadow:none}
 .lcars-top .join-dot{display:none}
-.lcars-top::after{content:"";position:absolute;left:49px;top:117px;width:18px;height:18px;background:#000;border-radius:50%;z-index:4;pointer-events:none}
+.lcars-top::after{content:"";position:absolute;left:40px;top:108px;width:18px;height:18px;background:#000;border-radius:0 0 18px 0;z-index:4;pointer-events:none}
 
 .brand{position:absolute;left:76px;top:8px;width:180px;height:82px;z-index:3}
 .brand .aegis{font-size:27px;line-height:1;color:var(--gold);font-weight:900;text-transform:uppercase}
@@ -93,7 +93,7 @@ a{color:inherit;text-decoration:none}
 .workspace-arm .workspace-title{font-weight:900;text-transform:uppercase;color:var(--night-cloud);letter-spacing:.055em;font-size:28px;line-height:1;padding:0 18px;background:transparent;text-shadow:none}
 .workspace-leg::before{display:none}
 .workspace-leg::after{display:none}
-.workspace-shell::after{content:"";position:absolute;left:87px;top:39px;width:18px;height:18px;background:#000;border-radius:50%;z-index:5;pointer-events:none}
+.workspace-shell::after{content:"";position:absolute;left:78px;top:48px;width:18px;height:18px;background:#000;border-radius:0 18px 0 0;z-index:5;pointer-events:none}
 
 .workspace-nav{position:absolute;left:0;top:72px;width:96px;z-index:2}
 .workspace-nav a{display:flex;align-items:center;height:48px;padding-left:11px;color:#071018;font-weight:900;text-transform:uppercase;font-size:12px;border-bottom:3px solid #000}
