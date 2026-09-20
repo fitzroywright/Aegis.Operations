@@ -25,7 +25,7 @@ internal static class OperationsPage
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Aegis LCARS · Operations</title>
+<title>Operations</title>
 <style>
 :root{
   --black:#000;
@@ -52,6 +52,7 @@ internal static class OperationsPage
   --line:#455580;
   --line-soft:#344470;
   --panel:#071020;
+  --title-gold:#ffcc66;
 }
 *{box-sizing:border-box}
 html,body{width:100%;height:100%;margin:0;overflow:hidden;background:#000;color:var(--white);font-family:"Arial Narrow","Roboto Condensed","Segoe UI",Arial,sans-serif}
@@ -67,17 +68,14 @@ a{color:inherit;text-decoration:none}
 .lcars-top::after{content:"";position:absolute;left:58px;top:112px;width:14px;height:14px;background:radial-gradient(circle at 0 100%,transparent 0 9px,var(--alpha-blue) 10px 14px);z-index:4;pointer-events:none}
 
 .brand{position:absolute;left:76px;top:8px;width:180px;height:82px;z-index:3}
-.brand .aegis{font-size:27px;line-height:1;color:var(--gold);font-weight:900;text-transform:uppercase}
-.brand .section{font-size:23px;line-height:1.05;color:var(--blue);font-weight:900;text-transform:uppercase;margin-top:5px}
+.brand .aegis{display:none}
+.brand .section{font-size:36px;line-height:1;color:var(--arctic-ice);font-weight:900;text-transform:uppercase;margin-top:10px}
 .brand .org{font-size:10px;color:var(--arctic-snow);font-weight:800;text-transform:uppercase;margin-top:5px;max-width:165px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
-.live-log{position:absolute;left:270px;top:10px;right:570px;height:94px;overflow:hidden;font:15px/1.4 ui-monospace,SFMono-Regular,Consolas,monospace;padding:4px 14px;border-right:1px solid var(--line)}
+.live-log{position:absolute;left:520px;top:10px;right:280px;height:94px;overflow:hidden;font:15px/1.4 ui-monospace,SFMono-Regular,Consolas,monospace;padding:4px 14px;border-right:1px solid var(--line)}
 .live-log .row{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .live-log .t{color:var(--arctic-snow)}.live-log .inf{color:var(--green);font-weight:900}.live-log .wrn{color:var(--yellow);font-weight:900}.live-log .src{color:var(--cyan)}
 
-.current-system{position:absolute;right:265px;top:12px;width:290px;height:94px;border-right:1px solid var(--line);display:grid;grid-template-columns:58px 1fr;align-items:center;padding:0 16px}
-.wave{width:48px;height:48px;color:var(--blue);display:flex;align-items:center;justify-content:center}.wave svg{width:44px;height:44px;display:block;stroke:currentColor;fill:none;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
-.sys-meta strong{display:block;color:var(--gold);font-size:23px}.sys-meta span{display:block;font-size:14px}.health{display:flex;align-items:center;gap:9px;color:var(--green);font-size:18px;font-weight:900;margin-top:4px}.health i{width:19px;height:19px;border-radius:50%;background:var(--green)}
 
 .top-buttons{position:absolute;right:0;top:18px;width:250px;height:72px;display:grid;grid-template-columns:1fr 1fr;gap:8px 10px;padding-left:12px;border-left:1px solid var(--line)}
 .top-buttons a,.top-buttons button{border:0;border-radius:8px;font-weight:900;text-transform:uppercase;color:#071018;cursor:pointer;font-size:12px;display:flex;align-items:center;justify-content:center;line-height:1;padding:0 8px;box-shadow:inset 0 1px 0 rgba(255,255,255,.28),0 1px 0 rgba(0,0,0,.55)}
@@ -87,8 +85,8 @@ a{color:inherit;text-decoration:none}
 /* --- fixed mirrored workspace L --- */
 .workspace-shell{position:fixed;left:8px;right:14px;top:156px;height:calc(100dvh - 166px);max-height:calc(100vh - 166px);min-height:0;overflow:hidden;z-index:10}
 .workspace-leg{position:absolute;left:0;top:0;bottom:0;width:96px;background:var(--alpha-blue);border-radius:28px 0 0 28px}
-.workspace-arm{position:absolute;left:96px;right:0;top:0;height:48px;background:var(--alpha-blue);display:flex;align-items:center;padding:0 14px;z-index:3;border-radius:0 9px 9px 0}
-.workspace-arm .workspace-title{height:100%;display:flex;align-items:center;font-weight:900;text-transform:uppercase;color:var(--night-cloud);letter-spacing:.055em;font-size:28px;line-height:1;padding:0 1ch;background:none;border-left:6px solid #000;border-right:6px solid #000;box-shadow:none;text-shadow:none}
+.workspace-arm{position:absolute;left:96px;right:0;top:0;height:48px;background:var(--title-gold);display:flex;align-items:center;padding:0 14px;z-index:3;border-radius:0 9px 9px 0}
+.workspace-arm .workspace-title{height:100%;display:flex;align-items:center;font-weight:900;text-transform:uppercase;color:#071018;letter-spacing:.055em;font-size:30px;line-height:1;padding:0 1ch;background:none;border-left:6px solid #000;border-right:6px solid #000;box-shadow:none;text-shadow:none}
 .workspace-leg::before{display:none}
 .workspace-leg::after{display:none}
 .workspace-shell::after{content:"";position:absolute;left:96px;top:48px;width:14px;height:14px;background:radial-gradient(circle at 0 0,transparent 0 9px,var(--alpha-blue) 10px 14px);z-index:5;pointer-events:none}
@@ -116,8 +114,7 @@ a{color:inherit;text-decoration:none}
 .flow-row{display:grid;grid-template-columns:180px 140px 1fr minmax(140px,auto);gap:12px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line-soft)}.flow-row:last-child{border-bottom:0}.lights{display:flex;gap:7px;align-items:center}.lights i{width:11px;height:11px;border-radius:50%;background:#53646f;display:block}.lights i.on{background:var(--green)}.lights i.warn{background:var(--yellow)}
 
 @media(max-width:1250px){
-  .live-log{left:255px;right:520px}
-  .current-system{right:245px;width:250px}
+  .live-log{left:390px;right:245px}
   .top-buttons{right:0;width:225px}
 }
 </style>
@@ -131,7 +128,6 @@ a{color:inherit;text-decoration:none}
   <div class="join-dot"></div>
 
   <div class="brand">
-    <div class="aegis">Aegis LCARS</div>
     <div class="section">Operations</div>
     <div class="org">Food For The Poor Jamaica</div>
   </div>
@@ -144,16 +140,6 @@ a{color:inherit;text-decoration:none}
     <div class="row"><span class="t">--:--:--</span> <span class="inf">INF</span> <span class="src">[Operations]</span> Ready</div>
   </div>
 
-  <div class="current-system">
-    <div class="wave" aria-hidden="true"><svg viewBox="0 0 48 48"><path d="M3 25h9l4-12 6 24 6-19 5 12 3-5h9"/></svg></div>
-    <div class="sys-meta">
-      <strong>Aegis.Operations</strong>
-      <span>v__VERSION__ | __ENVIRONMENT__</span>
-      <span>__SITE__</span>
-      <div class="health"><i id="healthDot"></i><span id="healthText">SCANNING</span></div>
-    </div>
-  </div>
-
   <div class="top-buttons">
     <a class="blue" href="/">Operations</a>
     <a class="salmon" href="__DIAGNOSTICS_URL__">Diagnostics</a>
@@ -164,7 +150,7 @@ a{color:inherit;text-decoration:none}
 
 <section class="workspace-shell">
   <div class="workspace-arm">
-    <div class="workspace-title">Operations Overview</div>
+    <div class="workspace-title">Overview</div>
   </div>
   <div class="workspace-leg"></div>
   <nav class="workspace-nav">
@@ -321,9 +307,7 @@ async function load(){
 
     const attention=warnings+activeAlerts+(summary.registration?.attention??0)+(cfg.toLowerCase()==='healthy'?0:1)+(diag.toLowerCase()==='healthy'?0:1);
     const healthy=attention===0;
-    healthText.textContent=healthy?'HEALTHY':'ATTENTION';
-    healthDot.style.background=healthy?'var(--green)':'var(--yellow)';
-    document.title='Aegis LCARS · Operations · '+(healthy?'Nominal':'Attention');
+    document.title='Operations · '+(healthy?'Nominal':'Attention');
 
     renderApplications(registered);
     renderFlows(flows);
@@ -335,8 +319,7 @@ async function load(){
     runtimeHost.textContent=location.hostname;
 
   }catch(err){
-    healthText.textContent='UNAVAILABLE';healthDot.style.background='var(--red)';
-    document.title='Aegis LCARS · Operations · Telemetry Unavailable';
+    document.title='Operations · Telemetry Unavailable';
     addLog('ERR','Operations',err?.message??'Status telemetry unavailable');
   }
 }
