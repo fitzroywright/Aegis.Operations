@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.HttpOverrides;
 using Common.Registration;
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 string operationsLogInstanceId = builder.Configuration["Operations:InstanceId"]?.Trim() ?? Environment.MachineName;
@@ -22,6 +23,10 @@ builder.Services.AddSingleton(sp => new OperationsTelemetryAuthenticator(
     sp.GetRequiredService<ILogger<OperationsTelemetryAuthenticator>>()));
 
 WebApplication app = builder.Build();
+app.UseForwardedHeaders(new ForwardedHeadersOptions
+{
+    ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
+});
 ILogger startupLogger = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("Aegis.Operations.Startup");
 
 string configurationUrl = AegisControlPlaneEndpoints.ResolveInternal(
