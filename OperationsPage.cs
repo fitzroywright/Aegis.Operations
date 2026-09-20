@@ -239,6 +239,8 @@ a{color:inherit;text-decoration:none}
 <script>
 const detail=document.getElementById('detail');
 function recentStamp(v){const d=v?new Date(v):new Date();if(Number.isNaN(d.getTime()))return '--- -- ---- --:--:--';const mon=d.toLocaleString('en-US',{month:'short'});return mon+' '+String(d.getDate()).padStart(2,'0')+' '+d.getFullYear()+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')+':'+String(d.getSeconds()).padStart(2,'0')}
+function seedRecentTimestamps(){document.querySelectorAll('#liveLog .t').forEach(x=>{if(!x.textContent||x.textContent.includes('--:--:--'))x.textContent=recentStamp();});}
+seedRecentTimestamps();
 function updateBrandClock(){
   const d=new Date();
   const target=document.getElementById('brandDateTime');
