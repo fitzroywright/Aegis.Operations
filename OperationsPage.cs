@@ -130,7 +130,7 @@ a{color:inherit;text-decoration:none}
   .live-log{left:410px;right:calc(225px + 50px + 14px)}
   .top-buttons{right:50px;width:225px}
 }
-</style>
+ .op-appicon{width:28px;height:28px;border-radius:7px;background:#173d58;border:1px solid #3f7ca3;display:grid;place-items:center;font:800 11px Arial,sans-serif;overflow:hidden;flex:none}.op-appicon img,.op-appicon>span{width:100%;height:100%;object-fit:contain;place-items:center}</style>
 </head>
 <body>
 
@@ -280,13 +280,16 @@ function flowHealth(flow){
   if(stages.some(s=>String(s.state).toLowerCase()==='active'))return 'Running';
   return 'Healthy';
 }
+function appInitials(a){const src=String(a?.shortName||a?.displayName||a?.applicationId||'AE').replace(/^Aegis[. ]/i,'');const parts=src.split(/[ ._-]+/).filter(Boolean);return parts.length>1?(parts[0][0]+parts[1][0]).toUpperCase():src.slice(0,2).toUpperCase()}
+function safeIconUrl(v){if(!v)return'';try{if(v.startsWith('/')&&!v.startsWith('//')&&!v.includes('..'))return v;const u=new URL(v,location.origin);return u.protocol==='https:'?u.href:''}catch{return''}}
+function appIcon(a){const initials=esc(appInitials(a)),url=safeIconUrl(String(a?.iconUrl||''));return url?'<span class="op-appicon"><img src="'+esc(url)+'" alt="" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'grid\'"><span style="display:none">'+initials+'</span></span>':'<span class="op-appicon">'+initials+'</span>'}
 function renderApplications(data){
   const apps=data?.applications??[];
   registrationAuthority.textContent=data?.authorityAvailable?'Configuration registration authority online':'Registration authority unavailable'+(data?.authorityError?': '+data.authorityError:'');
   if(!apps.length){applicationsList.innerHTML='<div class="activity-row"><i class="dot"></i><span>0</span><b>No registered applications returned.</b></div>';return}
   applicationsList.innerHTML=apps.slice(0,12).map(a=>{
     const state=String(a.state??'Unknown'); const cls=state.toLowerCase()==='healthy'?'ok':'bad';
-    return '<div class="activity-row"><i class="dot" style="background:'+(cls==='ok'?'var(--green)':'var(--yellow)')+'"></i><span>'+esc(a.applicationId)+'</span><b>'+esc(a.instanceId)+' · '+esc(state)+(a.stale?' · STALE':'')+'</b></div>'
+    return '<div class="activity-row"><i class="dot" style="background:'+(cls==='ok'?'var(--green)':'var(--yellow)')+'"></i><span style="display:flex;align-items:center;gap:8px">'+appIcon(a)+esc(a.applicationId)+'</span><b>'+esc(a.instanceId)+' · '+esc(state)+(a.stale?' · STALE':'')+'</b></div>'
   }).join('');
 }
 function renderHistory(items){
