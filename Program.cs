@@ -1,4 +1,11 @@
+using Common.Registration;
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
+string operationsLogInstanceId = builder.Configuration["Operations:InstanceId"]?.Trim() ?? Environment.MachineName;
+string operationsRegistrationDirectory = builder.Configuration["Operations:RegistrationDirectory"]?.Trim()
+    ?? "/var/lib/aegis/operations/registration";
+string operationsLogCredentialFile = builder.Configuration["Operations:RegistrationCredentialFile"]?.Trim()
+    ?? Path.Combine(operationsRegistrationDirectory, "operations.key");
+builder.Services.AddAegisControlPlaneOperationsLogging(builder.Configuration, "Aegis.Operations", operationsLogInstanceId, operationsLogCredentialFile, builder.Environment.EnvironmentName);
 
 builder.Services.ConfigureHttpJsonOptions(options => options.SerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter()));
 builder.Services.AddHttpClient("ops", client =>
