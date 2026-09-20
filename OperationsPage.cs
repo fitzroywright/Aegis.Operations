@@ -86,7 +86,7 @@ a{color:inherit;text-decoration:none}
 .clock .date{font-size:16px}.clock .time{font-size:30px;line-height:1}.clock small{display:block;color:var(--cyan);font-size:12px;margin-top:4px}
 
 /* --- fixed mirrored workspace L --- */
-.workspace-shell{position:fixed;left:8px;right:14px;top:162px;bottom:92px;z-index:10}
+.workspace-shell{position:fixed;left:8px;right:14px;top:162px;bottom:10px;z-index:10}
 .workspace-arm{position:absolute;left:96px;right:0;top:0;height:14px;background:var(--alpha-blue);border-radius:0 9px 9px 0;box-shadow:inset 0 1px 0 rgba(255,255,255,.16)}
 .workspace-leg{position:absolute;left:0;top:0;bottom:0;width:96px;background:var(--alpha-blue);border-radius:28px 0 0 28px}
 .workspace-leg::before{display:none}
@@ -114,20 +114,10 @@ a{color:inherit;text-decoration:none}
 .activity-row{display:grid;grid-template-columns:16px 170px 1fr;gap:10px;padding:10px 0;border-bottom:1px solid var(--line-soft);align-items:center}.activity-row:last-child{border-bottom:0}.dot{width:12px;height:12px;border-radius:50%;background:var(--green);display:block;justify-self:center}
 .flow-row{display:grid;grid-template-columns:180px 140px 1fr minmax(140px,auto);gap:12px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line-soft)}.flow-row:last-child{border-bottom:0}.lights{display:flex;gap:7px;align-items:center}.lights i{width:11px;height:11px;border-radius:50%;background:#53646f;display:block}.lights i.on{background:var(--green)}.lights i.warn{background:var(--yellow)}
 
-/* --- fixed footer copied from approved shell geometry --- */
-.footer-wrap{position:fixed;left:8px;right:14px;bottom:6px;height:80px;z-index:30}
-.footer-bar{position:absolute;left:0;right:0;top:0;height:62px;border:0;border-radius:22px 0 0 22px;background:#02060a;display:grid;grid-template-columns:225px 285px 235px 1fr 150px 170px 58px;align-items:center;overflow:hidden;padding:8px 48px 8px 8px;box-shadow:inset 0 0 0 7px var(--blue)}.footer-bar::after{content:"";position:absolute;right:0;top:0;bottom:0;width:40px;background:var(--gold);border-radius:0 20px 20px 0}
-.footer-item{height:100%;display:flex;align-items:center;gap:12px;padding:0 18px;border-right:1px solid var(--line);min-width:0}
-.footer-item strong{display:block;color:var(--blue);font-size:16px;text-transform:uppercase}.footer-item small{display:block;color:var(--cyan);font-size:10px;text-transform:uppercase}.footer-icon{width:30px;height:30px;color:var(--blue);display:flex;align-items:center;justify-content:center;flex:0 0 30px}.footer-icon svg{width:26px;height:26px;display:block;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
-.footer-status{display:flex;align-items:center;justify-content:center;gap:18px;height:100%;border-right:1px solid var(--line);color:var(--cyan);font-size:12px}.footer-status span{display:flex;gap:6px;align-items:center;white-space:nowrap}.footer-status i{width:16px;height:16px;border-radius:50%;background:var(--green)}.footer-status .warn{background:var(--yellow)}.footer-status .crit{background:var(--red)}
-.footer-env,.footer-user,.footer-logout{height:100%;display:flex;align-items:center;justify-content:center;border-right:1px solid var(--line)}.footer-env{color:var(--blue);font-weight:900}.footer-user{gap:8px}.footer-user small{display:block;color:var(--arctic-snow)}.footer-logout{font-size:24px;color:var(--blue)}
-.footer-meta{position:absolute;left:50px;bottom:0;color:var(--arctic-snow);font-size:11px}.footer-motto{position:absolute;right:72px;bottom:0;color:var(--starship-white);font-size:12px}
-
 @media(max-width:1250px){
   .live-log{width:calc(100% - 790px)}
   .current-system{right:450px;width:250px}
   .top-buttons{right:145px;width:295px}
-  .footer-bar{grid-template-columns:190px 235px 200px 1fr 130px}.footer-user,.footer-logout{display:none}
 }
 </style>
 </head>
@@ -164,10 +154,10 @@ a{color:inherit;text-decoration:none}
   </div>
 
   <div class="top-buttons">
-    <button class="gold" onclick="load()">Refresh</button>
-    <a class="blue" href="__CONFIGURATION_URL__">Config</a>
+    <a class="blue" href="/">Operations</a>
     <a class="salmon" href="__DIAGNOSTICS_URL__">Diagnostics</a>
-    <a class="gray" href="__CONFIGURATION_URL__">Registration</a>
+    <a class="gold" href="__CONFIGURATION_URL__">Configuration</a>
+    <a class="gray" href="/registration-lifecycle">Registration</a>
   </div>
 
   <div class="clock">
@@ -249,20 +239,6 @@ a{color:inherit;text-decoration:none}
     </section>
   </main>
 </section>
-
-<div class="footer-wrap">
-  <footer class="footer-bar">
-    <a class="footer-item" href="/"><span class="footer-icon" aria-hidden="true"><svg viewBox="0 0 32 32"><circle cx="16" cy="16" r="10"/><path d="M16 6v4M16 22v4M6 16h4M22 16h4"/><circle cx="16" cy="16" r="3"/></svg></span><span><strong>Operations</strong><small>Monitor · Deploy · Manage</small></span></a>
-    <a class="footer-item" href="__CONFIGURATION_URL__"><span class="footer-icon" aria-hidden="true"><svg viewBox="0 0 32 32"><circle cx="16" cy="16" r="5"/><path d="M16 3v5M16 24v5M3 16h5M24 16h5M7 7l4 4M21 21l4 4M25 7l-4 4M11 21l-4 4"/></svg></span><span><strong>Configuration</strong><small>Settings · Secrets · Registration</small></span></a>
-    <a class="footer-item" href="__DIAGNOSTICS_URL__"><span class="footer-icon" aria-hidden="true"><svg viewBox="0 0 32 32"><path d="M2 17h7l3-9 5 18 4-13 3 7h6"/></svg></span><span><strong>Diagnostics</strong><small>Health · Logs · Analysis</small></span></a>
-    <div class="footer-status"><span><i></i><b id="nominal">All Systems Nominal</b></span><span><i class="warn"></i><b id="warnings">0 Warnings</b></span><span><i class="crit"></i><b>0 Critical</b></span></div>
-    <div class="footer-env">__ENVIRONMENT__⌄</div>
-    <div class="footer-user"><span class="footer-icon" aria-hidden="true"><svg viewBox="0 0 32 32"><circle cx="16" cy="11" r="5"/><path d="M7 28c1-7 5-10 9-10s8 3 9 10"/></svg></span><span><b>__USER__</b><small>Authenticated User</small></span></div>
-    <div class="footer-logout" aria-label="Sign out"><svg viewBox="0 0 32 32" width="24" height="24" style="display:block;stroke:var(--blue);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round"><path d="M14 7H6v18h8"/><path d="M17 10l6 6-6 6M10 16h13"/></svg></div>
-  </footer>
-  <div class="footer-meta">Aegis LCARS v__VERSION__ | Food For The Poor Jamaica</div>
-  <div class="footer-motto">Own what makes us different.</div>
-</div>
 
 <script>
 const detail=document.getElementById('detail');
@@ -351,8 +327,7 @@ async function load(){
     const healthy=attention===0;
     healthText.textContent=healthy?'HEALTHY':'ATTENTION';
     healthDot.style.background=healthy?'var(--green)':'var(--yellow)';
-    nominal.textContent=healthy?'All Systems Nominal':'Attention Required';
-    warnings.textContent=attention+' Warning'+(attention===1?'':'s');
+    document.title='Aegis LCARS · Operations · '+(healthy?'Nominal':'Attention');
 
     renderApplications(registered);
     renderFlows(flows);
@@ -365,7 +340,7 @@ async function load(){
 
   }catch(err){
     healthText.textContent='UNAVAILABLE';healthDot.style.background='var(--red)';
-    nominal.textContent='Telemetry Unavailable';warnings.textContent='1 Warning';
+    document.title='Aegis LCARS · Operations · Telemetry Unavailable';
     addLog('ERR','Operations',err?.message??'Status telemetry unavailable');
   }
 }
