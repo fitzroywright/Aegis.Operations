@@ -87,10 +87,10 @@ a{color:inherit;text-decoration:none}
 
 /* --- fixed mirrored workspace L --- */
 .workspace-shell{position:fixed;left:8px;right:14px;top:162px;bottom:10px;z-index:10}
-.workspace-arm{position:absolute;left:96px;right:0;top:0;height:42px;background:var(--alpha-blue);display:flex;align-items:center;padding:0 16px;z-index:3;border-radius:0 9px 9px 0;box-shadow:inset 0 1px 0 rgba(255,255,255,.16)}
+.workspace-arm{position:absolute;left:96px;right:0;top:0;height:48px;background:#02060a;display:flex;align-items:center;padding:0 18px;z-index:3;border-top:6px solid var(--alpha-blue);border-bottom:6px solid var(--alpha-blue);}border-radius:0 9px 9px 0;box-shadow:inset 0 1px 0 rgba(255,255,255,.16)}
 .workspace-leg{position:absolute;left:0;top:0;bottom:0;width:96px;background:var(--alpha-blue);
-.workspace-arm .workspace-title{font-weight:900;text-transform:uppercase;color:#06111b;letter-spacing:.04em;font-size:16px}
-.workspace-arm .workspace-stamp{margin-left:auto;font:700 13px/1 ui-monospace,SFMono-Regular,Consolas,monospace;color:#06111b;white-space:nowrap}
+.workspace-arm .workspace-title{font-weight:900;text-transform:uppercase;color:var(--starship-white);letter-spacing:.045em;font-size:28px;line-height:1}
+.workspace-arm .workspace-stamp{margin-left:auto;font-weight:900;text-transform:uppercase;color:var(--starship-white);letter-spacing:.04em;font-size:18px;line-height:1;white-space:nowrap;text-align:right}
 border-radius:28px 0 0 28px}
 .workspace-leg::before{display:none}
 .workspace-leg::after{display:none}
@@ -100,7 +100,7 @@ border-radius:28px 0 0 28px}
 .workspace-nav a:last-child{border-bottom:0}
 .workspace-nav a.active{font-size:13px}
 
-.detail-scroll{position:absolute;left:96px;right:0;top:42px;bottom:0;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;background:#000;padding:18px 22px 34px 24px;scrollbar-color:var(--salmon) #111}
+.detail-scroll{position:absolute;left:96px;right:0;top:48px;bottom:0;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;background:#000;padding:18px 22px 34px 24px;scrollbar-color:var(--salmon) #111}
 .detail-scroll::-webkit-scrollbar{width:10px}.detail-scroll::-webkit-scrollbar-track{background:#090909}.detail-scroll::-webkit-scrollbar-thumb{background:var(--salmon);border-radius:10px}
 
 /* --- current Operations content, intentionally inside the L only --- */
@@ -174,7 +174,7 @@ border-radius:28px 0 0 28px}
 <section class="workspace-shell">
   <div class="workspace-arm">
     <div class="workspace-title">Operations Overview</div>
-    <div class="workspace-stamp" id="workspaceStamp">-- --- ---- --:--:--</div>
+    <div class="workspace-stamp" id="workspaceStamp">LAST SCAN —</div>
   </div>
   <div class="workspace-leg"></div>
   <nav class="workspace-nav">
@@ -254,7 +254,7 @@ document.querySelectorAll('.workspace-nav a').forEach(a=>a.addEventListener('cli
   document.querySelectorAll('.workspace-nav a').forEach(x=>x.classList.remove('active')); a.classList.add('active');
 }));
 
-function clockTick(){const d=new Date();date.textContent=d.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}).toUpperCase();time.textContent=d.toLocaleTimeString('en-GB',{hour12:false});const ws=document.getElementById('workspaceStamp');if(ws)ws.textContent=d.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}).toUpperCase()+'  '+d.toLocaleTimeString('en-GB',{hour12:false})+'  EST';}
+function clockTick(){const d=new Date();date.textContent=d.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}).toUpperCase();time.textContent=d.toLocaleTimeString('en-GB',{hour12:false});}
 clockTick();setInterval(clockTick,1000);
 
 function esc(v){return String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
@@ -327,7 +327,9 @@ async function load(){
     const cfg=setPill('cfgStatus',summary.configuration), diag=setPill('diagStatus',summary.diagnostics);
     cfgReason.textContent=summary.configuration?.reason||summary.configuration?.url||'Configuration health endpoint responded.';
     diagReason.textContent=summary.diagnostics?.reason||summary.diagnostics?.url||'Diagnostics health endpoint responded.';
-    checked.textContent='LAST SCAN '+new Date(summary.checkedAt).toLocaleString();
+    const scanText='LAST SCAN '+new Date(summary.checkedAt).toLocaleString();
+    checked.textContent=scanText;
+    const ws=document.getElementById('workspaceStamp'); if(ws) ws.textContent=scanText;
 
     const attention=warnings+activeAlerts+(summary.registration?.attention??0)+(cfg.toLowerCase()==='healthy'?0:1)+(diag.toLowerCase()==='healthy'?0:1);
     const healthy=attention===0;
@@ -346,6 +348,7 @@ async function load(){
 
   }catch(err){
     healthText.textContent='UNAVAILABLE';healthDot.style.background='var(--red)';
+    const ws=document.getElementById('workspaceStamp'); if(ws) ws.textContent='LAST SCAN UNAVAILABLE';
     document.title='Aegis LCARS · Operations · Telemetry Unavailable';
     addLog('ERR','Operations',err?.message??'Status telemetry unavailable');
   }
