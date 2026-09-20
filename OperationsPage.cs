@@ -100,6 +100,7 @@ a{color:inherit;text-decoration:none}
 .workspace-arm{position:absolute;left:var(--rail-width);right:0;top:0;height:var(--workspace-arm-height);background:var(--title-gold);display:flex;align-items:center;padding:0;z-index:3;border-radius:0 9px 9px 0}
 .workspace-arm::before{content:"";position:absolute;left:0;top:0;width:var(--elbow-radius);height:100%;background:var(--alpha-blue);z-index:0}
 .workspace-arm .workspace-title{position:relative;z-index:1;height:100%;display:flex;align-items:center;font-weight:900;text-transform:uppercase;color:#071018;letter-spacing:.055em;font-size:30px;line-height:1;margin-left:var(--elbow-radius);padding:0 1ch;background:none;border-left:6px solid #000;border-right:6px solid #000;box-shadow:none;text-shadow:none}
+.workspace-arm .last-scan{margin-left:auto;margin-right:14px;color:#3b2f16;font:700 9px/1 Arial,sans-serif;letter-spacing:.06em;text-transform:uppercase;white-space:nowrap;opacity:.9}
 .workspace-leg::before{display:none}
 .workspace-leg::after{display:none}
 .workspace-shell::after{content:"";position:absolute;left:var(--rail-width);top:var(--workspace-arm-height);width:var(--elbow-radius);height:var(--elbow-radius);background:radial-gradient(circle at 100% 100%,transparent 0 calc(var(--elbow-radius) - 1px),var(--alpha-blue) var(--elbow-radius));z-index:5;pointer-events:none}
@@ -168,6 +169,7 @@ a{color:inherit;text-decoration:none}
 <section class="workspace-shell">
   <div class="workspace-arm">
     <div class="workspace-title">Overview</div>
+    <div class="last-scan" id="checked">Last Scan: SCANNING</div>
   </div>
   <div class="workspace-leg"></div>
   <nav class="workspace-nav">
@@ -180,10 +182,7 @@ a{color:inherit;text-decoration:none}
   </nav>
 
   <main class="detail-scroll" id="detail">
-    <section class="page-head" id="overview">
-      <div></div>
-      <div class="scan" id="checked">SCANNING</div>
-    </section>
+    <section class="page-head" id="overview"></section>
 
     <section class="metrics">
       <div class="metric"><b id="registeredCount">—</b><small>Registered Applications</small></div>
