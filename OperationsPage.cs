@@ -105,6 +105,8 @@ a{color:inherit;text-decoration:none}
 .workspace-nav a{display:flex;align-items:center;height:48px;padding-left:11px;color:#071018;font-weight:900;text-transform:uppercase;font-size:12px;border-bottom:3px solid #000}
 .workspace-nav a:last-child{border-bottom:0}
 .workspace-nav a.active{font-size:13px}
+.top-buttons a,.workspace-nav a{transition:background .12s ease,color .12s ease,filter .12s ease}
+.top-buttons a.nav-flash,.workspace-nav a.nav-flash{background:var(--title-gold)!important;color:#071018!important;filter:brightness(1.08)}
 
 .detail-scroll{position:absolute;left:var(--rail-width);right:0;top:calc(var(--workspace-arm-height) + var(--scroll-arrow-space));bottom:var(--scroll-arrow-space);min-height:0;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;background:#000;padding:18px 22px 24px 24px;scrollbar-color:var(--salmon) #111}
 .detail-scroll::-webkit-scrollbar{width:10px}.detail-scroll::-webkit-scrollbar-track{background:#090909}.detail-scroll::-webkit-scrollbar-thumb{background:var(--salmon);border-radius:10px}
@@ -250,6 +252,7 @@ function updateBrandClock(){
 }
 updateBrandClock();
 setInterval(updateBrandClock,1000);
+document.querySelectorAll('.top-buttons a,.workspace-nav a').forEach(a=>a.addEventListener('pointerdown',()=>{a.classList.add('nav-flash');setTimeout(()=>a.classList.remove('nav-flash'),180)}));
 document.querySelectorAll('.workspace-nav a').forEach(a=>a.addEventListener('click',e=>{
   const id=a.getAttribute('href'); if(!id?.startsWith('#')) return; e.preventDefault();
   const target=document.querySelector(id); if(target) detail.scrollTo({top:target.offsetTop-24,behavior:'smooth'});
