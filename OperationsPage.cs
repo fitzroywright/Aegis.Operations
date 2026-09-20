@@ -120,7 +120,7 @@ a{color:inherit;text-decoration:none}
 .page-head h1{margin:0;color:var(--blue);font-size:31px}.page-head p{margin:4px 0 0;color:var(--starship-white)}
 .scan{color:var(--cyan);text-align:right}
 .metrics{display:grid;grid-template-columns:repeat(5,minmax(120px,1fr));gap:14px;margin:10px 0 22px}
-.metric{padding:14px 14px 15px;border:1px solid var(--line-soft);border-top:2px solid var(--line);background:linear-gradient(180deg,rgba(12,34,52,.68),rgba(2,10,16,.78));border-radius:10px;box-shadow:inset 0 1px 0 rgba(96,183,230,.08)}.metric b{display:block;font-size:29px;color:var(--cyan)}.metric small{color:var(--muted)}.metric.good b{color:var(--green)}.metric.warn b{color:var(--yellow)}
+.metric{position:relative;padding:14px 30px 15px 14px;border:1px solid var(--line-soft);border-top:2px solid var(--line);background:linear-gradient(180deg,rgba(12,34,52,.68),rgba(2,10,16,.78));border-radius:10px;box-shadow:inset 0 1px 0 rgba(96,183,230,.08);cursor:pointer;transition:transform .12s ease,border-color .12s ease,background .12s ease}.metric::after{content:"›";position:absolute;right:12px;top:50%;transform:translateY(-50%);color:var(--arctic-ice);font-size:22px;font-weight:900}.metric:hover,.metric:focus-visible{transform:translateY(-1px);border-color:var(--arctic-ice);background:linear-gradient(180deg,rgba(18,49,72,.78),rgba(4,15,24,.86));outline:none}.metric b{display:block;font-size:29px;color:var(--cyan)}.metric small{color:var(--muted)}.metric.good b{color:var(--green)}.metric.warn b{color:var(--yellow)}
 .content-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}
 .panel{border:1px solid var(--line-soft);border-top:2px solid var(--line);padding:16px 16px 12px;min-height:250px;background:linear-gradient(180deg,rgba(8,27,42,.50),rgba(1,7,12,.40));border-radius:10px;box-shadow:inset 0 1px 0 rgba(96,183,230,.07)}.panel h2{margin:0;color:var(--blue)}.panel p{color:var(--muted)}
 .status-pill{display:inline-block;padding:4px 9px;border:1px solid;border-radius:12px;font-weight:900}.ok{color:var(--green)}.bad{color:var(--red)}
@@ -187,11 +187,11 @@ a{color:inherit;text-decoration:none}
     <section class="page-head" id="overview"></section>
 
     <section class="metrics">
-      <div class="metric"><b id="registeredCount">—</b><small>Registered Applications</small></div>
-      <div class="metric good"><b id="healthyCount">—</b><small>Healthy Applications</small></div>
-      <div class="metric warn"><b id="warningCount">—</b><small>Warnings / Unknown</small></div>
-      <div class="metric"><b id="activeAlertCount">—</b><small>Active Alerts</small></div>
-      <div class="metric"><b id="activeFlowCount">—</b><small>Active Flows</small></div>
+      <a class="metric" href="#systems"><b id="registeredCount">—</b><small>Registered Applications</small></a>
+      <a class="metric good" href="#systems"><b id="healthyCount">—</b><small>Healthy Applications</small></a>
+      <a class="metric warn" href="#systems"><b id="warningCount">—</b><small>Warnings / Unknown</small></a>
+      <a class="metric" href="#attention"><b id="activeAlertCount">—</b><small>Active Alerts</small></a>
+      <a class="metric" href="#flow"><b id="activeFlowCount">—</b><small>Active Flows</small></a>
     </section>
 
     <section class="content-grid" id="systems">
