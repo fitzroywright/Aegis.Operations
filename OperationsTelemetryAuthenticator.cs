@@ -5,11 +5,13 @@ internal sealed class OperationsTelemetryAuthenticator
 {
     private readonly IHttpClientFactory _factory;
     private readonly string _configurationUrl;
+    private readonly string _operationsLocalUrl;
 
     internal OperationsTelemetryAuthenticator(IHttpClientFactory factory, IConfiguration configuration)
     {
         _factory = factory;
         _configurationUrl = (configuration["Operations:ConfigurationUrl"] ?? "http://localhost:5101").TrimEnd('/');
+        _operationsLocalUrl = (configuration["Operations:LocalUrl"] ?? "http://127.0.0.1:5100").TrimEnd('/');
     }
 
     internal async Task<bool> IsAuthorizedAsync(
@@ -50,7 +52,21 @@ internal sealed class OperationsTelemetryAuthenticator
         try
         {
             using HttpResponseMessage response = await _factory.CreateClient("ops").SendAsync(request, ct);
-            return response.IsSuccessStatusCode;
+            if (response.IsSuccessStatusCode)
+                return true;
+
+            using var controlPlaneRequest = new HttpRequestMessage(
+                HttpMethod.Post,
+                _operationsLocalUrl + "/api/registration/validate");
+            controlPlaneRequest.Headers.TryAddWithoutValidation("X-Aegis-Application-Id", suppliedApplicationId);
+            controlPlaneRequest.Headers.TryAddWithoutValidation("X-Aegis-Instance-Id", instanceId);
+            controlPlaneRequest.Headers.TryAddWithoutValidation("Authorization", authorization);
+            if (!string.IsNullOrWhiteSpace(correlation))
+                controlPlaneRequest.Headers.TryAddWithoutValidation("X-Aegis-Correlation-Id", correlation);
+
+            using HttpResponseMessage controlPlaneResponse =
+                await _factory.CreateClient("ops").SendAsync(controlPlaneRequest, ct);
+            return controlPlaneResponse.IsSuccessStatusCode;
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
         {
