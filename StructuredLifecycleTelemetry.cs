@@ -26,13 +26,14 @@ public static class OperationsLifecycleEndpoints
 {
     public static void MapStructuredLifecycle(this WebApplication app)
     {
-        app.MapPost("/api/operations/lifecycle/events", (
+        app.MapPost("/api/operations/lifecycle/events", async (
             HttpContext context,
             LifecycleEvent item,
             OperationsTelemetryAuthenticator authenticator,
-            OperationsLifecycleStore store) =>
+            OperationsLifecycleStore store,
+            CancellationToken ct) =>
         {
-            if (!authenticator.TryAuthenticate(context, out _)) return Results.Unauthorized();
+            if (!await authenticator.IsAuthorizedAsync(context, item.ApplicationId, ct)) return Results.Unauthorized();
             if (LifecycleEvent.LooksSensitive(item.Code ?? string.Empty))
                 return Results.BadRequest(new { error = "Sensitive telemetry field rejected." });
             store.Append(item);
