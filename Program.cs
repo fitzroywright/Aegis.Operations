@@ -7,8 +7,8 @@ builder.Services.AddHttpClient("ops", client =>
     client.Timeout = TimeSpan.FromSeconds(timeoutSeconds);
 });
 builder.Services.AddSuiteSecurity();
-builder.Services.AddSingleton<OperationsV1Store>();
-builder.Services.AddSingleton<OperationsTelemetryAuthenticator>();
+builder.Services.AddSingleton(sp => new OperationsV1Store(sp.GetRequiredService<IConfiguration>()));
+builder.Services.AddSingleton(sp => new OperationsTelemetryAuthenticator(\n    sp.GetRequiredService<IHttpClientFactory>(),\n    sp.GetRequiredService<IConfiguration>()));
 
 WebApplication app = builder.Build();
 ILogger startupLogger = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("Aegis.Operations.Startup");
