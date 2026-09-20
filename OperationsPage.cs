@@ -58,6 +58,8 @@ internal static class OperationsPage
   --workspace-arm-height:48px;
   --elbow-radius:18px;
   --scroll-arrow-space:18px;
+  --workspace-right-inset:18px;
+  --header-gap:18px;
 }
 *{box-sizing:border-box}
 html,body{width:100%;height:100%;margin:0;overflow:hidden;background:#000;color:var(--white);font-family:"Arial Narrow","Roboto Condensed","Segoe UI",Arial,sans-serif}
@@ -77,12 +79,12 @@ a{color:inherit;text-decoration:none}
 .brand .section{font-size:36px;line-height:1;color:var(--arctic-ice);font-weight:900;text-transform:uppercase;margin-top:10px}
 .brand .org{font-size:10px;color:var(--arctic-snow);font-weight:800;text-transform:uppercase;margin-top:5px;max-width:165px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
-.live-log{position:absolute;left:520px;top:10px;right:280px;height:94px;overflow:hidden;font:15px/1.4 ui-monospace,SFMono-Regular,Consolas,monospace;padding:4px 14px}
+.live-log{position:absolute;left:430px;top:10px;right:calc(250px + var(--header-gap));height:94px;overflow:hidden;font:15px/1.4 ui-monospace,SFMono-Regular,Consolas,monospace;padding:4px 14px}
 .live-log .row{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .live-log .t{color:var(--arctic-snow)}.live-log .inf{color:var(--green);font-weight:900}.live-log .wrn{color:var(--yellow);font-weight:900}.live-log .src{color:var(--cyan)}
 
 
-.top-buttons{position:absolute;right:0;top:18px;width:250px;height:72px;display:grid;grid-template-columns:1fr 1fr;gap:8px 10px;padding-left:12px}
+.top-buttons{position:absolute;right:var(--workspace-right-inset);top:18px;width:250px;height:72px;display:grid;grid-template-columns:1fr 1fr;gap:8px 10px;padding-left:12px}
 .top-buttons a,.top-buttons button{border:0;border-radius:8px;font-weight:900;text-transform:uppercase;color:#071018;cursor:pointer;font-size:12px;display:flex;align-items:center;justify-content:center;line-height:1;padding:0 8px;box-shadow:inset 0 1px 0 rgba(255,255,255,.28),0 1px 0 rgba(0,0,0,.55)}
 .top-buttons .gold{background:var(--gold)}.top-buttons .blue{background:var(--blue)}.top-buttons .salmon{background:var(--salmon)}.top-buttons .gray{background:var(--peach)}
 
@@ -90,7 +92,7 @@ a{color:inherit;text-decoration:none}
 /* --- fixed mirrored workspace L --- */
 .workspace-shell{position:fixed;left:8px;right:14px;top:calc(148px + var(--scroll-arrow-space));bottom:var(--scroll-arrow-space);min-height:0;overflow:hidden;z-index:10}
 .workspace-leg{position:absolute;left:0;top:0;bottom:0;width:var(--rail-width);background:var(--alpha-blue);border-radius:28px 0 0 28px}
-.workspace-arm{position:absolute;left:var(--rail-width);right:0;top:0;height:var(--workspace-arm-height);background:var(--title-gold);display:flex;align-items:center;padding:0;z-index:3;border-radius:0 9px 9px 0}
+.workspace-arm{position:absolute;left:var(--rail-width);right:var(--workspace-right-inset);top:0;height:var(--workspace-arm-height);background:var(--title-gold);display:flex;align-items:center;padding:0;z-index:3;border-radius:0 9px 9px 0}
 .workspace-arm .workspace-title{height:100%;display:flex;align-items:center;font-weight:900;text-transform:uppercase;color:#071018;letter-spacing:.055em;font-size:30px;line-height:1;padding:0 1ch;background:none;border-left:6px solid #000;border-right:6px solid #000;box-shadow:none;text-shadow:none}
 .workspace-leg::before{display:none}
 .workspace-leg::after{display:none}
@@ -101,7 +103,7 @@ a{color:inherit;text-decoration:none}
 .workspace-nav a:last-child{border-bottom:0}
 .workspace-nav a.active{font-size:13px}
 
-.detail-scroll{position:absolute;left:var(--rail-width);right:0;top:calc(var(--workspace-arm-height) + var(--scroll-arrow-space));bottom:var(--scroll-arrow-space);min-height:0;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;background:#000;padding:18px 22px 24px 24px;scrollbar-color:var(--salmon) #111}
+.detail-scroll{position:absolute;left:var(--rail-width);right:var(--workspace-right-inset);top:calc(var(--workspace-arm-height) + var(--scroll-arrow-space));bottom:var(--scroll-arrow-space);min-height:0;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;background:#000;padding:18px 22px 24px 24px;scrollbar-color:var(--salmon) #111}
 .detail-scroll::-webkit-scrollbar{width:10px}.detail-scroll::-webkit-scrollbar-track{background:#090909}.detail-scroll::-webkit-scrollbar-thumb{background:var(--salmon);border-radius:10px}
 
 /* --- current Operations content, intentionally inside the L only --- */
@@ -120,8 +122,8 @@ a{color:inherit;text-decoration:none}
 
 @media(max-width:1250px){
   .brand{width:250px}
-  .live-log{left:380px;right:245px}
-  .top-buttons{right:0;width:225px}
+  .live-log{left:340px;right:calc(225px + var(--workspace-right-inset) + 14px)}
+  .top-buttons{right:var(--workspace-right-inset);width:225px}
 }
 </style>
 </head>
