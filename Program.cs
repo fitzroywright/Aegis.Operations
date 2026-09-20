@@ -36,8 +36,8 @@ string Resolve(string key, string fallback)
     return fallback;
 }
 
-string configurationUrl = Resolve("Operations:ConfigurationUrl", "http://localhost:5101").TrimEnd('/');
-string diagnosticsUrl = Resolve("Operations:DiagnosticsUrl", "http://localhost:5102").TrimEnd('/');
+string configurationUrl = Resolve("Aegis:Configuration:Url", "http://localhost:5101").TrimEnd('/');
+string diagnosticsUrl = Resolve("Aegis:Diagnostics:Url", "http://localhost:5102").TrimEnd('/');
 string site = Resolve("Operations:Site", "—");
 string environment = Resolve("Operations:Environment", "—");
 
