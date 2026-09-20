@@ -32,7 +32,7 @@ body{position:relative}a{color:inherit;text-decoration:none}
 .brand{position:absolute;left:calc(var(--rail-width) + 18px);top:8px;width:320px;height:96px;z-index:3}
 .brand .section{font-size:36px;line-height:1;color:var(--arctic-ice);font-weight:900;text-transform:uppercase;margin-top:10px}
 .brand .org{font-size:10px;color:var(--arctic-snow);font-weight:800;text-transform:uppercase;margin-top:5px;max-width:220px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.brand .datetime{margin-top:8px;font-weight:900;text-transform:uppercase;color:var(--arctic-ice);letter-spacing:.04em;font-size:14px;line-height:1.1;white-space:nowrap}
+.brand .datetime{margin-top:8px;font-weight:900;text-transform:uppercase;color:var(--arctic-ice);letter-spacing:.04em;font-size:14px;white-space:nowrap}
 
 .live-log{position:absolute;left:470px;top:8px;right:calc(250px + 50px + var(--header-gap));height:108px;overflow:hidden;font:13px/1.35 ui-monospace,SFMono-Regular,Consolas,monospace;padding:0}
 .live-log .recent-title{display:flex;align-items:center;width:100%;height:18px;background:var(--title-gold);color:#071018;font:900 10px/18px Arial,sans-serif;letter-spacing:.12em;text-transform:uppercase;padding:0 8px;border-radius:3px 3px 0 0}
@@ -56,7 +56,7 @@ body{position:relative}a{color:inherit;text-decoration:none}
 .workspace-shell::after{content:"";position:absolute;left:var(--rail-width);top:var(--workspace-arm-height);width:var(--elbow-radius);height:var(--elbow-radius);background:radial-gradient(circle at 100% 100%,transparent 0 calc(var(--elbow-radius) - 1px),var(--alpha-blue) var(--elbow-radius));z-index:5;pointer-events:none}
 .workspace-nav{position:absolute;left:0;top:calc(var(--workspace-arm-height) + var(--scroll-arrow-space));width:var(--rail-width);z-index:2}
 .workspace-nav a{display:flex;align-items:center;height:48px;padding-left:11px;color:#071018;font-weight:900;text-transform:uppercase;font-size:11px;border-bottom:3px solid #000;cursor:pointer}
-.workspace-nav a.active{font-size:12px;background:var(--title-gold)}
+.workspace-nav a.active{font-size:12px;background:var(--title-gold);color:#071018}.lcars-back{position:absolute;left:10px;bottom:12px;width:76px;height:34px;z-index:7;border:0;border-radius:8px;background:var(--title-gold);color:#071018;font:900 11px/1 Arial,sans-serif;text-transform:uppercase;cursor:pointer}.lcars-back:active{filter:brightness(1.15)}
 .detail-scroll{position:absolute;left:var(--rail-width);right:0;top:calc(var(--workspace-arm-height) + var(--scroll-arrow-space));bottom:var(--scroll-arrow-space);min-height:0;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;background:#000;padding:18px 22px 24px 24px;scrollbar-color:var(--salmon) #111}
 .detail-scroll::-webkit-scrollbar{width:10px}.detail-scroll::-webkit-scrollbar-track{background:#090909}.detail-scroll::-webkit-scrollbar-thumb{background:var(--salmon);border-radius:10px}
 
@@ -102,6 +102,7 @@ body{position:relative}a{color:inherit;text-decoration:none}
     <a id="navFlow" data-mode="flow">Flow</a>
     <a href="/">Command</a>
   </nav>
+  <button class="lcars-back" type="button" onclick="if(history.length>1){history.back()}else{location.href='/'}">Back</button>
 
   <main class="detail-scroll">
     <section class="page-head"><div><p>Live lifecycle telemetry, centralized application logs, and correlated transaction flow reconstruction.</p></div></section>
