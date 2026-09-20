@@ -45,6 +45,8 @@ main{padding:26px 50px 44px}.head{display:flex;align-items:flex-end;justify-cont
    <input id="sinceMinutes" type="number" min="1" max="10080" value="60" placeholder="Minutes">
    <input class="wide" id="text" placeholder="Search stage, code, detail, business ID…">
    <input id="stage" placeholder="Stage">
+   <select id="logLevel"><option value="">All log levels</option><option>Trace</option><option>Debug</option><option>Information</option><option>Warning</option><option>Error</option><option>Critical</option></select>
+   <input id="category" placeholder="Log category">
    <button class="action" id="apply">Apply Filter</button>
    <button class="action secondary" id="reset">Reset</button>
  </section>
@@ -75,7 +77,7 @@ async function loadLog(){
  if(followTail){const el=$('logView');el.scrollTop=el.scrollHeight}
 }
 async function loadAppLogs(){
- const p=params();p.delete('flow');p.delete('outcome');p.delete('stage');
+ const p=params();p.delete('flow');p.delete('outcome');p.delete('stage');const level=$('logLevel').value.trim();if(level)p.set('level',level);const category=$('category').value.trim();if(category)p.set('category',category);
  const r=await fetch('/api/operations/logs?'+p,{cache:'no-store'});if(!r.ok)throw new Error('HTTP '+r.status);const x=await r.json();let events=x.events||[];
  if(hiddenBefore)events=events.filter(e=>new Date(e.timestampUtc)>hiddenBefore);
  $('appLogView').innerHTML=events.length?events.map(e=>`<div class="row"><span class="time">${fmt(e.timestampUtc)}</span><span class="app">${esc(e.applicationId)}</span><span class="flow">${esc(e.category)}</span><span class="outcome ${esc(e.level)}">${esc(e.level)}</span><button class="detail" title="${esc(e.message)}" onclick="${e.correlationId?`analyze('${esc(e.correlationId)}')`:''}">${esc(e.message)}</button><button class="analyze" ${e.correlationId?`onclick="analyze('${esc(e.correlationId)}')"`:''}>${e.correlationId?'Analyze →':'—'}</button></div>`).join(''):'<div class="empty">No application logs match this filter.</div>';
@@ -89,7 +91,7 @@ async function loadFlows(){
 async function refresh(){if(paused)return;try{if(mode==='log')await loadLog();else if(mode==='appLogs')await loadAppLogs();else await loadFlows()}catch(e){$('state').textContent='TELEMETRY UNAVAILABLE · '+e.message}}
 function tabs(){$('logTab').classList.toggle('active',mode==='log');$('appLogTab').classList.toggle('active',mode==='appLogs');$('flowTab').classList.toggle('active',mode==='flow');$('logView').hidden=mode!=='log';$('appLogView').hidden=mode!=='appLogs';$('flowView').hidden=mode!=='flow'}
 $('logTab').onclick=()=>{mode='log';tabs();refresh()};$('appLogTab').onclick=()=>{mode='appLogs';tabs();refresh()};$('flowTab').onclick=()=>{mode='flow';tabs();refresh()};
-$('apply').onclick=refresh;$('reset').onclick=()=>{for(const id of ['application','instance','flow','outcome','correlation','stage','text'])$(id).value='';$('sinceMinutes').value='60';hiddenBefore=null;refresh()};
+$('apply').onclick=refresh;$('reset').onclick=()=>{for(const id of ['application','instance','flow','outcome','correlation','stage','text','logLevel','category'])$(id).value='';$('sinceMinutes').value='60';hiddenBefore=null;refresh()};
 $('pause').onclick=()=>{paused=!paused;$('pause').textContent=paused?'Resume':'Pause';$('state').textContent=paused?'PAUSED · INGESTION CONTINUES':'RESUMED';if(!paused)refresh()};
 $('follow').onclick=()=>{followTail=!followTail;$('follow').textContent='Follow Tail: '+(followTail?'On':'Off')};
 $('clear').onclick=()=>{hiddenBefore=new Date();$('logView').innerHTML='<div class="empty">View cleared. New events will appear here.</div>';$('appLogView').innerHTML='<div class="empty">View cleared. New logs will appear here.</div>';$('flowView').innerHTML='<div class="empty">View cleared. Adjust filters or wait for new flows.</div>';lastCount=0};
