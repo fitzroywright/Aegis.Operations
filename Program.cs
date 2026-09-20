@@ -39,6 +39,7 @@ app.UseSuiteSecurity();
 app.MapOperationsEndpoints(configurationUrl, diagnosticsUrl, site, environment);
 app.MapLifecycleRegistrationProxy(configurationUrl);
 app.MapOperationsV1(configurationUrl, diagnosticsUrl, site, environment);
+app.MapActivityTelemetry();
 app.MapOperationsSpecialized();
 app.MapOperationsAdvisor();
 app.Run();
