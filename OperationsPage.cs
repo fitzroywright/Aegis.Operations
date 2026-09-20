@@ -59,10 +59,10 @@ body{position:relative}
 a{color:inherit;text-decoration:none}
 
 /* --- fixed TOP L: deliberately open on top/right --- */
-.lcars-top{position:fixed;left:8px;right:14px;top:8px;height:146px;z-index:20;background:#000}
+.lcars-top{position:fixed;left:8px;right:14px;top:8px;height:140px;z-index:20;background:#000}
 .lcars-top .left-vertical{position:absolute;left:0;top:0;width:58px;height:140px;background:var(--alpha-blue);border-radius:28px 0 0 28px}
 .lcars-top .left-gold{display:none}
-.lcars-top .bottom-arm{position:absolute;left:58px;right:0;bottom:0;height:14px;background:var(--alpha-blue);z-index:1;border-radius:0 9px 9px 0;box-shadow:none}
+.lcars-top .bottom-arm{position:absolute;left:58px;right:0;top:126px;height:14px;background:var(--alpha-blue);z-index:1;border-radius:0 9px 9px 0;box-shadow:none}
 .lcars-top .join-dot{display:none}
 
 .brand{position:absolute;left:76px;top:8px;width:180px;height:82px;z-index:3}
@@ -86,7 +86,7 @@ a{color:inherit;text-decoration:none}
 .clock .date{font-size:16px}.clock .time{font-size:30px;line-height:1}.clock small{display:block;color:var(--cyan);font-size:12px;margin-top:4px}
 
 /* --- fixed mirrored workspace L --- */
-.workspace-shell{position:fixed;left:8px;right:14px;top:162px;bottom:10px;z-index:10}
+.workspace-shell{position:fixed;left:8px;right:14px;top:156px;height:calc(100dvh - 166px);max-height:calc(100vh - 166px);min-height:0;overflow:hidden;z-index:10}
 .workspace-leg{position:absolute;left:0;top:0;bottom:0;width:96px;background:var(--alpha-blue);border-radius:28px 0 0 28px}
 .workspace-arm{position:absolute;left:96px;right:0;top:0;height:48px;background:var(--alpha-blue);display:flex;align-items:center;padding:0 14px;z-index:3;border-radius:0 9px 9px 0}
 .workspace-arm .workspace-title{font-weight:900;text-transform:uppercase;color:var(--night-cloud);letter-spacing:.055em;font-size:28px;line-height:1;padding:0 18px;background:transparent;text-shadow:none}
@@ -98,7 +98,7 @@ a{color:inherit;text-decoration:none}
 .workspace-nav a:last-child{border-bottom:0}
 .workspace-nav a.active{font-size:13px}
 
-.detail-scroll{position:absolute;left:96px;right:0;top:48px;bottom:0;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;background:#000;padding:18px 22px 34px 24px;scrollbar-color:var(--salmon) #111}
+.detail-scroll{position:absolute;left:96px;right:0;top:48px;bottom:0;min-height:0;max-height:calc(100% - 48px);overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;background:#000;padding:18px 22px 24px 24px;scrollbar-color:var(--salmon) #111}
 .detail-scroll::-webkit-scrollbar{width:10px}.detail-scroll::-webkit-scrollbar-track{background:#090909}.detail-scroll::-webkit-scrollbar-thumb{background:var(--salmon);border-radius:10px}
 
 /* --- current Operations content, intentionally inside the L only --- */
@@ -111,7 +111,7 @@ a{color:inherit;text-decoration:none}
 .panel{border:1px solid var(--line-soft);border-top:2px solid var(--line);padding:16px 16px 12px;min-height:250px;background:linear-gradient(180deg,rgba(8,27,42,.50),rgba(1,7,12,.40));border-radius:10px;box-shadow:inset 0 1px 0 rgba(96,183,230,.07)}.panel h2{margin:0;color:var(--blue)}.panel p{color:var(--muted)}
 .status-pill{display:inline-block;padding:4px 9px;border:1px solid;border-radius:12px;font-weight:900}.ok{color:var(--green)}.bad{color:var(--red)}
 .facts{display:grid;grid-template-columns:1fr 1fr;margin-top:12px}.facts div{padding:9px 12px 9px 0;border-bottom:1px solid #173747}.facts small,.facts b{display:block}.facts small{color:var(--muted)}
-.activity,.flow{margin-top:22px;border:1px solid var(--line-soft);border-top:2px solid var(--line);padding:14px 16px 8px;background:linear-gradient(180deg,rgba(8,27,42,.40),rgba(1,7,12,.34));border-radius:10px;box-shadow:inset 0 1px 0 rgba(96,183,230,.06)}.activity h2,.flow h2{color:var(--blue);margin:0 0 10px}
+.activity,.flow{margin-top:18px;border:1px solid var(--line-soft);border-top:2px solid var(--line);padding:14px 16px 8px;background:linear-gradient(180deg,rgba(8,27,42,.40),rgba(1,7,12,.34));border-radius:10px;box-shadow:inset 0 1px 0 rgba(96,183,230,.06)}.activity h2,.flow h2{color:var(--blue);margin:0 0 10px}
 .activity-row{display:grid;grid-template-columns:16px 170px 1fr;gap:10px;padding:10px 0;border-bottom:1px solid var(--line-soft);align-items:center}.activity-row:last-child{border-bottom:0}.dot{width:12px;height:12px;border-radius:50%;background:var(--green);display:block;justify-self:center}
 .flow-row{display:grid;grid-template-columns:180px 140px 1fr minmax(140px,auto);gap:12px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line-soft)}.flow-row:last-child{border-bottom:0}.lights{display:flex;gap:7px;align-items:center}.lights i{width:11px;height:11px;border-radius:50%;background:#53646f;display:block}.lights i.on{background:var(--green)}.lights i.warn{background:var(--yellow)}
 
@@ -233,7 +233,7 @@ a{color:inherit;text-decoration:none}
       </article>
     </section>
 
-    <section class="activity" id="settings">
+    <section class="activity" id="settings" style="margin-bottom:8px">
       <h2>Operations Runtime</h2>
       <div class="activity-row"><i class="dot"></i><span id="runtimeState">LOADING</span><b>Operations service state</b></div>
       <div class="activity-row"><i class="dot"></i><span id="runtimeStorage">LOADING</span><b>Telemetry storage</b></div>
