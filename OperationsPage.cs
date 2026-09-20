@@ -79,9 +79,7 @@ a{color:inherit;text-decoration:none}
 .brand .aegis{display:none}
 .brand .section{font-size:36px;line-height:1;color:var(--arctic-ice);font-weight:900;text-transform:uppercase;margin-top:10px}
 .brand .org{font-size:10px;color:var(--arctic-snow);font-weight:800;text-transform:uppercase;margin-top:5px;max-width:220px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.brand .datetime{margin-top:8px;font-weight:900;text-transform:uppercase;color:var(--alpha-blue);letter-spacing:.04em}
-.brand .datetime .date{font-size:14px;line-height:1.1}
-.brand .datetime .time{font-size:20px;line-height:1.05;color:var(--arctic-ice)}
+.brand .datetime{margin-top:8px;font-weight:900;text-transform:uppercase;color:var(--arctic-ice);letter-spacing:.04em;font-size:14px;line-height:1.1;white-space:nowrap}
 
 .live-log{position:absolute;left:330px;top:8px;right:calc(250px + var(--header-gap));height:108px;overflow:hidden;font:14px/1.35 ui-monospace,SFMono-Regular,Consolas,monospace;padding:4px 12px}
 .live-log .row{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -142,10 +140,7 @@ a{color:inherit;text-decoration:none}
   <div class="brand">
     <div class="section">Operations</div>
     <div class="org">Food For The Poor Jamaica</div>
-    <div class="datetime">
-      <div class="date" id="brandDate"></div>
-      <div class="time" id="brandTime"></div>
-    </div>
+    <div class="datetime" id="brandDateTime"></div>
   </div>
 
   <div class="live-log" id="liveLog">
@@ -242,10 +237,15 @@ a{color:inherit;text-decoration:none}
 const detail=document.getElementById('detail');
 function updateBrandClock(){
   const d=new Date();
-  const bd=document.getElementById('brandDate');
-  const bt=document.getElementById('brandTime');
-  if(bd) bd.textContent=d.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}).toUpperCase();
-  if(bt) bt.textContent=d.toLocaleTimeString('en-GB',{hour12:false});
+  const target=document.getElementById('brandDateTime');
+  if(!target) return;
+  const month=d.toLocaleString('en-US',{month:'short'}).toUpperCase();
+  const day=String(d.getDate()).padStart(2,'0');
+  const year=d.getFullYear();
+  const hours=String(d.getHours()).padStart(2,'0');
+  const minutes=String(d.getMinutes()).padStart(2,'0');
+  const tt=d.getHours()>=12?'PM':'AM';
+  target.textContent=month+' '+day+' '+year+' '+hours+':'+minutes+' '+tt;
 }
 updateBrandClock();
 setInterval(updateBrandClock,1000);
