@@ -4,14 +4,48 @@ using Common.Security;
 internal sealed class OperationsTelemetryAuthenticator
 {
     private readonly IHttpClientFactory _factory;
+    private readonly ILogger<OperationsTelemetryAuthenticator> _logger;
     private readonly string _configurationUrl;
     private readonly string _operationsUrl;
 
-    internal OperationsTelemetryAuthenticator(IHttpClientFactory factory, IConfiguration configuration)
+    internal OperationsTelemetryAuthenticator(
+        IHttpClientFactory factory,
+        IConfiguration configuration,
+        ILogger<OperationsTelemetryAuthenticator> logger)
     {
         _factory = factory;
-        _configurationUrl = (configuration["Aegis:Configuration:Url"] ?? "http://localhost:5101").TrimEnd('/');
-        _operationsUrl = (configuration["Operations:SelfUrl"] ?? configuration["Aegis:Operations:Url"] ?? "http://127.0.0.1:5100").TrimEnd('/');
+        _logger = logger;
+
+        string? configuredConfigurationUrl = configuration["Aegis:Configuration:Url"]?.Trim();
+        _configurationUrl = string.IsNullOrWhiteSpace(configuredConfigurationUrl)
+            ? "http://127.0.0.1:5200"
+            : configuredConfigurationUrl.TrimEnd('/');
+
+        if (string.IsNullOrWhiteSpace(configuredConfigurationUrl))
+            _logger.LogWarning(
+                "Telemetry authentication Configuration endpoint is not configured. INTERNAL FALLBACK ACTIVE -> {FallbackValue}.",
+                _configurationUrl);
+        else
+            _logger.LogInformation(
+                "Telemetry authentication Configuration endpoint resolved to {ConfigurationUrl}.",
+                _configurationUrl);
+
+        string? configuredOperationsUrl =
+            configuration["Operations:SelfUrl"]?.Trim() ??
+            configuration["Aegis:Operations:Url"]?.Trim();
+
+        _operationsUrl = string.IsNullOrWhiteSpace(configuredOperationsUrl)
+            ? "http://127.0.0.1:5100"
+            : configuredOperationsUrl.TrimEnd('/');
+
+        if (string.IsNullOrWhiteSpace(configuredOperationsUrl))
+            _logger.LogWarning(
+                "Telemetry authentication Operations self endpoint is not configured. INTERNAL FALLBACK ACTIVE -> {FallbackValue}.",
+                _operationsUrl);
+        else
+            _logger.LogInformation(
+                "Telemetry authentication Operations self endpoint resolved to {OperationsUrl}.",
+                _operationsUrl);
     }
 
     internal async Task<bool> IsAuthorizedAsync(
