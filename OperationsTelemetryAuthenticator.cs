@@ -10,7 +10,7 @@ internal sealed class OperationsTelemetryAuthenticator
     internal OperationsTelemetryAuthenticator(IHttpClientFactory factory, IConfiguration configuration)
     {
         _factory = factory;
-        _configurationUrl = (configuration["Operations:ConfigurationUrl"] ?? "http://localhost:5101").TrimEnd('/');
+        _configurationUrl = (configuration["Aegis:Configuration:Url"] ?? "http://localhost:5101").TrimEnd('/');
         _operationsUrl = (configuration["Operations:SelfUrl"] ?? configuration["Aegis:Operations:Url"] ?? "http://127.0.0.1:5100").TrimEnd('/');
     }
 
