@@ -9,6 +9,7 @@ builder.Services.AddHttpClient("ops", client =>
 builder.Services.AddSuiteSecurity();
 builder.Services.AddSingleton<OperationsV1Store>();
 builder.Services.AddSingleton<OperationsTelemetryAuthenticator>();
+builder.Services.AddSingleton<OperationsLifecycleStore>();
 
 WebApplication app = builder.Build();
 ILogger startupLogger = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("Aegis.Operations.Startup");
@@ -38,4 +39,6 @@ app.MapLifecycleRegistrationProxy(configurationUrl);
 app.MapOperationsV1();
 app.MapOperationsSpecialized();
 app.MapOperationsAdvisor();
+app.MapStructuredLifecycle();
+app.MapLifecycleVisualizer();
 app.Run();
