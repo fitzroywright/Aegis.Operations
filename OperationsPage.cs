@@ -75,16 +75,14 @@ a{color:inherit;text-decoration:none}
 .live-log .row{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .live-log .t{color:var(--arctic-snow)}.live-log .inf{color:var(--green);font-weight:900}.live-log .wrn{color:var(--yellow);font-weight:900}.live-log .src{color:var(--cyan)}
 
-.current-system{position:absolute;right:455px;top:12px;width:260px;height:94px;border-right:1px solid var(--line);display:grid;grid-template-columns:58px 1fr;align-items:center;padding:0 16px}
+.current-system{position:absolute;right:285px;top:12px;width:300px;height:94px;border-right:1px solid var(--line);display:grid;grid-template-columns:58px 1fr;align-items:center;padding:0 16px}
 .wave{width:48px;height:48px;color:var(--blue);display:flex;align-items:center;justify-content:center}.wave svg{width:44px;height:44px;display:block;stroke:currentColor;fill:none;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
 .sys-meta strong{display:block;color:var(--gold);font-size:23px}.sys-meta span{display:block;font-size:14px}.health{display:flex;align-items:center;gap:9px;color:var(--green);font-size:18px;font-weight:900;margin-top:4px}.health i{width:19px;height:19px;border-radius:50%;background:var(--green)}
 
-.top-buttons{position:absolute;right:150px;top:14px;width:290px;height:88px;display:grid;grid-template-columns:1fr 1fr;gap:10px 12px;padding-left:16px;border-right:1px solid var(--line)}
-.top-buttons a,.top-buttons button{border:0;border-radius:10px;font-weight:900;text-transform:uppercase;color:#071018;cursor:pointer;font-size:13px;display:flex;align-items:center;justify-content:center;line-height:1;padding:0 12px;box-shadow:inset 0 1px 0 rgba(255,255,255,.32),0 1px 0 rgba(0,0,0,.55)}
+.top-buttons{position:absolute;right:18px;top:18px;width:250px;height:72px;display:grid;grid-template-columns:1fr 1fr;gap:8px 10px;padding-left:12px;border-left:1px solid var(--line)}
+.top-buttons a,.top-buttons button{border:0;border-radius:8px;font-weight:900;text-transform:uppercase;color:#071018;cursor:pointer;font-size:12px;display:flex;align-items:center;justify-content:center;line-height:1;padding:0 8px;box-shadow:inset 0 1px 0 rgba(255,255,255,.28),0 1px 0 rgba(0,0,0,.55)}
 .top-buttons .gold{background:var(--gold)}.top-buttons .blue{background:var(--blue)}.top-buttons .salmon{background:var(--salmon)}.top-buttons .gray{background:var(--peach)}
 
-.clock{position:absolute;right:0;top:12px;width:138px;text-align:right;color:var(--blue);font-weight:900}
-.clock .date{font-size:16px}.clock .time{font-size:30px;line-height:1}.clock small{display:block;color:var(--cyan);font-size:12px;margin-top:4px}
 
 /* --- fixed mirrored workspace L --- */
 .workspace-shell{position:fixed;left:8px;right:14px;top:156px;height:calc(100dvh - 166px);max-height:calc(100vh - 166px);min-height:0;overflow:hidden;z-index:10}
@@ -119,8 +117,8 @@ a{color:inherit;text-decoration:none}
 
 @media(max-width:1250px){
   .live-log{width:calc(100% - 790px)}
-  .current-system{right:450px;width:250px}
-  .top-buttons{right:145px;width:295px}
+  .current-system{right:270px;width:250px}
+  .top-buttons{right:14px;width:235px}
 }
 </style>
 </head>
@@ -161,13 +159,6 @@ a{color:inherit;text-decoration:none}
     <a class="salmon" href="__DIAGNOSTICS_URL__">Diagnostics</a>
     <a class="gold" href="__CONFIGURATION_URL__">Configuration</a>
     <a class="gray" href="/registration-lifecycle">Registration</a>
-  </div>
-
-  <div class="clock">
-    <div class="date" id="date"></div>
-    <div class="time" id="time"></div>
-    <small>JAMAICA (EST)</small>
-    <small>UTC-05:00</small>
   </div>
 </header>
 
