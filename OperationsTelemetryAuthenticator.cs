@@ -30,7 +30,6 @@ internal sealed class OperationsTelemetryAuthenticator
         if (string.IsNullOrWhiteSpace(applicationId) ||
             !applicationId.Equals(suppliedApplicationId, StringComparison.OrdinalIgnoreCase) ||
             string.IsNullOrWhiteSpace(instanceId) ||
-            string.IsNullOrWhiteSpace(installationId) ||
             !AuthenticationHeaderValue.TryParse(authorization, out AuthenticationHeaderValue? parsed) ||
             !parsed.Scheme.Equals("Bearer", StringComparison.OrdinalIgnoreCase) ||
             string.IsNullOrWhiteSpace(parsed.Parameter))
@@ -38,22 +37,26 @@ internal sealed class OperationsTelemetryAuthenticator
             return false;
         }
 
-        using var request = new HttpRequestMessage(
-            HttpMethod.Post,
-            _configurationUrl + "/api/registration/authenticate");
-        request.Headers.TryAddWithoutValidation("X-Aegis-Application-Id", suppliedApplicationId);
-        request.Headers.TryAddWithoutValidation("X-Aegis-Instance-Id", instanceId);
-        request.Headers.TryAddWithoutValidation("X-Aegis-Installation-Id", installationId);
-        request.Headers.TryAddWithoutValidation("Authorization", authorization);
         string correlation = context.Request.Headers["X-Aegis-Correlation-Id"].ToString().Trim();
-        if (!string.IsNullOrWhiteSpace(correlation))
-            request.Headers.TryAddWithoutValidation("X-Aegis-Correlation-Id", correlation);
 
         try
         {
-            using HttpResponseMessage response = await _factory.CreateClient("ops").SendAsync(request, ct);
-            if (response.IsSuccessStatusCode)
-                return true;
+            if (!string.IsNullOrWhiteSpace(installationId))
+            {
+                using var request = new HttpRequestMessage(
+                    HttpMethod.Post,
+                    _configurationUrl + "/api/registration/authenticate");
+                request.Headers.TryAddWithoutValidation("X-Aegis-Application-Id", suppliedApplicationId);
+                request.Headers.TryAddWithoutValidation("X-Aegis-Instance-Id", instanceId);
+                request.Headers.TryAddWithoutValidation("X-Aegis-Installation-Id", installationId);
+                request.Headers.TryAddWithoutValidation("Authorization", authorization);
+                if (!string.IsNullOrWhiteSpace(correlation))
+                    request.Headers.TryAddWithoutValidation("X-Aegis-Correlation-Id", correlation);
+
+                using HttpResponseMessage response = await _factory.CreateClient("ops").SendAsync(request, ct);
+                if (response.IsSuccessStatusCode)
+                    return true;
+            }
 
             using var controlPlaneRequest = new HttpRequestMessage(
                 HttpMethod.Post,
