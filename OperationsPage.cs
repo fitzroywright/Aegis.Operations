@@ -57,6 +57,7 @@ internal static class OperationsPage
   --top-arm-height:14px;
   --workspace-arm-height:48px;
   --elbow-radius:18px;
+  --scroll-arrow-space:18px;
 }
 *{box-sizing:border-box}
 html,body{width:100%;height:100%;margin:0;overflow:hidden;background:#000;color:var(--white);font-family:"Arial Narrow","Roboto Condensed","Segoe UI",Arial,sans-serif}
@@ -69,7 +70,7 @@ a{color:inherit;text-decoration:none}
 .lcars-top .left-gold{display:none}
 .lcars-top .bottom-arm{position:absolute;left:var(--rail-width);right:0;top:126px;height:var(--top-arm-height);background:var(--alpha-blue);z-index:1;border-radius:0 9px 9px 0;box-shadow:none}
 .lcars-top .join-dot{display:none}
-.lcars-top::after{content:"";position:absolute;left:var(--rail-width);top:calc(126px - var(--elbow-radius));width:var(--elbow-radius);height:var(--elbow-radius);background:radial-gradient(circle at 0 100%,var(--alpha-blue) 0 calc(var(--elbow-radius) - 1px),transparent var(--elbow-radius));z-index:4;pointer-events:none}
+.lcars-top::after{content:"";position:absolute;left:calc(var(--rail-width) - var(--elbow-radius));top:calc(126px - var(--elbow-radius));width:var(--elbow-radius);height:var(--elbow-radius);background:radial-gradient(circle at 100% 100%,transparent 0 calc(var(--elbow-radius) - 1px),var(--black) var(--elbow-radius));z-index:4;pointer-events:none}
 
 .brand{position:absolute;left:calc(var(--rail-width) + 18px);top:8px;width:300px;height:82px;z-index:3}
 .brand .aegis{display:none}
@@ -87,20 +88,20 @@ a{color:inherit;text-decoration:none}
 
 
 /* --- fixed mirrored workspace L --- */
-.workspace-shell{position:fixed;left:8px;right:14px;top:156px;height:calc(100dvh - 166px);max-height:calc(100vh - 166px);min-height:0;overflow:hidden;z-index:10}
+.workspace-shell{position:fixed;left:8px;right:14px;top:calc(148px + var(--scroll-arrow-space));bottom:var(--scroll-arrow-space);min-height:0;overflow:hidden;z-index:10}
 .workspace-leg{position:absolute;left:0;top:0;bottom:0;width:var(--rail-width);background:var(--alpha-blue);border-radius:28px 0 0 28px}
-.workspace-arm{position:absolute;left:calc(var(--rail-width) + var(--elbow-radius));right:0;top:0;height:var(--workspace-arm-height);background:var(--title-gold);display:flex;align-items:center;padding:0;z-index:3;border-radius:0 9px 9px 0}
+.workspace-arm{position:absolute;left:var(--rail-width);right:0;top:0;height:var(--workspace-arm-height);background:var(--title-gold);display:flex;align-items:center;padding:0;z-index:3;border-radius:0 9px 9px 0}
 .workspace-arm .workspace-title{height:100%;display:flex;align-items:center;font-weight:900;text-transform:uppercase;color:#071018;letter-spacing:.055em;font-size:30px;line-height:1;padding:0 1ch;background:none;border-left:6px solid #000;border-right:6px solid #000;box-shadow:none;text-shadow:none}
-.workspace-leg::before{content:"";display:block;position:absolute;left:100%;top:0;width:var(--elbow-radius);height:var(--workspace-arm-height);background:var(--alpha-blue);z-index:2}
+.workspace-leg::before{display:none}
 .workspace-leg::after{display:none}
-.workspace-shell::after{content:"";position:absolute;left:var(--rail-width);top:var(--workspace-arm-height);width:var(--elbow-radius);height:var(--elbow-radius);background:radial-gradient(circle at 0 0,var(--alpha-blue) 0 calc(var(--elbow-radius) - 1px),transparent var(--elbow-radius));z-index:5;pointer-events:none}
+.workspace-shell::after{content:"";position:absolute;left:calc(var(--rail-width) - var(--elbow-radius));top:var(--workspace-arm-height);width:var(--elbow-radius);height:var(--elbow-radius);background:radial-gradient(circle at 100% 0,transparent 0 calc(var(--elbow-radius) - 1px),var(--black) var(--elbow-radius));z-index:5;pointer-events:none}
 
-.workspace-nav{position:absolute;left:0;top:72px;width:var(--rail-width);z-index:2}
+.workspace-nav{position:absolute;left:0;top:calc(var(--workspace-arm-height) + var(--scroll-arrow-space));width:var(--rail-width);z-index:2}
 .workspace-nav a{display:flex;align-items:center;height:48px;padding-left:11px;color:#071018;font-weight:900;text-transform:uppercase;font-size:12px;border-bottom:3px solid #000}
 .workspace-nav a:last-child{border-bottom:0}
 .workspace-nav a.active{font-size:13px}
 
-.detail-scroll{position:absolute;left:var(--rail-width);right:0;top:var(--workspace-arm-height);bottom:5px;min-height:0;max-height:calc(100% - 53px);overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;background:#000;padding:18px 22px 24px 24px;scrollbar-color:var(--salmon) #111}
+.detail-scroll{position:absolute;left:var(--rail-width);right:0;top:calc(var(--workspace-arm-height) + var(--scroll-arrow-space));bottom:var(--scroll-arrow-space);min-height:0;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;background:#000;padding:18px 22px 24px 24px;scrollbar-color:var(--salmon) #111}
 .detail-scroll::-webkit-scrollbar{width:10px}.detail-scroll::-webkit-scrollbar-track{background:#090909}.detail-scroll::-webkit-scrollbar-thumb{background:var(--salmon);border-radius:10px}
 
 /* --- current Operations content, intentionally inside the L only --- */
