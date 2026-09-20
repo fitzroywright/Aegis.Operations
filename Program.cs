@@ -40,4 +40,5 @@ app.MapOperationsV1();
 app.MapOperationsSpecialized();
 app.MapOperationsAdvisor();
 app.MapStructuredLifecycle();
+app.MapLifecycleVisualizer();
 app.Run();
