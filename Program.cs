@@ -36,8 +36,8 @@ string Resolve(string key, string fallback)
     return fallback;
 }
 
-string configurationUrl = Resolve("Aegis:Configuration:Url", "http://localhost:5101").TrimEnd('/');
-string diagnosticsUrl = Resolve("Aegis:Diagnostics:Url", "http://localhost:5102").TrimEnd('/');
+string configurationUrl = Resolve("Aegis:Configuration:Url", "http://127.0.0.1:5200").TrimEnd('/');
+string diagnosticsUrl = Resolve("Aegis:Diagnostics:Url", "http://127.0.0.1:5300").TrimEnd('/');
 string configurationPublicUrl = Resolve("Aegis:Configuration:PublicUrl", "https://config.ffpja.org").TrimEnd('/');
 string diagnosticsPublicUrl = Resolve("Aegis:Diagnostics:PublicUrl", "https://diagnostics.ffpja.org").TrimEnd('/');
 string site = Resolve("Operations:Site", "—");
