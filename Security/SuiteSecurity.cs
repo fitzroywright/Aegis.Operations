@@ -57,6 +57,7 @@ internal sealed class SuiteSecurity(IConfiguration config,IHostEnvironment envir
     static bool Verify(string password,string encoded){try{var p=encoded.Split('$');if(p.Length!=4||p[0]!="PBKDF2")return false;int iterations=int.Parse(p[1]);byte[] salt=Convert.FromBase64String(p[2]),expected=Convert.FromBase64String(p[3]);byte[] actual=Rfc2898DeriveBytes.Pbkdf2(password,salt,iterations,HashAlgorithmName.SHA256,expected.Length);return CryptographicOperations.FixedTimeEquals(actual,expected);}catch{return false;}}
     public string CreateSession(SuiteIdentity i)=>Sign(new SuiteTicket(i.UserName,i.DisplayName,i.Title,i.Permissions,"Aegis.Operations",DateTimeOffset.UtcNow.AddHours(8).ToUnixTimeSeconds(),Guid.NewGuid().ToString("N")));
     public string CreateHandoff(SuiteIdentity i,string audience)=>Sign(new SuiteTicket(i.UserName,i.DisplayName,i.Title,i.Permissions,audience,DateTimeOffset.UtcNow.AddSeconds(45).ToUnixTimeSeconds(),Guid.NewGuid().ToString("N")));
+    public SuiteIdentity? AcceptHandoff(string token)=>Validate(token,"Aegis.Operations");
     public SuiteIdentity? ReadSession(HttpRequest req)=>req.Cookies.TryGetValue(Cookie,out var v)?Validate(v,"Aegis.Operations"):null;
     SuiteIdentity? Validate(string token,string audience){var parts=token.Split('.');if(parts.Length!=2)return null;try{byte[] data=WebEncoders.Base64UrlDecode(parts[0]),sig=WebEncoders.Base64UrlDecode(parts[1]);using var h=new HMACSHA256(key);if(!CryptographicOperations.FixedTimeEquals(h.ComputeHash(data),sig))return null;var t=JsonSerializer.Deserialize<SuiteTicket>(data);if(t is null||t.Audience!=audience||t.Expires<DateTimeOffset.UtcNow.ToUnixTimeSeconds())return null;return new(t.Sub,t.Name,t.Title,t.Permissions);}catch{return null;}}
     string Sign(SuiteTicket ticket){byte[] data=JsonSerializer.SerializeToUtf8Bytes(ticket);using var h=new HMACSHA256(key);return WebEncoders.Base64UrlEncode(data)+"."+WebEncoders.Base64UrlEncode(h.ComputeHash(data));}
@@ -131,18 +132,21 @@ internal static class SuiteSecurityExtensions
     {
         app.MapGet("/login",(SuiteSecurity s,string? returnUrl,string? username,string? error)=>Results.Content(LoginPage.Render(s.Mode,returnUrl,username,!string.IsNullOrWhiteSpace(error)),"text/html; charset=utf-8"));
         app.MapPost("/auth/login",async(HttpContext c,SuiteSecurity s)=>{var f=await c.Request.ReadFormAsync();string user=f["username"].ToString();string password=f["password"].ToString();string r=f["returnUrl"].ToString();var id=s.Authenticate(user,password);if(id is null)return Results.Redirect("/login?error=1&username="+Uri.EscapeDataString(user)+"&returnUrl="+Uri.EscapeDataString(SafeLocal(r)?r:"/"));s.SetSession(c.Response,id);return Results.Redirect(SafeLocal(r)?r:"/");});
+        app.MapPost("/auth/handoff",async(HttpContext c,SuiteSecurity s)=>{var f=await c.Request.ReadFormAsync();var id=s.AcceptHandoff(f["token"].ToString());if(id is null)return Results.Redirect("/login?error=handoff");s.SetSession(c.Response,id);c.Response.Headers.CacheControl="no-store";string r=f["returnUrl"].ToString();return Results.Redirect(SafeLocal(r)?r:"/");});
         app.MapGet("/auth/logout",(HttpContext c,SuiteSecurity s)=>{s.Clear(c.Response);return Results.Redirect("/login");});
         app.MapGet("/handoff/{target}",(string target,HttpContext c,SuiteSecurity s)=>
         {
             var id=s.ReadSession(c.Request);if(id is null)return Results.Redirect("/login");
             string audience,url,permission;
+            string returnUrl="/";
             if(target.Equals("configuration",StringComparison.OrdinalIgnoreCase)){audience="Aegis.Configuration";url=configurationPublicUrl;permission="Configuration.View";}
+            else if(target.Equals("registration",StringComparison.OrdinalIgnoreCase)){audience="Aegis.Configuration";url=configurationPublicUrl;permission="Configuration.View";returnUrl="/registration-lifecycle";}
             else if(target.Equals("diagnostics",StringComparison.OrdinalIgnoreCase)){audience="Aegis.Diagnostics";url=diagnosticsPublicUrl;permission="Diagnostics.View";}
             else return Results.BadRequest();
             if(!id.Permissions.Contains(permission,StringComparer.OrdinalIgnoreCase))return Results.StatusCode(StatusCodes.Status403Forbidden);
             string action=HtmlEncoder.Default.Encode(url.TrimEnd('/')+"/auth/handoff");
             string token=HtmlEncoder.Default.Encode(s.CreateHandoff(id,audience));
-            string html=$"""<!doctype html><html><head><meta charset="utf-8"><meta name="referrer" content="no-referrer"><title>Opening {HtmlEncoder.Default.Encode(target)}</title></head><body><form id="handoff" method="post" action="{action}"><input type="hidden" name="token" value="{token}"></form><script>history.replaceState(null,'','/');document.getElementById('handoff').submit();</script><noscript><button form="handoff" type="submit">Continue</button></noscript></body></html>""";
+            string html=$"""<!doctype html><html><head><meta charset="utf-8"><meta name="referrer" content="no-referrer"><title>Opening {HtmlEncoder.Default.Encode(target)}</title></head><body><form id="handoff" method="post" action="{action}"><input type="hidden" name="token" value="{token}"><input type="hidden" name="returnUrl" value="{HtmlEncoder.Default.Encode(returnUrl)}"></form><script>history.replaceState(null,'','/');document.getElementById('handoff').submit();</script><noscript><button form="handoff" type="submit">Continue</button></noscript></body></html>""";
             c.Response.Headers.CacheControl="no-store";
             c.Response.Headers.Pragma="no-cache";
             c.Response.Headers["Referrer-Policy"]="no-referrer";
