@@ -158,7 +158,7 @@ a{color:inherit;text-decoration:none}
     <a class="blue" href="/">Operations</a>
     <a class="salmon" href="__DIAGNOSTICS_URL__">Diagnostics</a>
     <a class="gold" href="__CONFIGURATION_URL__">Configuration</a>
-    <a class="gray" href="/registration-lifecycle">Registration</a>
+    <a class="gray" href="https://config.ffpja.org/registration-lifecycle">Registration</a>
   </div>
 </header>
 
