@@ -24,46 +24,44 @@ builder.Services.AddSingleton(sp => new OperationsTelemetryAuthenticator(
 WebApplication app = builder.Build();
 ILogger startupLogger = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("Aegis.Operations.Startup");
 
-string Resolve(string key, string fallback, string purpose)
+string configurationUrl = AegisControlPlaneEndpoints.ResolveInternal(
+    builder.Configuration,
+    AegisControlPlaneService.Configuration,
+    startupLogger);
+string diagnosticsUrl = AegisControlPlaneEndpoints.ResolveInternal(
+    builder.Configuration,
+    AegisControlPlaneService.Diagnostics,
+    startupLogger);
+string configurationPublicUrl = AegisControlPlaneEndpoints.ResolvePublic(
+    builder.Configuration,
+    AegisControlPlaneService.Configuration,
+    startupLogger);
+string diagnosticsPublicUrl = AegisControlPlaneEndpoints.ResolvePublic(
+    builder.Configuration,
+    AegisControlPlaneService.Diagnostics,
+    startupLogger);
+
+string ResolveValue(string key, string fallback)
 {
-    string? configured = builder.Configuration[key];
+    string? configured = builder.Configuration[key]?.Trim();
     if (!string.IsNullOrWhiteSpace(configured))
     {
-        string value = configured.Trim();
         startupLogger.LogInformation(
-            "{Purpose} endpoint {ConfigurationKey} resolved from configured value {ConfiguredValue}.",
-            purpose,
+            "Configuration {ConfigurationKey} resolved from configured value {ConfiguredValue}.",
             key,
-            value);
-        return value;
+            configured);
+        return configured;
     }
 
     startupLogger.LogWarning(
-        "{Purpose} endpoint {ConfigurationKey} is not configured. INTERNAL FALLBACK ACTIVE -> {FallbackValue}.",
-        purpose,
+        "Configuration {ConfigurationKey} is not set; falling back to {FallbackValue}.",
         key,
         fallback);
     return fallback;
 }
 
-string configurationUrl = Resolve(
-    "Aegis:Configuration:Url",
-    "http://127.0.0.1:5200",
-    "Internal Configuration").TrimEnd('/');
-string diagnosticsUrl = Resolve(
-    "Aegis:Diagnostics:Url",
-    "http://127.0.0.1:5300",
-    "Internal Diagnostics").TrimEnd('/');
-string configurationPublicUrl = Resolve(
-    "Aegis:Configuration:PublicUrl",
-    "https://config.ffpja.org",
-    "Public Configuration").TrimEnd('/');
-string diagnosticsPublicUrl = Resolve(
-    "Aegis:Diagnostics:PublicUrl",
-    "https://diagnostics.ffpja.org",
-    "Public Diagnostics").TrimEnd('/');
-string site = Resolve("Operations:Site", "—", "Operations Site");
-string environment = Resolve("Operations:Environment", "—", "Operations Environment");
+string site = ResolveValue("Operations:Site", "—");
+string environment = ResolveValue("Operations:Environment", "—");
 
 startupLogger.LogInformation(
     "Operations control-plane endpoints: ConfigurationInternal={ConfigurationInternal}; DiagnosticsInternal={DiagnosticsInternal}; ConfigurationPublic={ConfigurationPublic}; DiagnosticsPublic={DiagnosticsPublic}.",
