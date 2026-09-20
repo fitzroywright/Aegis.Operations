@@ -28,7 +28,7 @@ internal sealed class SuiteSecurity(IConfiguration config,IHostEnvironment envir
         string? admins=config["SuiteSecurity:Mock:AdminUsers"];
         if(configuredPassword.Length==0&&allowAny)
         {
-            bool admin=ParseUsers(admins).Contains(user);
+            bool admin=ParseUsers(admins).Contains(user)||IsConfiguredAdmin(user);
             return new SuiteIdentity(user,$"Mock {user}",admin?"Administrator":"Mock User",admin?AdminPermissions():DefaultPermissions());
         }
         var o=new MockAuthenticationOptions{Password=configuredPassword,AllowAnyUser=allowAny,AllowedUsers=allowed,AdminUsers=admins};
@@ -36,8 +36,10 @@ internal sealed class SuiteSecurity(IConfiguration config,IHostEnvironment envir
         return r.IsAuthenticated?FromResult(user,r):null;
     }
     static HashSet<string> ParseUsers(string? users)=>string.IsNullOrWhiteSpace(users)?new(StringComparer.OrdinalIgnoreCase):users.Split([',',';'],StringSplitOptions.RemoveEmptyEntries|StringSplitOptions.TrimEntries).ToHashSet(StringComparer.OrdinalIgnoreCase);
-    SuiteIdentity? AuthenticateInternal(string user,string password){var section=config.GetSection("SuiteSecurity:Internal:Users").GetChildren().FirstOrDefault(x=>x.Key.Equals(user,StringComparison.OrdinalIgnoreCase));if(section is null)return null;string? hash=section["PasswordHash"];if(hash is null||!Verify(password,hash))return null;return new(user,section["DisplayName"]??user,section["Title"]??"User",section.GetSection("Permissions").Get<string[]>()??DefaultPermissions());}
-    SuiteIdentity FromResult(string user,AuthenticationResult r)=>new(user,r.UserInfo?.DisplayName??user,r.UserInfo?.Title??"User",r.IsAdministrative?AdminPermissions():DefaultPermissions());
+    SuiteIdentity? AuthenticateInternal(string user,string password){var section=config.GetSection("SuiteSecurity:Internal:Users").GetChildren().FirstOrDefault(x=>x.Key.Equals(user,StringComparison.OrdinalIgnoreCase));if(section is null)return null;string? hash=section["PasswordHash"];if(hash is null||!Verify(password,hash))return null;string[] permissions=IsConfiguredAdmin(user)?AdminPermissions():(section.GetSection("Permissions").Get<string[]>()??DefaultPermissions());return new(user,section["DisplayName"]??user,section["Title"]??"User",permissions);}
+    SuiteIdentity FromResult(string user,AuthenticationResult r){bool admin=r.IsAdministrative||IsConfiguredAdmin(user);return new(user,r.UserInfo?.DisplayName??user,r.UserInfo?.Title??"User",admin?AdminPermissions():DefaultPermissions());}
+    bool IsConfiguredAdmin(string user){string normalized=NormalizeUser(user);return ParseUsers(config["SuiteSecurity:AdminUsers"]).Any(x=>NormalizeUser(x).Equals(normalized,StringComparison.OrdinalIgnoreCase));}
+    static string NormalizeUser(string user){string value=(user??string.Empty).Trim();int slash=value.LastIndexOf('\\');if(slash>=0)value=value[(slash+1)..];int at=value.IndexOf('@');if(at>0)value=value[..at];return value.Trim();}
     static string[] DefaultPermissions()=>["Operations.View","Configuration.View","Diagnostics.View"];
     static string[] AdminPermissions()=>[
         "Operations.View",
@@ -136,7 +138,7 @@ internal static class SuiteSecurityExtensions
         app.MapGet("/login",(SuiteSecurity s,string? returnUrl,string? username,string? error)=>Results.Content(LoginPage.Render(s.Mode,returnUrl,username,!string.IsNullOrWhiteSpace(error)),"text/html; charset=utf-8"));
         app.MapPost("/auth/login",async(HttpContext c,SuiteSecurity s)=>{var f=await c.Request.ReadFormAsync();string user=f["username"].ToString();string password=f["password"].ToString();string r=f["returnUrl"].ToString();var id=s.Authenticate(user,password);if(id is null)return Results.Redirect("/login?error=1&username="+Uri.EscapeDataString(user)+"&returnUrl="+Uri.EscapeDataString(SafeLocal(r)?r:"/"));s.SetSession(c.Response,id);return Results.Redirect(SafeLocal(r)?r:"/");});
         app.MapPost("/auth/handoff",async(HttpContext c,SuiteSecurity s)=>{var f=await c.Request.ReadFormAsync();var id=s.AcceptHandoff(f["token"].ToString());if(id is null)return Results.Redirect("/login?error=handoff");s.SetSession(c.Response,id);c.Response.Headers.CacheControl="no-store";string r=f["returnUrl"].ToString();return Results.Redirect(SafeLocal(r)?r:"/");});
-        app.MapGet("/auth/me",(HttpContext c,SuiteSecurity s)=>{var id=s.ReadSession(c.Request);if(id is null)return Results.Unauthorized();s.SetSession(c.Response,id);return Results.Ok(new { id.UserName, id.DisplayName, id.Title, clientIp=c.Connection.RemoteIpAddress?.ToString() ?? "unknown", idleTimeoutMinutes=s.IdleTimeoutMinutes });});
+        app.MapGet("/auth/me",(HttpContext c,SuiteSecurity s)=>{var id=s.ReadSession(c.Request);if(id is null)return Results.Unauthorized();s.SetSession(c.Response,id);return Results.Ok(new { id.UserName, id.DisplayName, id.Title, id.Permissions, clientIp=c.Connection.RemoteIpAddress?.ToString() ?? "unknown", idleTimeoutMinutes=s.IdleTimeoutMinutes });});
         app.MapGet("/auth/logout",(HttpContext c,SuiteSecurity s)=>{s.Clear(c.Response);return Results.Redirect("/login");});
         app.MapGet("/handoff/{target}",(string target,HttpContext c,SuiteSecurity s)=>
         {
