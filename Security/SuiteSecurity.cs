@@ -116,7 +116,7 @@ internal static class SuiteSecurityExtensions
         ctx.Items["SuiteIdentity"]=id;
         await next();
     });
-    public static void MapSuiteSecurity(this WebApplication app,string configUrl,string diagUrl)
+    public static void MapSuiteSecurity(this WebApplication app,string configurationPublicUrl,string diagnosticsPublicUrl)
     {
         app.MapGet("/login",(SuiteSecurity s,string? returnUrl,string? username,string? error)=>Results.Content(LoginPage.Render(s.Mode,returnUrl,username,!string.IsNullOrWhiteSpace(error)),"text/html; charset=utf-8"));
         app.MapPost("/auth/login",async(HttpContext c,SuiteSecurity s)=>{var f=await c.Request.ReadFormAsync();string user=f["username"].ToString();string password=f["password"].ToString();string r=f["returnUrl"].ToString();var id=s.Authenticate(user,password);if(id is null)return Results.Redirect("/login?error=1&username="+Uri.EscapeDataString(user)+"&returnUrl="+Uri.EscapeDataString(SafeLocal(r)?r:"/"));s.SetSession(c.Response,id);return Results.Redirect(SafeLocal(r)?r:"/");});
@@ -125,8 +125,8 @@ internal static class SuiteSecurityExtensions
         {
             var id=s.ReadSession(c.Request);if(id is null)return Results.Redirect("/login");
             string audience,url,permission;
-            if(target.Equals("configuration",StringComparison.OrdinalIgnoreCase)){audience="Aegis.Configuration";url=configUrl;permission="Configuration.View";}
-            else if(target.Equals("diagnostics",StringComparison.OrdinalIgnoreCase)){audience="Aegis.Diagnostics";url=diagUrl;permission="Diagnostics.View";}
+            if(target.Equals("configuration",StringComparison.OrdinalIgnoreCase)){audience="Aegis.Configuration";url=configurationPublicUrl;permission="Configuration.View";}
+            else if(target.Equals("diagnostics",StringComparison.OrdinalIgnoreCase)){audience="Aegis.Diagnostics";url=diagnosticsPublicUrl;permission="Diagnostics.View";}
             else return Results.BadRequest();
             if(!id.Permissions.Contains(permission,StringComparer.OrdinalIgnoreCase))return Results.StatusCode(StatusCodes.Status403Forbidden);
             string action=HtmlEncoder.Default.Encode(url.TrimEnd('/')+"/auth/handoff");
