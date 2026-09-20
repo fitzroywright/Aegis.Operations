@@ -59,6 +59,7 @@ internal static class ActivityTelemetryEndpoints
         });
 
         app.MapGet("/api/operations/activity", async (
+            HttpContext context,
             string? applicationId,
             string? instanceId,
             string? flow,
@@ -69,8 +70,12 @@ internal static class ActivityTelemetryEndpoints
             DateTimeOffset? since,
             int? take,
             OperationsV1Store store,
+            OperationsTelemetryAuthenticator telemetryAuthenticator,
             CancellationToken ct) =>
         {
+            if (!await CanReadAsync(context, telemetryAuthenticator, ct))
+                return Results.Unauthorized();
+
             IEnumerable<LifecycleEvent> query =
                 await store.LoadAsync<LifecycleEvent>("activity-events", ct);
 
@@ -91,9 +96,14 @@ internal static class ActivityTelemetryEndpoints
         });
 
         app.MapGet("/api/operations/activity/filters", async (
+            HttpContext context,
             OperationsV1Store store,
+            OperationsTelemetryAuthenticator telemetryAuthenticator,
             CancellationToken ct) =>
         {
+            if (!await CanReadAsync(context, telemetryAuthenticator, ct))
+                return Results.Unauthorized();
+
             IReadOnlyList<LifecycleEvent> all =
                 await store.LoadAsync<LifecycleEvent>("activity-events", ct);
 
@@ -108,6 +118,7 @@ internal static class ActivityTelemetryEndpoints
         });
 
         app.MapGet("/api/operations/activity/flows", async (
+            HttpContext context,
             string? applicationId,
             string? instanceId,
             string? flow,
@@ -118,8 +129,12 @@ internal static class ActivityTelemetryEndpoints
             DateTimeOffset? since,
             int? take,
             OperationsV1Store store,
+            OperationsTelemetryAuthenticator telemetryAuthenticator,
             CancellationToken ct) =>
         {
+            if (!await CanReadAsync(context, telemetryAuthenticator, ct))
+                return Results.Unauthorized();
+
             IEnumerable<LifecycleEvent> query =
                 await store.LoadAsync<LifecycleEvent>("activity-events", ct);
 
@@ -182,6 +197,21 @@ internal static class ActivityTelemetryEndpoints
 
         app.MapGet("/activity", () =>
             Results.Content(ActivityPage.Render(), "text/html; charset=utf-8"));
+    }
+
+    private static async Task<bool> CanReadAsync(
+        HttpContext context,
+        OperationsTelemetryAuthenticator telemetryAuthenticator,
+        CancellationToken ct)
+    {
+        if (context.Items.TryGetValue("SuiteIdentity", out object? value) &&
+            value is SuiteIdentity identity &&
+            identity.Permissions.Contains("Operations.View", StringComparer.OrdinalIgnoreCase))
+            return true;
+
+        string applicationId = context.Request.Headers["X-Aegis-Application-Id"].ToString();
+        return !string.IsNullOrWhiteSpace(applicationId) &&
+               await telemetryAuthenticator.IsAuthorizedAsync(context, applicationId, ct);
     }
 
     private static IEnumerable<LifecycleEvent> ApplyFilters(
