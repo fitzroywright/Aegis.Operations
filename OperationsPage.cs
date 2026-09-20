@@ -79,7 +79,7 @@ a{color:inherit;text-decoration:none}
 .brand .aegis{display:none}
 .brand .section{font-size:36px;line-height:1;color:var(--arctic-ice);font-weight:900;text-transform:uppercase;margin-top:10px}
 .brand .org{font-size:10px;color:var(--arctic-snow);font-weight:800;text-transform:uppercase;margin-top:5px;max-width:220px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.brand .datetime{margin-top:8px;font-weight:900;text-transform:uppercase;color:var(--arctic-ice);letter-spacing:.04em;font-size:14px;line-height:1.1;white-space:nowrap}
+.brand .datetime{margin-top:8px;font-weight:900;text-transform:uppercase;color:var(--arctic-ice);letter-spacing:.04em;font-size:14px;white-space:nowrap}
 
 .live-log{position:absolute;left:470px;top:8px;right:calc(250px + 50px + var(--header-gap));height:108px;overflow:hidden;font:13px/1.35 ui-monospace,SFMono-Regular,Consolas,monospace;padding:0}
 .live-log .recent-title{display:flex;align-items:center;width:100%;height:18px;background:var(--title-gold);color:#071018;font:900 10px/18px Arial,sans-serif;letter-spacing:.12em;text-transform:uppercase;padding:0 8px;border-radius:3px 3px 0 0}
@@ -108,7 +108,7 @@ a{color:inherit;text-decoration:none}
 .workspace-nav{position:absolute;left:0;top:calc(var(--workspace-arm-height) + var(--scroll-arrow-space));width:var(--rail-width);z-index:2}
 .workspace-nav a{display:flex;align-items:center;height:48px;padding-left:11px;color:#071018;font-weight:900;text-transform:uppercase;font-size:12px;border-bottom:3px solid #000}
 .workspace-nav a:last-child{border-bottom:0}
-.workspace-nav a.active{font-size:13px;background:var(--title-gold);color:#071018}
+.workspace-nav a.active{font-size:13px;background:var(--title-gold);color:#071018}.lcars-back{position:absolute;left:10px;bottom:12px;width:76px;height:34px;z-index:7;border:0;border-radius:8px;background:var(--title-gold);color:#071018;font:900 11px/1 Arial,sans-serif;text-transform:uppercase;cursor:pointer}.lcars-back:active{filter:brightness(1.15)}
 .top-buttons a,.workspace-nav a{transition:background .12s ease,color .12s ease,filter .12s ease}
 .top-buttons a.nav-flash,.workspace-nav a.nav-flash{background:var(--title-gold)!important;color:#071018!important;filter:brightness(1.08)}
 
@@ -180,6 +180,7 @@ a{color:inherit;text-decoration:none}
     <a href="#controlplane">Control</a>
     <a href="#settings">Runtime</a>
   </nav>
+  <button class="lcars-back" type="button" onclick="if(history.length>1){history.back()}else{location.href='/'}">Back</button>
 
   <main class="detail-scroll" id="detail">
     <section class="page-head" id="overview"></section>
