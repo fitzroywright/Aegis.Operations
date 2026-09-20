@@ -63,6 +63,61 @@ public sealed class OperationsLifecycleStore
                 .ToArray();
         }
     }
+
+    private static async Task ProjectIntoWorkflowVisualizerAsync(
+        LifecycleEvent item,
+        OperationsV1Store store,
+        CancellationToken ct)
+    {
+        IReadOnlyList<FlowRecord> flows = await store.LoadAsync<FlowRecord>("flows", ct);
+        FlowRecord? existing = flows.FirstOrDefault(x =>
+            x.CorrelationId.Equals(item.CorrelationId, StringComparison.OrdinalIgnoreCase));
+
+        var stages = existing?.Stages.ToList() ?? [];
+        FlowStageState state = item.Outcome switch
+        {
+            LifecycleEventOutcome.Started => FlowStageState.Active,
+            LifecycleEventOutcome.Succeeded => FlowStageState.Completed,
+            LifecycleEventOutcome.Warning => FlowStageState.Warning,
+            LifecycleEventOutcome.Failed => FlowStageState.Failed,
+            LifecycleEventOutcome.Skipped => FlowStageState.Skipped,
+            _ => FlowStageState.Unknown
+        };
+
+        int index = stages.FindIndex(x => x.Name.Equals(item.Stage, StringComparison.OrdinalIgnoreCase));
+        DateTimeOffset? startedAt = item.Outcome == LifecycleEventOutcome.Started
+            ? item.OccurredAtUtc
+            : index >= 0 ? stages[index].StartedAtUtc : item.OccurredAtUtc;
+        DateTimeOffset? completedAt = item.Outcome is LifecycleEventOutcome.Succeeded
+            or LifecycleEventOutcome.Failed
+            or LifecycleEventOutcome.Skipped
+            ? item.OccurredAtUtc
+            : null;
+
+        var stage = new FlowStageRecord(
+            item.Stage,
+            state,
+            startedAt,
+            completedAt,
+            Error: item.Outcome == LifecycleEventOutcome.Failed ? item.Code : null);
+
+        if (index >= 0) stages[index] = stage;
+        else stages.Add(stage);
+
+        var flow = new FlowRecord(
+            item.CorrelationId,
+            item.ApplicationId,
+            item.Flow,
+            item.InstanceId,
+            existing?.StartedAtUtc ?? item.OccurredAtUtc,
+            item.OccurredAtUtc,
+            stages,
+            item.Stage,
+            item.RelatedBusinessId ?? existing?.RelatedBusinessId,
+            existing?.Runbook);
+
+        await store.UpsertFlowAsync(flow, ct);
+    }
 }
 
 public sealed record LifecycleJourneySnapshot(
@@ -95,12 +150,14 @@ public static class OperationsLifecycleEndpoints
             LifecycleEvent item,
             OperationsTelemetryAuthenticator authenticator,
             OperationsLifecycleStore store,
+            OperationsV1Store operationalStore,
             CancellationToken ct) =>
         {
             if (!await authenticator.IsAuthorizedAsync(context, item.ApplicationId, ct)) return Results.Unauthorized();
             if (LifecycleEvent.LooksSensitive(item.Code ?? string.Empty))
                 return Results.BadRequest(new { error = "Sensitive telemetry field rejected." });
             store.Append(item);
+            await ProjectIntoWorkflowVisualizerAsync(item, operationalStore, ct);
             return Results.Accepted();
         });
 
