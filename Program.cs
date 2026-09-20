@@ -38,10 +38,12 @@ string Resolve(string key, string fallback)
 
 string configurationUrl = Resolve("Aegis:Configuration:Url", "http://localhost:5101").TrimEnd('/');
 string diagnosticsUrl = Resolve("Aegis:Diagnostics:Url", "http://localhost:5102").TrimEnd('/');
+string configurationPublicUrl = Resolve("Aegis:Configuration:PublicUrl", "https://config.ffpja.org").TrimEnd('/');
+string diagnosticsPublicUrl = Resolve("Aegis:Diagnostics:PublicUrl", "https://diagnostics.ffpja.org").TrimEnd('/');
 string site = Resolve("Operations:Site", "—");
 string environment = Resolve("Operations:Environment", "—");
 
-app.MapSuiteSecurity(configurationUrl, diagnosticsUrl);
+app.MapSuiteSecurity(configurationPublicUrl, diagnosticsPublicUrl);
 app.UseSuiteSecurity();
 app.MapOperationsEndpoints(configurationUrl, diagnosticsUrl, site, environment);
 app.MapLifecycleRegistrationProxy(configurationUrl);
