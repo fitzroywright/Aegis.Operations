@@ -54,7 +54,11 @@ internal static class OperationsEndpoints
         var registrationStore = new ControlPlaneRegistrationStore(registrationDirectory);
         ILogger registrationLogger = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("Aegis.Operations.Registration");
         string operationsInstanceId = app.Configuration["Operations:InstanceId"]?.Trim() ?? Environment.MachineName;
-        string operationsLocalUrl = (app.Configuration["Operations:LocalUrl"] ?? "http://127.0.0.1:5100").TrimEnd('/');
+        string operationsLocalUrl = AegisControlPlaneEndpoints.ResolveInternal(
+            app.Configuration,
+            AegisControlPlaneService.Operations,
+            registrationLogger,
+            configurationKey: "Operations:LocalUrl");
         string operationsCredentialFile = app.Configuration["Operations:RegistrationCredentialFile"]?.Trim()
             ?? Path.Combine(registrationDirectory, "operations.key");
 
