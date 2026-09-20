@@ -176,6 +176,7 @@ a{color:inherit;text-decoration:none}
   <div class="workspace-leg"></div>
   <nav class="workspace-nav">
     <a class="active" href="#overview">Command</a>
+    <a href="/activity">Engineering</a>
     <a href="#systems">Apps</a>
     <a href="#flow">Flows</a>
     <a href="#attention">Attention</a>
