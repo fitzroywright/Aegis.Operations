@@ -60,9 +60,9 @@ a{color:inherit;text-decoration:none}
 
 /* --- fixed TOP L: deliberately open on top/right --- */
 .lcars-top{position:fixed;left:8px;right:14px;top:8px;height:140px;z-index:20;background:#000}
-.lcars-top .left-vertical{position:absolute;left:0;top:0;width:58px;height:140px;background:var(--alpha-blue);border-radius:28px 0 0 28px}
+.lcars-top .left-vertical{position:absolute;left:0;top:0;width:58px;height:140px;background:var(--alpha-blue);border-radius:28px 0 18px 28px}
 .lcars-top .left-gold{display:none}
-.lcars-top .bottom-arm{position:absolute;left:58px;right:0;top:126px;height:14px;background:var(--alpha-blue);z-index:1;border-radius:0 9px 9px 0;box-shadow:none}
+.lcars-top .bottom-arm{position:absolute;left:58px;right:0;top:126px;height:14px;background:var(--alpha-blue);z-index:1;border-radius:0 9px 9px 14px;box-shadow:none}
 .lcars-top .join-dot{display:none}
 
 .brand{position:absolute;left:76px;top:8px;width:180px;height:82px;z-index:3}
@@ -87,8 +87,8 @@ a{color:inherit;text-decoration:none}
 
 /* --- fixed mirrored workspace L --- */
 .workspace-shell{position:fixed;left:8px;right:14px;top:156px;height:calc(100dvh - 166px);max-height:calc(100vh - 166px);min-height:0;overflow:hidden;z-index:10}
-.workspace-leg{position:absolute;left:0;top:0;bottom:0;width:96px;background:var(--alpha-blue);border-radius:28px 0 0 28px}
-.workspace-arm{position:absolute;left:96px;right:0;top:0;height:48px;background:var(--alpha-blue);display:flex;align-items:center;padding:0 14px;z-index:3;border-radius:0 9px 9px 0}
+.workspace-leg{position:absolute;left:0;top:0;bottom:0;width:96px;background:var(--alpha-blue);border-radius:28px 0 18px 28px}
+.workspace-arm{position:absolute;left:96px;right:0;top:0;height:48px;background:var(--alpha-blue);display:flex;align-items:center;padding:0 14px;z-index:3;border-radius:0 9px 9px 14px}
 .workspace-arm .workspace-title{font-weight:900;text-transform:uppercase;color:var(--night-cloud);letter-spacing:.055em;font-size:28px;line-height:1;padding:0 18px;background:transparent;text-shadow:none}
 .workspace-leg::before{display:none}
 .workspace-leg::after{display:none}
@@ -98,7 +98,7 @@ a{color:inherit;text-decoration:none}
 .workspace-nav a:last-child{border-bottom:0}
 .workspace-nav a.active{font-size:13px}
 
-.detail-scroll{position:absolute;left:96px;right:0;top:48px;bottom:0;min-height:0;max-height:calc(100% - 48px);overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;background:#000;padding:18px 22px 24px 24px;scrollbar-color:var(--salmon) #111}
+.detail-scroll{position:absolute;left:96px;right:0;top:48px;bottom:5px;min-height:0;max-height:calc(100% - 53px);overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;background:#000;padding:18px 22px 24px 24px;scrollbar-color:var(--salmon) #111}
 .detail-scroll::-webkit-scrollbar{width:10px}.detail-scroll::-webkit-scrollbar-track{background:#090909}.detail-scroll::-webkit-scrollbar-thumb{background:var(--salmon);border-radius:10px}
 
 /* --- current Operations content, intentionally inside the L only --- */
