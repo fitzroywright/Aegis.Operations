@@ -20,7 +20,71 @@ public sealed class OperationsLifecycleStore
     {
         lock (gate) return events.Take(Math.Clamp(take, 1, 1000)).ToArray();
     }
+
+    public IReadOnlyList<LifecycleJourneySnapshot> Journeys(int take = 100)
+    {
+        lock (gate)
+        {
+            return events
+                .GroupBy(x => new { x.ApplicationId, x.InstanceId, x.Flow, x.CorrelationId })
+                .Select(group =>
+                {
+                    LifecycleEvent[] ordered = group.OrderBy(x => x.OccurredAtUtc).ToArray();
+                    LifecycleEvent latest = ordered[^1];
+                    string health = latest.Outcome switch
+                    {
+                        LifecycleEventOutcome.Failed => "Failed",
+                        LifecycleEventOutcome.Warning => "Warning",
+                        LifecycleEventOutcome.Started => "Running",
+                        LifecycleEventOutcome.Skipped => "Skipped",
+                        _ => "Healthy"
+                    };
+                    return new LifecycleJourneySnapshot(
+                        latest.ApplicationId,
+                        latest.InstanceId,
+                        latest.Flow,
+                        latest.CorrelationId,
+                        latest.OperationId,
+                        latest.RelatedBusinessId,
+                        latest.Stage,
+                        latest.Outcome,
+                        health,
+                        ordered[0].OccurredAtUtc,
+                        latest.OccurredAtUtc,
+                        ordered.Select(x => new LifecycleJourneyStage(
+                            x.Stage,
+                            x.Outcome,
+                            x.OccurredAtUtc,
+                            x.Code,
+                            x.Detail)).ToArray());
+                })
+                .OrderByDescending(x => x.LastEventAtUtc)
+                .Take(Math.Clamp(take, 1, 500))
+                .ToArray();
+        }
+    }
 }
+
+public sealed record LifecycleJourneySnapshot(
+    string ApplicationId,
+    string InstanceId,
+    string Flow,
+    string CorrelationId,
+    string? OperationId,
+    string? RelatedBusinessId,
+    string CurrentStage,
+    LifecycleEventOutcome Outcome,
+    string Health,
+    DateTimeOffset StartedAtUtc,
+    DateTimeOffset LastEventAtUtc,
+    IReadOnlyList<LifecycleJourneyStage> Stages);
+
+public sealed record LifecycleJourneyStage(
+    string Stage,
+    LifecycleEventOutcome Outcome,
+    DateTimeOffset OccurredAtUtc,
+    string? Code,
+    string? Detail);
 
 public static class OperationsLifecycleEndpoints
 {
@@ -47,6 +111,19 @@ public static class OperationsLifecycleEndpoints
         {
             if (!(context.User?.Identity?.IsAuthenticated ?? false)) return Results.Unauthorized();
             return Results.Ok(store.Recent(take ?? 200));
+        });
+
+        app.MapGet("/api/operations/lifecycle/journeys", (
+            HttpContext context,
+            int? take,
+            OperationsLifecycleStore store) =>
+        {
+            if (!(context.User?.Identity?.IsAuthenticated ?? false)) return Results.Unauthorized();
+            return Results.Ok(new
+            {
+                generatedAtUtc = DateTimeOffset.UtcNow,
+                journeys = store.Journeys(take ?? 100)
+            });
         });
     }
 }
