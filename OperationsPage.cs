@@ -134,7 +134,7 @@ a{color:inherit;text-decoration:none}
   .live-log{left:410px;right:calc(225px + 50px + 14px)}
   .top-buttons{right:50px;width:225px}
 }
- .op-appicon{width:28px;height:28px;border-radius:7px;background:#173d58;border:1px solid #3f7ca3;display:grid;place-items:center;font:800 11px Arial,sans-serif;overflow:hidden;flex:none}.op-appicon img,.op-appicon>span{width:100%;height:100%;object-fit:contain;place-items:center} .sound-toggle{margin-left:auto;margin-right:14px;border:0;border-left:3px solid #000;background:#071018;color:var(--title-gold);height:26px;padding:0 10px;font:900 9px/26px Arial,sans-serif;letter-spacing:.08em;cursor:pointer;z-index:6}.sound-toggle:hover{background:#111d2a;color:var(--starship-white)}
+ .op-appicon{width:28px;height:28px;border-radius:7px;background:#173d58;border:1px solid #3f7ca3;display:grid;place-items:center;font:800 11px Arial,sans-serif;overflow:hidden;flex:none}.op-appicon img,.op-appicon>span{width:100%;height:100%;object-fit:contain;place-items:center} .sound-toggle{margin-left:10px;margin-right:14px;border:0;border-left:3px solid #000;background:#071018;color:var(--title-gold);height:26px;padding:0 10px;font:900 9px/26px Arial,sans-serif;letter-spacing:.08em;cursor:pointer;z-index:6}.sound-toggle:hover{background:#111d2a;color:var(--starship-white)}
 </style>
 </head>
 <body>
@@ -364,7 +364,7 @@ async function load(){
     const cfg=setPill('cfgStatus',summary.configuration), diag=setPill('diagStatus',summary.diagnostics);
     cfgReason.textContent=summary.configuration?.reason||summary.configuration?.url||'Configuration health endpoint responded.';
     diagReason.textContent=summary.diagnostics?.reason||summary.diagnostics?.url||'Diagnostics health endpoint responded.';
-    checked.textContent='LAST SCAN '+new Date(summary.checkedAt).toLocaleString();
+    checked.textContent='Last Scan: '+new Date(summary.checkedAt).toLocaleString();
 
     const attention=warnings+activeAlerts+(summary.registration?.attention??0)+(cfg.toLowerCase()==='healthy'?0:1)+(diag.toLowerCase()==='healthy'?0:1);
     const healthy=attention===0;
