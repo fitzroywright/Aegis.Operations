@@ -90,7 +90,6 @@ a{color:inherit;text-decoration:none}
 .workspace-leg{position:absolute;left:0;top:0;bottom:0;width:96px;background:var(--alpha-blue);border-radius:28px 0 0 28px}
 .workspace-arm{position:absolute;left:96px;right:0;top:0;height:48px;background:var(--alpha-blue);display:flex;align-items:center;padding:0 14px;z-index:3;border-radius:0 9px 9px 0}
 .workspace-arm .workspace-title{font-weight:900;text-transform:uppercase;color:var(--night-cloud);letter-spacing:.055em;font-size:28px;line-height:1;padding:0 18px;background:transparent;text-shadow:none}
-.workspace-arm .workspace-stamp{margin-left:auto;font-weight:900;text-transform:uppercase;color:#06111b;letter-spacing:.04em;font-size:18px;line-height:1;white-space:nowrap;text-align:right;padding-right:4px}
 .workspace-leg::before{display:none}
 .workspace-leg::after{display:none}
 
@@ -173,7 +172,6 @@ a{color:inherit;text-decoration:none}
 <section class="workspace-shell">
   <div class="workspace-arm">
     <div class="workspace-title">Operations Overview</div>
-    <div class="workspace-stamp" id="workspaceStamp">LAST SCAN —</div>
   </div>
   <div class="workspace-leg"></div>
   <nav class="workspace-nav">
@@ -326,9 +324,7 @@ async function load(){
     const cfg=setPill('cfgStatus',summary.configuration), diag=setPill('diagStatus',summary.diagnostics);
     cfgReason.textContent=summary.configuration?.reason||summary.configuration?.url||'Configuration health endpoint responded.';
     diagReason.textContent=summary.diagnostics?.reason||summary.diagnostics?.url||'Diagnostics health endpoint responded.';
-    const scanText='LAST SCAN '+new Date(summary.checkedAt).toLocaleString();
-    checked.textContent=scanText;
-    const ws=document.getElementById('workspaceStamp'); if(ws) ws.textContent=scanText;
+    checked.textContent='LAST SCAN '+new Date(summary.checkedAt).toLocaleString();
 
     const attention=warnings+activeAlerts+(summary.registration?.attention??0)+(cfg.toLowerCase()==='healthy'?0:1)+(diag.toLowerCase()==='healthy'?0:1);
     const healthy=attention===0;
@@ -347,7 +343,6 @@ async function load(){
 
   }catch(err){
     healthText.textContent='UNAVAILABLE';healthDot.style.background='var(--red)';
-    const ws=document.getElementById('workspaceStamp'); if(ws) ws.textContent='LAST SCAN UNAVAILABLE';
     document.title='Aegis LCARS · Operations · Telemetry Unavailable';
     addLog('ERR','Operations',err?.message??'Status telemetry unavailable');
   }
