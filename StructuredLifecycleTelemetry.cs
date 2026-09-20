@@ -64,7 +64,7 @@ public sealed class OperationsLifecycleStore
         }
     }
 
-    private static async Task ProjectIntoWorkflowVisualizerAsync(
+    internal static async Task ProjectIntoWorkflowVisualizerAsync(
         LifecycleEvent item,
         OperationsV1Store store,
         CancellationToken ct)
@@ -157,7 +157,7 @@ public static class OperationsLifecycleEndpoints
             if (LifecycleEvent.LooksSensitive(item.Code ?? string.Empty))
                 return Results.BadRequest(new { error = "Sensitive telemetry field rejected." });
             store.Append(item);
-            await ProjectIntoWorkflowVisualizerAsync(item, operationalStore, ct);
+            await OperationsLifecycleStore.ProjectIntoWorkflowVisualizerAsync(item, operationalStore, ct);
             return Results.Accepted();
         });
 
