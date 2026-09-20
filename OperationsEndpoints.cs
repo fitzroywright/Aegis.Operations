@@ -73,7 +73,8 @@ internal static class OperationsEndpoints
                         JsonObject contract = BuildOperationsContract(
                             operationsInstanceId,
                             site,
-                            environment);
+                            environment,
+                            app.Configuration);
 
                         using HttpClient registrationHttp = factory.CreateClient("ops");
                         var registration = new ControlPlaneRegistrationClient(
@@ -628,13 +629,20 @@ internal static class OperationsEndpoints
     private static JsonObject BuildOperationsContract(
         string instanceId,
         string site,
-        string environment)
+        string environment,
+        IConfiguration configuration)
     {
         return new JsonObject
         {
             ["applicationId"] = "Aegis.Operations",
             ["displayName"] = "Aegis Operations",
             ["version"] = typeof(OperationsEndpoints).Assembly.GetName().Version?.ToString() ?? "unknown",
+            ["presentation"] = new JsonObject
+            {
+                ["iconUrl"] = configuration["Aegis:Presentation:IconUrl"],
+                ["shortName"] = "Operations",
+                ["accent"] = configuration["Aegis:Presentation:Accent"] ?? "blue"
+            },
             ["siteId"] = site == "—" ? null : site,
             ["instanceId"] = instanceId,
             ["requirements"] = new JsonArray
