@@ -82,7 +82,8 @@ internal static class SuiteSecurityExtensions
              ctx.Request.Path.Equals("/api/operations/diagnostics/observe", StringComparison.OrdinalIgnoreCase) ||
              ctx.Request.Path.Equals("/api/operations/messaging/observe", StringComparison.OrdinalIgnoreCase) ||
              ctx.Request.Path.Equals("/api/operations/messages/trace", StringComparison.OrdinalIgnoreCase) ||
-             ctx.Request.Path.Equals("/api/operations/synchronization/observe", StringComparison.OrdinalIgnoreCase));
+             ctx.Request.Path.Equals("/api/operations/synchronization/observe", StringComparison.OrdinalIgnoreCase) ||
+             ctx.Request.Path.Equals("/api/operations/logs/observe", StringComparison.OrdinalIgnoreCase));
 
         bool machineActivityRead =
             HttpMethods.IsGet(ctx.Request.Method) &&
