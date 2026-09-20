@@ -18,7 +18,8 @@ builder.Services.AddSingleton(sp => new OperationsV1Store(
     sp.GetRequiredService<IConfiguration>()));
 builder.Services.AddSingleton(sp => new OperationsTelemetryAuthenticator(
     sp.GetRequiredService<IHttpClientFactory>(),
-    sp.GetRequiredService<IConfiguration>()));
+    sp.GetRequiredService<IConfiguration>(),
+    sp.GetRequiredService<ILogger<OperationsTelemetryAuthenticator>>()));
 
 WebApplication app = builder.Build();
 ILogger startupLogger = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("Aegis.Operations.Startup");
