@@ -83,11 +83,22 @@ internal static class SuiteSecurityExtensions
              ctx.Request.Path.Equals("/api/operations/messages/trace", StringComparison.OrdinalIgnoreCase) ||
              ctx.Request.Path.Equals("/api/operations/synchronization/observe", StringComparison.OrdinalIgnoreCase));
 
+        bool machineActivityRead =
+            HttpMethods.IsGet(ctx.Request.Method) &&
+            ctx.Request.Headers.ContainsKey("Authorization") &&
+            ctx.Request.Headers.ContainsKey("X-Aegis-Application-Id") &&
+            (ctx.Request.Path.Equals("/api/operations/activity", StringComparison.OrdinalIgnoreCase) ||
+             ctx.Request.Path.Equals("/api/operations/activity/filters", StringComparison.OrdinalIgnoreCase) ||
+             ctx.Request.Path.Equals("/api/operations/activity/flows", StringComparison.OrdinalIgnoreCase) ||
+             ctx.Request.Path.Equals("/api/operations/logs", StringComparison.OrdinalIgnoreCase) ||
+             ctx.Request.Path.Equals("/api/operations/logs/filters", StringComparison.OrdinalIgnoreCase));
+
         if(ctx.Request.Path.StartsWithSegments("/health")||
            ctx.Request.Path.StartsWithSegments("/login")||
            ctx.Request.Path.StartsWithSegments("/auth")||
            publicRegistrationEndpoint||
-           lifecycleAuthenticatedTelemetry)
+           lifecycleAuthenticatedTelemetry||
+           machineActivityRead)
         {
             await next();
             return;
