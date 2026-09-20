@@ -595,8 +595,57 @@ internal static class OperationsV1Endpoints
             return Results.Ok(safe);
         });
 
-        app.MapGet("/", (HttpContext context) => Results.Content(OperationsPage.Render(configurationUrl, diagnosticsUrl, site, environment, context.User?.Identity?.Name), "text/html; charset=utf-8"));
+        app.MapGet("/", (HttpContext context) => Results.Content(OperationsPage.Render(configurationUrl, diagnosticsUrl, site, environment, ResolveDisplayUser(context)), "text/html; charset=utf-8"));
         app.MapGet("/operations-v1", () => Results.Content(OperationsV1Page.Render(), "text/html; charset=utf-8"));
+    }
+
+    private static string? ResolveDisplayUser(HttpContext context)
+    {
+        string? claimName = context.User?.Identity?.Name;
+        if (!string.IsNullOrWhiteSpace(claimName))
+            return claimName;
+
+        string[] preferredClaimTypes =
+        [
+            "name",
+            "display_name",
+            "displayName",
+            "preferred_username",
+            "upn",
+            "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name"
+        ];
+
+        foreach (string claimType in preferredClaimTypes)
+        {
+            string? value = context.User?.Claims
+                .FirstOrDefault(c => c.Type.Equals(claimType, StringComparison.OrdinalIgnoreCase))
+                ?.Value;
+            if (!string.IsNullOrWhiteSpace(value))
+                return value;
+        }
+
+        if (context.Items.TryGetValue("SuiteIdentity", out object? identity) && identity is not null)
+        {
+            string[] propertyNames =
+            [
+                "DisplayName",
+                "Name",
+                "UserName",
+                "Username",
+                "SubjectId",
+                "UserId"
+            ];
+
+            Type identityType = identity.GetType();
+            foreach (string propertyName in propertyNames)
+            {
+                object? value = identityType.GetProperty(propertyName)?.GetValue(identity);
+                if (value is string text && !string.IsNullOrWhiteSpace(text))
+                    return text;
+            }
+        }
+
+        return null;
     }
 
     private static bool Contains(string? value, string q) =>
