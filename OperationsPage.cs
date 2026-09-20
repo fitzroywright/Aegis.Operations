@@ -64,22 +64,22 @@ a{color:inherit;text-decoration:none}
 .lcars-top .left-gold{display:none}
 .lcars-top .bottom-arm{position:absolute;left:58px;right:0;top:126px;height:14px;background:var(--alpha-blue);z-index:1;border-radius:0 9px 9px 0;box-shadow:none}
 .lcars-top .join-dot{display:none}
-.lcars-top::after{content:"";position:absolute;left:58px;top:112px;width:14px;height:14px;background:radial-gradient(circle at 0 100%,var(--alpha-blue) 0 13px,transparent 14px);z-index:4;pointer-events:none}
+.lcars-top::after{content:"";position:absolute;left:58px;top:112px;width:14px;height:14px;background:radial-gradient(circle at 0 100%,transparent 0 9px,var(--alpha-blue) 10px 14px);z-index:4;pointer-events:none}
 
 .brand{position:absolute;left:76px;top:8px;width:180px;height:82px;z-index:3}
 .brand .aegis{font-size:27px;line-height:1;color:var(--gold);font-weight:900;text-transform:uppercase}
 .brand .section{font-size:23px;line-height:1.05;color:var(--blue);font-weight:900;text-transform:uppercase;margin-top:5px}
 .brand .org{font-size:10px;color:var(--arctic-snow);font-weight:800;text-transform:uppercase;margin-top:5px;max-width:165px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
-.live-log{position:absolute;left:270px;top:10px;width:calc(100% - 861px);height:94px;overflow:hidden;font:15px/1.4 ui-monospace,SFMono-Regular,Consolas,monospace;padding:4px 14px;border-right:1px solid var(--line)}
+.live-log{position:absolute;left:270px;top:10px;right:570px;height:94px;overflow:hidden;font:15px/1.4 ui-monospace,SFMono-Regular,Consolas,monospace;padding:4px 14px;border-right:1px solid var(--line)}
 .live-log .row{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .live-log .t{color:var(--arctic-snow)}.live-log .inf{color:var(--green);font-weight:900}.live-log .wrn{color:var(--yellow);font-weight:900}.live-log .src{color:var(--cyan)}
 
-.current-system{position:absolute;right:285px;top:12px;width:300px;height:94px;border-right:1px solid var(--line);display:grid;grid-template-columns:58px 1fr;align-items:center;padding:0 16px}
+.current-system{position:absolute;right:265px;top:12px;width:290px;height:94px;border-right:1px solid var(--line);display:grid;grid-template-columns:58px 1fr;align-items:center;padding:0 16px}
 .wave{width:48px;height:48px;color:var(--blue);display:flex;align-items:center;justify-content:center}.wave svg{width:44px;height:44px;display:block;stroke:currentColor;fill:none;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
 .sys-meta strong{display:block;color:var(--gold);font-size:23px}.sys-meta span{display:block;font-size:14px}.health{display:flex;align-items:center;gap:9px;color:var(--green);font-size:18px;font-weight:900;margin-top:4px}.health i{width:19px;height:19px;border-radius:50%;background:var(--green)}
 
-.top-buttons{position:absolute;right:18px;top:18px;width:250px;height:72px;display:grid;grid-template-columns:1fr 1fr;gap:8px 10px;padding-left:12px;border-left:1px solid var(--line)}
+.top-buttons{position:absolute;right:0;top:18px;width:250px;height:72px;display:grid;grid-template-columns:1fr 1fr;gap:8px 10px;padding-left:12px;border-left:1px solid var(--line)}
 .top-buttons a,.top-buttons button{border:0;border-radius:8px;font-weight:900;text-transform:uppercase;color:#071018;cursor:pointer;font-size:12px;display:flex;align-items:center;justify-content:center;line-height:1;padding:0 8px;box-shadow:inset 0 1px 0 rgba(255,255,255,.28),0 1px 0 rgba(0,0,0,.55)}
 .top-buttons .gold{background:var(--gold)}.top-buttons .blue{background:var(--blue)}.top-buttons .salmon{background:var(--salmon)}.top-buttons .gray{background:var(--peach)}
 
@@ -88,10 +88,10 @@ a{color:inherit;text-decoration:none}
 .workspace-shell{position:fixed;left:8px;right:14px;top:156px;height:calc(100dvh - 166px);max-height:calc(100vh - 166px);min-height:0;overflow:hidden;z-index:10}
 .workspace-leg{position:absolute;left:0;top:0;bottom:0;width:96px;background:var(--alpha-blue);border-radius:28px 0 0 28px}
 .workspace-arm{position:absolute;left:96px;right:0;top:0;height:48px;background:var(--alpha-blue);display:flex;align-items:center;padding:0 14px;z-index:3;border-radius:0 9px 9px 0}
-.workspace-arm .workspace-title{height:100%;display:flex;align-items:center;font-weight:900;text-transform:uppercase;color:var(--night-cloud);letter-spacing:.055em;font-size:28px;line-height:1;padding:0 10px;background:none;border-left:6px solid #000;border-right:6px solid #000;box-shadow:none;text-shadow:none}
+.workspace-arm .workspace-title{height:100%;display:flex;align-items:center;font-weight:900;text-transform:uppercase;color:var(--night-cloud);letter-spacing:.055em;font-size:28px;line-height:1;padding:0 1ch;background:none;border-left:6px solid #000;border-right:6px solid #000;box-shadow:none;text-shadow:none}
 .workspace-leg::before{display:none}
 .workspace-leg::after{display:none}
-.workspace-shell::after{content:"";position:absolute;left:96px;top:48px;width:14px;height:14px;background:radial-gradient(circle at 0 0,var(--alpha-blue) 0 13px,transparent 14px);z-index:5;pointer-events:none}
+.workspace-shell::after{content:"";position:absolute;left:96px;top:48px;width:14px;height:14px;background:radial-gradient(circle at 0 0,transparent 0 9px,var(--alpha-blue) 10px 14px);z-index:5;pointer-events:none}
 
 .workspace-nav{position:absolute;left:0;top:72px;width:96px;z-index:2}
 .workspace-nav a{display:flex;align-items:center;height:48px;padding-left:11px;color:#071018;font-weight:900;text-transform:uppercase;font-size:12px;border-bottom:3px solid #000}
@@ -116,9 +116,9 @@ a{color:inherit;text-decoration:none}
 .flow-row{display:grid;grid-template-columns:180px 140px 1fr minmax(140px,auto);gap:12px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line-soft)}.flow-row:last-child{border-bottom:0}.lights{display:flex;gap:7px;align-items:center}.lights i{width:11px;height:11px;border-radius:50%;background:#53646f;display:block}.lights i.on{background:var(--green)}.lights i.warn{background:var(--yellow)}
 
 @media(max-width:1250px){
-  .live-log{width:calc(100% - 790px)}
-  .current-system{right:270px;width:250px}
-  .top-buttons{right:14px;width:235px}
+  .live-log{left:255px;right:520px}
+  .current-system{right:245px;width:250px}
+  .top-buttons{right:0;width:225px}
 }
 </style>
 </head>
