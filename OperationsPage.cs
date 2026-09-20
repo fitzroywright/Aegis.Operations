@@ -79,7 +79,7 @@ a{color:inherit;text-decoration:none}
 .brand .aegis{display:none}
 .brand .section{font-size:36px;line-height:1;color:var(--arctic-ice);font-weight:900;text-transform:uppercase;margin-top:10px}
 .brand .org{font-size:10px;color:var(--arctic-snow);font-weight:800;text-transform:uppercase;margin-top:5px;max-width:220px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.brand .datetime{margin-top:8px;font-weight:900;text-transform:uppercase;color:var(--arctic-ice);letter-spacing:.04em;font-size:14px;white-space:nowrap}
+.brand .datetime{margin-top:8px;font-weight:900;text-transform:uppercase;color:var(--arctic-ice);letter-spacing:.04em;font-size:14px;white-space:nowrap}.brand .brand-user{margin-top:4px;color:var(--arctic-snow);font:800 10px/1 Arial,sans-serif;letter-spacing:.04em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:260px}
 
 .live-log{position:absolute;left:470px;top:8px;right:calc(250px + 50px + var(--header-gap));height:108px;overflow:hidden;font:13px/1.35 ui-monospace,SFMono-Regular,Consolas,monospace;padding:0}
 .live-log .recent-title{display:flex;align-items:center;width:100%;height:18px;background:var(--title-gold);color:#071018;font:900 10px/18px Arial,sans-serif;letter-spacing:.12em;text-transform:uppercase;padding:0 8px;border-radius:3px 3px 0 0}
@@ -134,7 +134,7 @@ a{color:inherit;text-decoration:none}
   .live-log{left:410px;right:calc(225px + 50px + 14px)}
   .top-buttons{right:50px;width:225px}
 }
- .op-appicon{width:28px;height:28px;border-radius:7px;background:#173d58;border:1px solid #3f7ca3;display:grid;place-items:center;font:800 11px Arial,sans-serif;overflow:hidden;flex:none}.op-appicon img,.op-appicon>span{width:100%;height:100%;object-fit:contain;place-items:center} .sound-toggle{margin-left:10px;margin-right:14px;border:0;border-left:3px solid #000;background:#071018;color:var(--title-gold);height:26px;padding:0 10px;font:900 9px/26px Arial,sans-serif;letter-spacing:.08em;cursor:pointer;z-index:6}.sound-toggle:hover{background:#111d2a;color:var(--starship-white)}
+ .op-appicon{width:28px;height:28px;border-radius:7px;background:#173d58;border:1px solid #3f7ca3;display:grid;place-items:center;font:800 11px Arial,sans-serif;overflow:hidden;flex:none}.op-appicon img,.op-appicon>span{width:100%;height:100%;object-fit:contain;place-items:center} .sound-toggle{margin-left:10px;margin-right:14px;border:0;border-left:3px solid #000;background:#071018;color:var(--title-gold);width:34px;height:26px;padding:4px 7px;cursor:pointer;z-index:6;display:grid;place-items:center}.sound-toggle svg{width:18px;height:18px;fill:currentColor}.sound-toggle:hover{background:#111d2a;color:var(--starship-white)}.sound-toggle:hover{background:#111d2a;color:var(--starship-white)}
 </style>
 </head>
 <body>
@@ -148,7 +148,7 @@ a{color:inherit;text-decoration:none}
   <div class="brand">
     <div class="section">Operations</div>
     <div class="org">Food For The Poor Jamaica</div>
-    <div class="datetime" id="brandDateTime"></div>
+    <div class="datetime" id="brandDateTime"></div><div class="brand-user" id="brandUser">SIGNED IN</div>
   </div>
 
   <div class="live-log"><div class="recent-title">Recent Activity</div><div class="recent-rows" id="liveLog">
@@ -245,6 +245,8 @@ const detail=document.getElementById('detail');
 function recentStamp(v){const d=v?new Date(v):new Date();if(Number.isNaN(d.getTime()))return '--- -- ---- --:--:--';const mon=d.toLocaleString('en-US',{month:'short'});return mon+' '+String(d.getDate()).padStart(2,'0')+' '+d.getFullYear()+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')+':'+String(d.getSeconds()).padStart(2,'0')}
 function seedRecentTimestamps(){document.querySelectorAll('#liveLog .t').forEach(x=>{if(!x.textContent||x.textContent.includes('--:--:--'))x.textContent=recentStamp();});}
 seedRecentTimestamps();
+async function loadBrandUser(){try{const r=await fetch('/auth/me',{cache:'no-store'});if(!r.ok)return;const x=await r.json();const e=document.getElementById('brandUser');if(e)e.textContent=x.displayName||x.userName||'SIGNED IN';}catch{}}
+loadBrandUser();
 function updateBrandClock(){
   const d=new Date();
   const target=document.getElementById('brandDateTime');
@@ -415,7 +417,7 @@ function installAegisConsoleAudio(){
   const arm=document.querySelector('.workspace-arm');
   if(arm&&!document.getElementById('soundToggle')){
     const b=document.createElement('button');b.id='soundToggle';b.type='button';b.className='sound-toggle';
-    const paint=()=>{b.textContent=enabled()?'SOUND ON':'SOUND OFF';b.setAttribute('aria-pressed',String(enabled()))};paint();
+    const paint=()=>{b.innerHTML=enabled()?'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4zm11.5 3a3.5 3.5 0 0 0-1.5-2.87v5.74A3.5 3.5 0 0 0 15.5 12zm0-7.1v2.06a7 7 0 0 1 0 10.08v2.06a9 9 0 0 0 0-14.2z"/></svg>':'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4zm11.2.8 1.4 1.4 1.4-1.4 1.4 1.4-1.4 1.4 1.4 1.4-1.4 1.4-1.4-1.4-1.4 1.4-1.4-1.4 1.4-1.4-1.4-1.4 1.4-1.4z"/></svg>';b.title=enabled()?'Sound on':'Sound off';b.setAttribute('aria-label',b.title);b.setAttribute('aria-pressed',String(enabled()))};paint();
     b.onclick=()=>{localStorage.setItem(key,enabled()?'off':'on');paint();if(enabled())cues.success()};
     arm.appendChild(b);
   }
