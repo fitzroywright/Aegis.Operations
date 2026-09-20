@@ -62,15 +62,15 @@ a{color:inherit;text-decoration:none}
 .lcars-top{position:fixed;left:8px;right:14px;top:8px;height:146px;z-index:20;background:#000}
 .lcars-top .left-vertical{position:absolute;left:0;top:0;width:58px;height:140px;background:var(--alpha-blue);border-radius:28px 0 0 28px}
 .lcars-top .left-gold{display:none}
-.lcars-top .bottom-arm{position:absolute;left:58px;right:0;bottom:0;height:14px;background:var(--alpha-blue);border-radius:0 9px 9px 0;box-shadow:inset 0 1px 0 rgba(255,255,255,.16)}
+.lcars-top .bottom-arm{position:absolute;left:58px;right:0;bottom:0;height:14px;background:var(--alpha-blue);z-index:1;box-shadow:none}border-radius:0 9px 9px 0;box-shadow:inset 0 1px 0 rgba(255,255,255,.16)}
 .lcars-top .join-dot{display:none}
 
-.brand{position:absolute;left:70px;top:12px;width:195px;height:88px}
-.brand .aegis{font-size:28px;line-height:1;color:var(--gold);font-weight:900;text-transform:uppercase}
-.brand .section{font-size:24px;line-height:1.05;color:var(--blue);font-weight:900;text-transform:uppercase;margin-top:5px}
-.brand .org{font-size:12px;color:var(--cyan);font-weight:900;text-transform:uppercase;margin-top:8px}
+.brand{position:absolute;left:76px;top:8px;width:180px;height:82px;z-index:3}
+.brand .aegis{font-size:27px;line-height:1;color:var(--gold);font-weight:900;text-transform:uppercase}
+.brand .section{font-size:23px;line-height:1.05;color:var(--blue);font-weight:900;text-transform:uppercase;margin-top:5px}
+.brand .org{font-size:10px;color:var(--arctic-snow);font-weight:800;text-transform:uppercase;margin-top:5px;max-width:165px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
-.live-log{position:absolute;left:274px;top:10px;width:calc(100% - 865px);height:94px;overflow:hidden;font:15px/1.4 ui-monospace,SFMono-Regular,Consolas,monospace;padding:4px 14px;border-right:1px solid var(--line)}
+.live-log{position:absolute;left:270px;top:10px;width:calc(100% - 861px);height:94px;overflow:hidden;font:15px/1.4 ui-monospace,SFMono-Regular,Consolas,monospace;padding:4px 14px;border-right:1px solid var(--line)}
 .live-log .row{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .live-log .t{color:var(--arctic-snow)}.live-log .inf{color:var(--green);font-weight:900}.live-log .wrn{color:var(--yellow);font-weight:900}.live-log .src{color:var(--cyan)}
 
