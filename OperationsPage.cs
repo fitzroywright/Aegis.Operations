@@ -60,10 +60,10 @@ a{color:inherit;text-decoration:none}
 
 /* --- fixed TOP L: deliberately open on top/right --- */
 .lcars-top{position:fixed;left:8px;right:14px;top:8px;height:146px;z-index:20;background:#000}
-.lcars-top .left-vertical{position:absolute;left:0;top:0;width:58px;height:140px;background:var(--salmon);border-radius:28px 0 0 28px}
-.lcars-top .left-gold{position:absolute;left:58px;top:104px;width:214px;height:36px;background:var(--gold);border-radius:0 0 0 22px}
-.lcars-top .bottom-arm{position:absolute;left:272px;right:0;bottom:0;height:14px;background:var(--salmon);border-radius:0 9px 9px 0;box-shadow:inset 0 1px 0 rgba(255,255,255,.16)}
-.lcars-top .join-dot{position:absolute;left:274px;bottom:0;width:14px;height:14px;border-radius:50%;background:var(--gold);transform:translateX(-8px)}
+.lcars-top .left-vertical{position:absolute;left:0;top:0;width:58px;height:140px;background:var(--alpha-blue);border-radius:28px 0 0 28px}
+.lcars-top .left-gold{display:none}
+.lcars-top .bottom-arm{position:absolute;left:58px;right:0;bottom:0;height:14px;background:var(--alpha-blue);border-radius:0 9px 9px 0;box-shadow:inset 0 1px 0 rgba(255,255,255,.16)}
+.lcars-top .join-dot{display:none}
 
 .brand{position:absolute;left:70px;top:12px;width:195px;height:88px}
 .brand .aegis{font-size:28px;line-height:1;color:var(--gold);font-weight:900;text-transform:uppercase}
@@ -87,10 +87,10 @@ a{color:inherit;text-decoration:none}
 
 /* --- fixed mirrored workspace L --- */
 .workspace-shell{position:fixed;left:8px;right:14px;top:162px;bottom:92px;z-index:10}
-.workspace-arm{position:absolute;left:272px;right:0;top:0;height:14px;background:var(--salmon);border-radius:0 9px 9px 0;box-shadow:inset 0 1px 0 rgba(255,255,255,.16)}
-.workspace-leg{position:absolute;left:0;top:0;bottom:0;width:96px;background:var(--salmon);border-radius:28px 0 0 28px}
-.workspace-leg::before{content:"";position:absolute;left:58px;top:0;width:214px;height:32px;background:var(--gold);border-radius:0 0 0 22px}
-.workspace-leg::after{content:"";position:absolute;left:58px;bottom:0;width:142px;height:30px;background:var(--gold);border-radius:0 0 0 20px}
+.workspace-arm{position:absolute;left:96px;right:0;top:0;height:14px;background:var(--alpha-blue);border-radius:0 9px 9px 0;box-shadow:inset 0 1px 0 rgba(255,255,255,.16)}
+.workspace-leg{position:absolute;left:0;top:0;bottom:0;width:96px;background:var(--alpha-blue);border-radius:28px 0 0 28px}
+.workspace-leg::before{display:none}
+.workspace-leg::after{display:none}
 
 .workspace-nav{position:absolute;left:0;top:58px;width:96px;z-index:2}
 .workspace-nav a{display:flex;align-items:center;height:48px;padding-left:11px;color:#071018;font-weight:900;text-transform:uppercase;font-size:12px;border-bottom:3px solid #000}
