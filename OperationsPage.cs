@@ -28,257 +28,157 @@ internal static class OperationsPage
 <style>
 :root{
   --black:#000;
-  --ink:#05070b;
-  --lavender:#8d86f4;
-  --lavender-2:#7069df;
-  --gold:#ffbd3e;
-  --blue:#49a9ff;
-  --cyan:#30d7ff;
-  --green:#16df86;
-  --yellow:#ffc43d;
-  --red:#ff4d59;
+  --lav:#8f88f2;
+  --lav-dark:#736ce0;
+  --gold:#ffb83e;
+  --blue:#3da9ff;
+  --cyan:#24d5ff;
+  --green:#14df80;
+  --yellow:#ffc43b;
+  --red:#ff4d56;
   --white:#f4f7fb;
-  --muted:#aeb9c8;
+  --muted:#b5c2d0;
 }
 *{box-sizing:border-box}
-html,body{height:100%;margin:0;overflow:hidden;background:var(--black);color:var(--white);font-family:"Arial Narrow","Roboto Condensed","Segoe UI",Arial,sans-serif}
-body{display:grid;grid-template-rows:176px minmax(0,1fr) 84px;padding:10px 12px 8px;gap:8px}
+html,body{width:100%;height:100%;margin:0;overflow:hidden;background:#000;color:var(--white);font-family:"Arial Narrow","Roboto Condensed","Segoe UI",Arial,sans-serif}
+body{position:relative}
 a{color:inherit;text-decoration:none}
-button{font:inherit}
 
-/* TOP L */
-.top-l{
-  position:relative;
-  display:grid;
-  grid-template-columns:240px minmax(360px,1fr) 300px 330px 140px;
-  align-items:center;
-  gap:0;
-  min-width:0;
-  padding:10px 0 26px 66px;
-}
-.top-l::before{
-  content:"";
-  position:absolute;
-  left:0;
-  top:0;
-  bottom:20px;
-  width:64px;
-  background:var(--lavender);
-  border-radius:30px 0 0 30px;
-}
-.top-l::after{
-  content:"";
-  position:absolute;
-  left:54px;
-  right:0;
-  bottom:0;
-  height:18px;
-  background:var(--lavender);
-  border-radius:0 10px 10px 0;
-}
-.brand{
-  align-self:stretch;
-  display:flex;
-  flex-direction:column;
-  justify-content:center;
-  padding:0 16px;
-  border-bottom:18px solid var(--gold);
-}
-.brand strong{font-size:31px;line-height:1;letter-spacing:.2px;color:var(--gold);text-transform:uppercase}
-.brand b{font-size:27px;line-height:1.05;color:var(--blue);text-transform:uppercase}
-.brand small{margin-top:6px;color:var(--cyan);font-weight:800;text-transform:uppercase}
-.live-log{
-  min-width:0;
-  height:112px;
-  overflow:hidden;
-  padding:6px 14px;
-  font:15px/1.42 ui-monospace,SFMono-Regular,Consolas,monospace;
-  color:var(--cyan);
-  border-right:2px solid #1679a7;
-}
-.log-line{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.log-time{color:#aeb8ff}.log-level{display:inline-block;width:44px;font-weight:800}.log-level.inf{color:var(--green)}.log-level.wrn{color:var(--yellow)}.log-level.err{color:var(--red)}
-.system-block,.top-actions,.time-block{height:112px;display:flex;align-items:center}
-.system-block{gap:15px;padding:0 20px;border-right:2px solid #1679a7}
-.system-icon{font-size:48px;color:var(--blue)}
-.system-meta strong{display:block;font-size:22px;color:var(--gold)}
-.system-meta span{display:block;color:#d9dee8}
-.system-state{display:flex;align-items:center;gap:10px;margin-top:7px;color:var(--green);font-weight:800}
-.state-dot,.status-dot{width:18px;height:18px;border-radius:50%;background:var(--green);display:inline-block}
-.top-actions{padding:0 16px;border-right:2px solid #1679a7;display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.top-actions a,.top-actions button{
-  min-height:42px;border:0;border-radius:12px;padding:8px 12px;text-align:center;font-weight:900;text-transform:uppercase;color:#071018;cursor:pointer
-}
-.top-actions .primary{background:var(--gold)}
-.top-actions .blue{background:#4ca9ff}
-.top-actions .purple{background:#9a7ff2}
-.top-actions .more{background:#6d7e96}
-.time-block{padding-left:18px;display:block;text-align:right;color:var(--blue);font-weight:800}
-.time-block .date{font-size:18px}.time-block .time{font-size:31px;line-height:1.1}.time-block small{display:block;color:var(--cyan)}
+/* --- fixed TOP L: deliberately open on top/right --- */
+.lcars-top{position:fixed;left:8px;right:14px;top:10px;height:166px;z-index:20;background:#000}
+.lcars-top .left-vertical{position:absolute;left:0;top:0;width:58px;height:160px;background:var(--lav);border-radius:28px 0 0 28px}
+.lcars-top .left-gold{position:absolute;left:58px;top:118px;width:195px;height:42px;background:var(--gold);border-radius:0 0 0 22px}
+.lcars-top .bottom-arm{position:absolute;left:253px;right:0;bottom:0;height:18px;background:var(--lav);border-radius:0 9px 9px 0}
+.lcars-top .join-dot{position:absolute;left:255px;bottom:0;width:18px;height:18px;border-radius:50%;background:var(--gold);transform:translateX(-8px)}
 
-/* MIRRORED WORKSPACE L */
-.workspace-shell{
-  min-height:0;
-  display:grid;
-  grid-template-columns:110px minmax(0,1fr);
-  grid-template-rows:18px minmax(0,1fr);
-  position:relative;
-}
-.workspace-arm{
-  grid-column:1/3;
-  grid-row:1;
-  margin-left:54px;
-  background:var(--lavender);
-  border-radius:0 10px 10px 0;
-  z-index:2;
-}
-.workspace-leg{
-  grid-column:1;
-  grid-row:1/3;
-  background:var(--lavender);
-  border-radius:28px 0 0 28px;
-  padding-top:72px;
-  overflow:hidden;
-  z-index:1;
-}
-.workspace-leg nav{display:flex;flex-direction:column}
-.workspace-leg a{
-  display:flex;
-  align-items:center;
-  min-height:48px;
-  padding:0 12px;
-  color:#081020;
-  font-weight:900;
-  font-size:15px;
-  text-transform:uppercase;
-}
-.workspace-leg a + a{border-top:3px solid #000}
-.workspace-leg a.active{color:#000;font-size:16px}
-.detail-scroll{
-  grid-column:2;
-  grid-row:2;
-  min-width:0;
-  min-height:0;
-  overflow-y:auto;
-  overflow-x:hidden;
-  overscroll-behavior:contain;
-  scrollbar-color:var(--lavender) #111;
-  padding:22px 22px 40px;
-  background:#000;
-}
-.detail-scroll::-webkit-scrollbar{width:10px}.detail-scroll::-webkit-scrollbar-track{background:#090909}.detail-scroll::-webkit-scrollbar-thumb{background:var(--lavender);border-radius:10px}
-.page-head{display:flex;justify-content:space-between;gap:24px;align-items:flex-start;margin-bottom:18px}
-.page-head h1{margin:0;color:var(--blue);font-size:34px}
-.page-head p{margin:2px 0 0;color:#c8d2df;font-size:16px}
-.scan-note{color:var(--cyan);text-align:right}
-.metrics{display:grid;grid-template-columns:repeat(5,minmax(130px,1fr));gap:12px;margin-bottom:18px}
-.metric{padding:14px 14px 12px;border-top:2px solid #174f72;min-height:98px}
-.metric b{display:block;font-size:28px;color:var(--cyan)}.metric small{color:var(--muted)}.metric.good b{color:var(--green)}.metric.warn b{color:var(--yellow)}.metric.bad b{color:var(--red)}
-.workspace{display:grid;grid-template-columns:1fr 1fr;gap:16px}
-.panel{border-top:2px solid #18597f;padding:15px 0 8px;min-height:250px}
-.panelhead{display:flex;align-items:center;gap:12px;margin-bottom:12px}
-.panelhead h2{margin:0;font-size:24px;color:var(--blue)}.panelhead p{margin:2px 0;color:#c7d4e1}
-.pill{margin-left:auto;border:1px solid currentColor;border-radius:12px;padding:5px 9px;font-weight:800}.available{color:var(--green)}.unavailable{color:var(--red)}
-.facts{display:grid;grid-template-columns:repeat(2,1fr);gap:0}.facts div{padding:10px 12px 10px 0;border-bottom:1px solid #173848}.facts small,.facts b{display:block}.facts small{color:var(--muted)}
-.action{display:inline-block;margin-top:20px;color:var(--blue);font-weight:900;text-transform:uppercase}
-.activity,.journeys{margin-top:18px;border-top:2px solid #18597f;padding-top:12px}
-.activity header,.journeys header{font-size:20px;color:var(--blue);font-weight:900}
-.activityrow{display:grid;grid-template-columns:18px 180px 1fr;gap:10px;padding:10px 0;border-bottom:1px solid #122f3f}
-.dot{width:12px;height:12px;border-radius:50%;background:var(--green)}
-.journey{display:grid;grid-template-columns:190px 150px 1fr 100px;gap:12px;align-items:center;padding:10px 0;border-bottom:1px solid #173f58}
-.track{display:flex;gap:7px}.light{width:12px;height:12px;border-radius:50%;background:#52636f}.light.ok{background:var(--green)}.light.warn{background:var(--yellow)}.light.fail{background:var(--red)}
-.health.Healthy{color:var(--green)}.health.Warning,.health.Running{color:var(--yellow)}.health.Failed{color:var(--red)}
+.brand{position:absolute;left:70px;top:14px;width:180px;height:100px}
+.brand .aegis{font-size:31px;line-height:1;color:var(--gold);font-weight:900;text-transform:uppercase}
+.brand .section{font-size:28px;line-height:1.05;color:var(--blue);font-weight:900;text-transform:uppercase;margin-top:5px}
+.brand .org{font-size:12px;color:var(--cyan);font-weight:900;text-transform:uppercase;margin-top:8px}
 
-/* FIXED FOOTER */
-.lcars-footer{
-  display:grid;
-  grid-template-columns:220px 285px 235px 1fr 155px 170px 60px;
-  align-items:center;
-  min-width:0;
-  height:72px;
-  border:10px solid #5d9cf5;
-  border-radius:22px 0 0 22px;
-  border-right:48px solid var(--gold);
-  color:var(--white);
-  background:#03070b;
-}
-.footer-link{height:100%;display:flex;align-items:center;gap:12px;padding:0 18px;border-right:2px solid #1b789f}
-.footer-link strong{display:block;color:var(--blue);font-size:17px;text-transform:uppercase}.footer-link small{display:block;color:var(--cyan);text-transform:uppercase}
-.footer-link.active{box-shadow:inset 0 0 0 2px #19a7ff;border-radius:14px}
-.footer-icon{font-size:29px;color:var(--blue)}
-.footer-status{height:100%;display:flex;align-items:center;justify-content:center;gap:18px;border-right:2px solid #1b789f;color:var(--cyan)}
-.footer-status span{display:flex;align-items:center;gap:7px;white-space:nowrap}.footer-status .status-dot{width:16px;height:16px}.footer-status .warn{background:var(--yellow)}.footer-status .bad{background:var(--red)}
-.footer-env,.footer-user,.footer-logout{height:100%;display:flex;align-items:center;justify-content:center;border-right:2px solid #1b789f}
-.footer-env{color:var(--blue);font-weight:900}.footer-user{gap:10px}.footer-user b{display:block}.footer-user small{color:#b9c6d4}.footer-logout{font-size:26px;color:var(--blue)}
-.footer-meta{position:absolute;left:54px;bottom:0;font-size:11px;color:#9cb3c6}
-.footer-motto{position:absolute;right:78px;bottom:0;font-size:12px;color:#cfd8e3}
-.footer-wrap{position:relative;height:84px;padding-bottom:12px}
+.live-log{position:absolute;left:255px;top:13px;width:calc(100% - 900px);height:108px;overflow:hidden;font:15px/1.4 ui-monospace,SFMono-Regular,Consolas,monospace;padding:2px 10px;border-right:2px solid #0c6e97}
+.live-log .row{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.live-log .t{color:#c8c9ff}.live-log .inf{color:var(--green);font-weight:900}.live-log .wrn{color:var(--yellow);font-weight:900}.live-log .src{color:var(--cyan)}
 
-@media(max-width:1100px){
-  body{grid-template-rows:154px minmax(0,1fr) 84px}
-  .top-l{grid-template-columns:190px 1fr 240px 280px;padding-left:56px}
-  .time-block{display:none}.brand strong{font-size:24px}.brand b{font-size:22px}
-  .metrics{grid-template-columns:repeat(3,1fr)}
-  .workspace{grid-template-columns:1fr}
-  .lcars-footer{grid-template-columns:1fr 1fr 1fr 1.3fr}.footer-env,.footer-user,.footer-logout{display:none}
+.current-system{position:absolute;right:515px;top:15px;width:290px;height:106px;border-right:2px solid #0c6e97;display:grid;grid-template-columns:58px 1fr;align-items:center;padding:0 16px}
+.wave{font-size:47px;color:var(--blue);line-height:1}
+.sys-meta strong{display:block;color:var(--gold);font-size:23px}.sys-meta span{display:block;font-size:14px}.health{display:flex;align-items:center;gap:9px;color:var(--green);font-size:18px;font-weight:900;margin-top:4px}.health i{width:19px;height:19px;border-radius:50%;background:var(--green)}
+
+.top-buttons{position:absolute;right:158px;top:18px;width:340px;height:102px;display:grid;grid-template-columns:1fr 1fr;gap:10px 12px;padding-left:16px;border-right:2px solid #0c6e97}
+.top-buttons a,.top-buttons button{border:0;border-radius:10px;font-weight:900;text-transform:uppercase;color:#071018;cursor:pointer;font-size:13px}
+.top-buttons .gold{background:var(--gold)}.top-buttons .blue{background:#53aaf4}.top-buttons .purple{background:#9a85ef}.top-buttons .gray{background:#6b7d94}
+
+.clock{position:absolute;right:0;top:15px;width:145px;text-align:right;color:var(--blue);font-weight:900}
+.clock .date{font-size:16px}.clock .time{font-size:30px;line-height:1}.clock small{display:block;color:var(--cyan);font-size:12px;margin-top:4px}
+
+/* --- fixed mirrored workspace L --- */
+.workspace-shell{position:fixed;left:8px;right:14px;top:184px;bottom:108px;z-index:10}
+.workspace-arm{position:absolute;left:253px;right:0;top:0;height:18px;background:var(--lav);border-radius:0 9px 9px 0}
+.workspace-leg{position:absolute;left:0;top:0;bottom:0;width:78px;background:var(--lav);border-radius:28px 0 0 28px}
+.workspace-leg::before{content:"";position:absolute;left:58px;top:0;width:195px;height:36px;background:var(--gold);border-radius:0 0 0 22px}
+.workspace-leg::after{content:"";position:absolute;left:58px;bottom:0;width:130px;height:34px;background:var(--gold);border-radius:0 0 0 20px}
+
+.workspace-nav{position:absolute;left:0;top:73px;width:78px;z-index:2}
+.workspace-nav a{display:flex;align-items:center;height:58px;padding-left:12px;color:#071018;font-weight:900;text-transform:uppercase;font-size:12px;border-bottom:3px solid #000}
+.workspace-nav a:last-child{border-bottom:0}
+.workspace-nav a.active{font-size:13px}
+
+.detail-scroll{position:absolute;left:78px;right:0;top:18px;bottom:0;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;background:#000;padding:26px 28px 44px 32px;scrollbar-color:var(--lav) #111}
+.detail-scroll::-webkit-scrollbar{width:10px}.detail-scroll::-webkit-scrollbar-track{background:#090909}.detail-scroll::-webkit-scrollbar-thumb{background:var(--lav);border-radius:10px}
+
+/* --- current Operations content, intentionally inside the L only --- */
+.page-head{display:flex;justify-content:space-between;align-items:flex-start;gap:20px;margin-bottom:16px}
+.page-head h1{margin:0;color:var(--blue);font-size:31px}.page-head p{margin:4px 0 0;color:#cad4df}
+.scan{color:var(--cyan);text-align:right}
+.metrics{display:grid;grid-template-columns:repeat(5,minmax(120px,1fr));gap:14px;margin:10px 0 22px}
+.metric{padding:12px 12px 14px;border-top:2px solid #174f72}.metric b{display:block;font-size:29px;color:var(--cyan)}.metric small{color:var(--muted)}.metric.good b{color:var(--green)}.metric.warn b{color:var(--yellow)}
+.content-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.panel{border-top:2px solid #174f72;padding-top:15px;min-height:250px}.panel h2{margin:0;color:var(--blue)}.panel p{color:var(--muted)}
+.status-pill{display:inline-block;padding:4px 9px;border:1px solid;border-radius:12px;font-weight:900}.ok{color:var(--green)}.bad{color:var(--red)}
+.facts{display:grid;grid-template-columns:1fr 1fr;margin-top:12px}.facts div{padding:9px 12px 9px 0;border-bottom:1px solid #173747}.facts small,.facts b{display:block}.facts small{color:var(--muted)}
+.activity,.flow{margin-top:22px;border-top:2px solid #174f72;padding-top:12px}.activity h2,.flow h2{color:var(--blue);margin:0 0 10px}
+.activity-row{display:grid;grid-template-columns:16px 170px 1fr;gap:10px;padding:10px 0;border-bottom:1px solid #122f3e}.dot{width:12px;height:12px;border-radius:50%;background:var(--green)}
+.flow-row{display:grid;grid-template-columns:180px 140px 1fr 90px;gap:12px;align-items:center;padding:10px 0;border-bottom:1px solid #122f3e}.lights{display:flex;gap:7px}.lights i{width:11px;height:11px;border-radius:50%;background:#53646f}.lights i.on{background:var(--green)}.lights i.warn{background:var(--yellow)}
+
+/* --- fixed footer copied from approved shell geometry --- */
+.footer-wrap{position:fixed;left:8px;right:14px;bottom:8px;height:92px;z-index:30}
+.footer-bar{position:absolute;left:0;right:0;top:0;height:70px;border:9px solid #5da0f5;border-right:48px solid var(--gold);border-radius:22px 0 0 22px;background:#02060a;display:grid;grid-template-columns:225px 285px 235px 1fr 150px 170px 58px;align-items:center;overflow:hidden}
+.footer-item{height:100%;display:flex;align-items:center;gap:12px;padding:0 18px;border-right:2px solid #14759d}
+.footer-item strong{display:block;color:var(--blue);font-size:16px;text-transform:uppercase}.footer-item small{display:block;color:var(--cyan);font-size:10px;text-transform:uppercase}.footer-icon{font-size:28px;color:var(--blue)}
+.footer-status{display:flex;align-items:center;justify-content:center;gap:18px;height:100%;border-right:2px solid #14759d;color:var(--cyan);font-size:12px}.footer-status span{display:flex;gap:6px;align-items:center;white-space:nowrap}.footer-status i{width:16px;height:16px;border-radius:50%;background:var(--green)}.footer-status .warn{background:var(--yellow)}.footer-status .crit{background:var(--red)}
+.footer-env,.footer-user,.footer-logout{height:100%;display:flex;align-items:center;justify-content:center;border-right:2px solid #14759d}.footer-env{color:var(--blue);font-weight:900}.footer-user{gap:8px}.footer-user small{display:block;color:#b9c4d0}.footer-logout{font-size:24px;color:var(--blue)}
+.footer-meta{position:absolute;left:50px;bottom:0;color:#aebdca;font-size:11px}.footer-motto{position:absolute;right:72px;bottom:0;color:#cdd7e1;font-size:12px}
+
+@media(max-width:1250px){
+  .live-log{width:calc(100% - 790px)}
+  .current-system{right:450px;width:250px}
+  .top-buttons{right:145px;width:295px}
+  .footer-bar{grid-template-columns:190px 235px 200px 1fr 130px}.footer-user,.footer-logout{display:none}
 }
 </style>
 </head>
 <body>
-<header class="top-l">
+
+<header class="lcars-top">
+  <div class="left-vertical"></div>
+  <div class="left-gold"></div>
+  <div class="bottom-arm"></div>
+  <div class="join-dot"></div>
+
   <div class="brand">
-    <strong>Aegis LCARS</strong>
-    <b>Operations</b>
-    <small>Food For The Poor Jamaica</small>
+    <div class="aegis">Aegis LCARS</div>
+    <div class="section">Operations</div>
+    <div class="org">Food For The Poor Jamaica</div>
   </div>
+
   <div class="live-log" id="liveLog">
-    <div class="log-line"><span class="log-time">--:--:--</span> <span class="log-level inf">INF</span> [Operations] Initializing management-plane status</div>
-    <div class="log-line"><span class="log-time">--:--:--</span> <span class="log-level inf">INF</span> [Configuration] Waiting for current status</div>
-    <div class="log-line"><span class="log-time">--:--:--</span> <span class="log-level inf">INF</span> [Diagnostics] Waiting for current status</div>
-    <div class="log-line"><span class="log-time">--:--:--</span> <span class="log-level inf">INF</span> [Registration] Waiting for current status</div>
-    <div class="log-line"><span class="log-time">--:--:--</span> <span class="log-level inf">INF</span> [Operations] Ready</div>
+    <div class="row"><span class="t">--:--:--</span> <span class="inf">INF</span> <span class="src">[Operations]</span> Loading control-plane state</div>
+    <div class="row"><span class="t">--:--:--</span> <span class="inf">INF</span> <span class="src">[Configuration]</span> Awaiting status</div>
+    <div class="row"><span class="t">--:--:--</span> <span class="inf">INF</span> <span class="src">[Diagnostics]</span> Awaiting status</div>
+    <div class="row"><span class="t">--:--:--</span> <span class="inf">INF</span> <span class="src">[Registration]</span> Awaiting status</div>
+    <div class="row"><span class="t">--:--:--</span> <span class="inf">INF</span> <span class="src">[Operations]</span> Ready</div>
   </div>
-  <div class="system-block">
-    <div class="system-icon">⌁</div>
-    <div class="system-meta">
+
+  <div class="current-system">
+    <div class="wave">⌁</div>
+    <div class="sys-meta">
       <strong>Aegis.Operations</strong>
-      <span>v__VERSION__ · __ENVIRONMENT__</span>
+      <span>v__VERSION__ | __ENVIRONMENT__</span>
       <span>__SITE__</span>
-      <div class="system-state"><i class="state-dot" id="topStateDot"></i><span id="topStateText">SCANNING</span></div>
+      <div class="health"><i id="healthDot"></i><span id="healthText">SCANNING</span></div>
     </div>
   </div>
-  <div class="top-actions">
-    <button class="primary" onclick="load()">Refresh</button>
+
+  <div class="top-buttons">
+    <button class="gold" onclick="load()">Refresh</button>
     <a class="blue" href="__CONFIGURATION_URL__">Config</a>
     <a class="purple" href="__DIAGNOSTICS_URL__">Diagnostics</a>
-    <a class="more" href="/registration-lifecycle">Registration</a>
+    <a class="gray" href="/registration-lifecycle">More</a>
   </div>
-  <div class="time-block">
+
+  <div class="clock">
     <div class="date" id="date"></div>
     <div class="time" id="time"></div>
-    <small id="timezone"></small>
+    <small>JAMAICA (EST)</small>
+    <small>UTC-05:00</small>
   </div>
 </header>
 
 <section class="workspace-shell">
-  <div class="workspace-arm" aria-hidden="true"></div>
-  <aside class="workspace-leg">
-    <nav>
-      <a class="active" href="#overview">Overview</a>
-      <a href="#systems">Systems</a>
-      <a href="#activity">Activity</a>
-      <a href="#flow">Flow</a>
-      <a href="#settings">Settings</a>
-    </nav>
-  </aside>
+  <div class="workspace-arm"></div>
+  <div class="workspace-leg"></div>
+  <nav class="workspace-nav">
+    <a class="active" href="#overview">Overview</a>
+    <a href="#systems">Systems</a>
+    <a href="#activity">Activity</a>
+    <a href="#flow">Flow</a>
+    <a href="#settings">Settings</a>
+  </nav>
 
-  <main class="detail-scroll" id="detailWorkspace">
-    <section id="overview" class="page-head">
-      <div>
-        <h1>Operations Overview</h1>
-        <p>Integrated operational status across the Aegis management plane</p>
-      </div>
-      <div class="scan-note">Detail workspace scrolls independently<br><span id="checked">SCANNING</span></div>
+  <main class="detail-scroll" id="detail">
+    <section class="page-head" id="overview">
+      <div><h1>Operations Overview</h1><p>Integrated operational status across the Aegis management plane</p></div>
+      <div class="scan" id="checked">SCANNING</div>
     </section>
 
     <section class="metrics">
@@ -289,156 +189,86 @@ button{font:inherit}
       <div class="metric"><b>__ENVIRONMENT__</b><small>Environment</small></div>
     </section>
 
-    <section id="systems" class="workspace">
+    <section class="content-grid" id="systems">
       <article class="panel">
-        <div class="panelhead">
-          <div><h2>System Configuration</h2><p>Requirements · commissioning · runbooks</p></div>
-          <span id="cfgStatus" class="pill">SCANNING</span>
-        </div>
-        <div class="facts">
-          <div><small>Service</small><b>Aegis.Configuration</b></div>
-          <div><small>Role</small><b>Configuration Authority</b></div>
-          <div><small>Site</small><b>__SITE__</b></div>
-          <div><small>Environment</small><b>__ENVIRONMENT__</b></div>
-        </div>
-        <a class="action" href="__CONFIGURATION_URL__">Open System Configuration →</a>
+        <h2>System Configuration</h2><p>Requirements · commissioning · runbooks</p>
+        <span id="cfgStatus" class="status-pill">SCANNING</span>
+        <div class="facts"><div><small>Service</small><b>Aegis.Configuration</b></div><div><small>Role</small><b>Configuration Authority</b></div><div><small>Site</small><b>__SITE__</b></div><div><small>Environment</small><b>__ENVIRONMENT__</b></div></div>
       </article>
-
       <article class="panel">
-        <div class="panelhead">
-          <div><h2>System Diagnostics</h2><p>Health · incidents · engineering levels</p></div>
-          <span id="diagStatus" class="pill">SCANNING</span>
-        </div>
-        <div class="facts">
-          <div><small>Service</small><b>Aegis.Diagnostics</b></div>
-          <div><small>Role</small><b>Health Authority</b></div>
-          <div><small>Site</small><b>__SITE__</b></div>
-          <div><small>Environment</small><b>__ENVIRONMENT__</b></div>
-        </div>
-        <a class="action" href="__DIAGNOSTICS_URL__">Open System Diagnostics →</a>
+        <h2>System Diagnostics</h2><p>Health · incidents · engineering levels</p>
+        <span id="diagStatus" class="status-pill">SCANNING</span>
+        <div class="facts"><div><small>Service</small><b>Aegis.Diagnostics</b></div><div><small>Role</small><b>Health Authority</b></div><div><small>Site</small><b>__SITE__</b></div><div><small>Environment</small><b>__ENVIRONMENT__</b></div></div>
       </article>
     </section>
 
-    <section id="activity" class="activity">
-      <header>Operational Activity</header>
-      <div class="activityrow"><i class="dot"></i><span id="activityChecked">SCANNING</span><b>Management-plane status refresh</b></div>
+    <section class="activity" id="activity">
+      <h2>Operational Activity</h2>
+      <div class="activity-row"><i class="dot"></i><span id="activityChecked">SCANNING</span><b>Management-plane status refresh</b></div>
     </section>
 
-    <section id="flow" class="journeys">
-      <header>Lifecycle / Flow Analyzer</header>
-      <div class="journey"><b>Operations</b><small>Management Plane</small><div class="track"><i class="light ok"></i><i class="light ok"></i><i class="light"></i><i class="light"></i></div><span class="health Healthy">Healthy</span></div>
-      <div class="journey"><b>Configuration</b><small>Registration</small><div class="track"><i class="light ok"></i><i class="light ok"></i><i class="light ok"></i><i class="light"></i></div><span id="cfgJourney" class="health Running">Scanning</span></div>
-      <div class="journey"><b>Diagnostics</b><small>Health</small><div class="track"><i class="light ok"></i><i class="light ok"></i><i class="light"></i><i class="light"></i></div><span id="diagJourney" class="health Running">Scanning</span></div>
+    <section class="flow" id="flow">
+      <h2>Flow Analyzer</h2>
+      <div class="flow-row"><b>Operations</b><span>Management Plane</span><div class="lights"><i class="on"></i><i class="on"></i><i></i><i></i></div><span class="ok">Healthy</span></div>
+      <div class="flow-row"><b>Configuration</b><span>Registration</span><div class="lights"><i class="on"></i><i class="on"></i><i class="on"></i><i></i></div><span id="cfgJourney">Scanning</span></div>
+      <div class="flow-row"><b>Diagnostics</b><span>Health</span><div class="lights"><i class="on"></i><i class="on"></i><i></i><i></i></div><span id="diagJourney">Scanning</span></div>
     </section>
 
-    <section id="settings" class="activity">
-      <header>Shell Behavior</header>
-      <div class="activityrow"><i class="dot"></i><span>FIXED</span><b>Top LCARS L remains fixed</b></div>
-      <div class="activityrow"><i class="dot"></i><span>FIXED</span><b>Workspace L and navigation remain fixed</b></div>
-      <div class="activityrow"><i class="dot"></i><span>SCROLL</span><b>Only this detail workspace scrolls</b></div>
-      <div class="activityrow"><i class="dot"></i><span>FIXED</span><b>Footer remains visible</b></div>
+    <section class="activity" id="settings">
+      <h2>Shell Behavior</h2>
+      <div class="activity-row"><i class="dot"></i><span>FIXED</span><b>Top L stays fixed</b></div>
+      <div class="activity-row"><i class="dot"></i><span>FIXED</span><b>Lavender workspace L stays fixed</b></div>
+      <div class="activity-row"><i class="dot"></i><span>SCROLL</span><b>Only this black detail workspace scrolls</b></div>
+      <div class="activity-row"><i class="dot"></i><span>FIXED</span><b>Footer stays fixed</b></div>
     </section>
   </main>
 </section>
 
 <div class="footer-wrap">
-  <footer class="lcars-footer">
-    <a class="footer-link active" href="/">
-      <span class="footer-icon">◎</span><span><strong>Operations</strong><small>Monitor · Deploy · Manage</small></span>
-    </a>
-    <a class="footer-link" href="__CONFIGURATION_URL__">
-      <span class="footer-icon">⚙</span><span><strong>Configuration</strong><small>Settings · Secrets · Registration</small></span>
-    </a>
-    <a class="footer-link" href="__DIAGNOSTICS_URL__">
-      <span class="footer-icon">⌁</span><span><strong>Diagnostics</strong><small>Health · Logs · Analysis</small></span>
-    </a>
-    <div class="footer-status">
-      <span><i class="status-dot"></i><b id="footerNominal">All Systems Nominal</b></span>
-      <span><i class="status-dot warn"></i><b id="footerWarnings">0 Warnings</b></span>
-      <span><i class="status-dot bad"></i><b>0 Critical</b></span>
-    </div>
+  <footer class="footer-bar">
+    <a class="footer-item" href="/"><span class="footer-icon">◎</span><span><strong>Operations</strong><small>Monitor · Deploy · Manage</small></span></a>
+    <a class="footer-item" href="__CONFIGURATION_URL__"><span class="footer-icon">⚙</span><span><strong>Configuration</strong><small>Settings · Secrets · Registration</small></span></a>
+    <a class="footer-item" href="__DIAGNOSTICS_URL__"><span class="footer-icon">⌁</span><span><strong>Diagnostics</strong><small>Health · Logs · Analysis</small></span></a>
+    <div class="footer-status"><span><i></i><b id="nominal">All Systems Nominal</b></span><span><i class="warn"></i><b id="warnings">0 Warnings</b></span><span><i class="crit"></i><b>0 Critical</b></span></div>
     <div class="footer-env">__ENVIRONMENT__⌄</div>
-    <div class="footer-user"><span class="footer-icon">♟</span><span><b>Operator</b><small>Authenticated User</small></span></div>
+    <div class="footer-user"><span class="footer-icon">♟</span><span><b>FWright</b><small>IT Manager</small></span></div>
     <div class="footer-logout">⇥</div>
   </footer>
-  <div class="footer-meta">Aegis LCARS v__VERSION__ &nbsp;|&nbsp; Food For The Poor Jamaica</div>
+  <div class="footer-meta">Aegis LCARS v__VERSION__ | Food For The Poor Jamaica</div>
   <div class="footer-motto">Own what makes us different.</div>
 </div>
 
 <script>
-const detail=document.getElementById('detailWorkspace');
-document.querySelectorAll('.workspace-leg a').forEach(a=>a.addEventListener('click',e=>{
-  const id=a.getAttribute('href');
-  if(!id?.startsWith('#')) return;
-  e.preventDefault();
-  const target=document.querySelector(id);
-  if(target) detail.scrollTo({top:target.offsetTop-20,behavior:'smooth'});
-  document.querySelectorAll('.workspace-leg a').forEach(x=>x.classList.remove('active'));
-  a.classList.add('active');
+const detail=document.getElementById('detail');
+document.querySelectorAll('.workspace-nav a').forEach(a=>a.addEventListener('click',e=>{
+  const id=a.getAttribute('href'); if(!id?.startsWith('#')) return; e.preventDefault();
+  const target=document.querySelector(id); if(target) detail.scrollTo({top:target.offsetTop-24,behavior:'smooth'});
+  document.querySelectorAll('.workspace-nav a').forEach(x=>x.classList.remove('active')); a.classList.add('active');
 }));
 
-const formatTime=d=>d.toLocaleTimeString([], {hour12:false});
-function tick(){
-  const d=new Date();
-  date.textContent=d.toLocaleDateString([], {day:'2-digit',month:'short',year:'numeric'}).toUpperCase();
-  time.textContent=formatTime(d);
-  timezone.textContent=Intl.DateTimeFormat().resolvedOptions().timeZone;
-}
-tick(); setInterval(tick,1000);
+function clockTick(){const d=new Date();date.textContent=d.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}).toUpperCase();time.textContent=d.toLocaleTimeString('en-GB',{hour12:false});}
+clockTick();setInterval(clockTick,1000);
 
 function addLog(level,source,message){
-  const line=document.createElement('div');
-  line.className='log-line';
-  line.innerHTML='<span class="log-time">'+formatTime(new Date())+'</span> <span class="log-level '+level.toLowerCase()+'">'+level+'</span> ['+source+'] '+message;
-  liveLog.appendChild(line);
-  while(liveLog.children.length>5) liveLog.removeChild(liveLog.firstElementChild);
+  const row=document.createElement('div'); row.className='row';
+  row.innerHTML='<span class="t">'+new Date().toLocaleTimeString('en-GB',{hour12:false})+'</span> <span class="'+level.toLowerCase()+'">'+level+'</span> <span class="src">['+source+']</span> '+message;
+  liveLog.appendChild(row); while(liveLog.children.length>5) liveLog.removeChild(liveLog.firstElementChild);
 }
-function setStatus(id,x){
-  const e=document.getElementById(id);
-  const state=String(x?.stateName??x?.state??(x?.available?'Healthy':'Unavailable'));
-  e.textContent=state.toUpperCase();
-  e.title=x?.reason??'';
-  e.className='pill '+(state.toLowerCase()==='healthy'?'available':'unavailable');
-  return state;
-}
+function stateName(x){return String(x?.stateName??x?.state??(x?.available?'Healthy':'Unavailable'))}
+function setPill(id,x){const e=document.getElementById(id);const s=stateName(x);e.textContent=s.toUpperCase();e.className='status-pill '+(s.toLowerCase()==='healthy'?'ok':'bad');return s}
 async function load(){
   try{
-    const r=await fetch('/api/summary',{cache:'no-store'});
-    if(!r.ok) throw new Error('HTTP '+r.status);
-    const d=await r.json();
-    const systems=[d.configuration,d.diagnostics].filter(Boolean);
-    managedCount.textContent=systems.length;
-    registeredCount.textContent=d.registeredApplications??0;
-    const cfg=setStatus('cfgStatus',d.configuration);
-    const diag=setStatus('diagStatus',d.diagnostics);
-    const n=systems.filter(x=>x.available).length;
-    const attention=(systems.length-n)+(d.registration?.attention??0);
-    availableCount.textContent=n;
-    attentionCount.textContent=attention;
-    const stamp='LAST SCAN '+new Date(d.checkedAt).toLocaleString().toUpperCase();
-    checked.textContent=stamp;
-    activityChecked.textContent=stamp;
-    const healthy=attention===0;
-    topStateText.textContent=healthy?'HEALTHY':'ATTENTION';
-    topStateDot.style.background=healthy?'var(--green)':'var(--yellow)';
-    footerNominal.textContent=healthy?'All Systems Nominal':'Attention Required';
-    footerWarnings.textContent=attention+' Warning'+(attention===1?'':'s');
-    cfgJourney.textContent=cfg;
-    cfgJourney.className='health '+(cfg.toLowerCase()==='healthy'?'Healthy':'Warning');
-    diagJourney.textContent=diag;
-    diagJourney.className='health '+(diag.toLowerCase()==='healthy'?'Healthy':'Warning');
-    addLog('INF','Operations','Status refresh completed');
-    addLog(cfg.toLowerCase()==='healthy'?'INF':'WRN','Configuration','State '+cfg);
-    addLog(diag.toLowerCase()==='healthy'?'INF':'WRN','Diagnostics','State '+diag);
-  }catch(err){
-    managedCount.textContent='—';registeredCount.textContent='—';availableCount.textContent='—';attentionCount.textContent='—';
-    checked.textContent='STATUS TELEMETRY UNAVAILABLE';activityChecked.textContent='STATUS TELEMETRY UNAVAILABLE';
-    topStateText.textContent='UNAVAILABLE';topStateDot.style.background='var(--red)';
-    footerNominal.textContent='Telemetry Unavailable';footerWarnings.textContent='1 Warning';
-    addLog('ERR','Operations','Status telemetry unavailable');
+    const r=await fetch('/api/summary',{cache:'no-store'});if(!r.ok)throw new Error('HTTP '+r.status);const d=await r.json();
+    const systems=[d.configuration,d.diagnostics].filter(Boolean);managedCount.textContent=systems.length;registeredCount.textContent=d.registeredApplications??0;
+    const cfg=setPill('cfgStatus',d.configuration),diag=setPill('diagStatus',d.diagnostics);const n=systems.filter(x=>x.available).length;const attention=(systems.length-n)+(d.registration?.attention??0);
+    availableCount.textContent=n;attentionCount.textContent=attention;const stamp='LAST SCAN '+new Date(d.checkedAt).toLocaleString();checked.textContent=stamp;activityChecked.textContent=stamp;
+    const healthy=attention===0;healthText.textContent=healthy?'HEALTHY':'ATTENTION';healthDot.style.background=healthy?'var(--green)':'var(--yellow)';nominal.textContent=healthy?'All Systems Nominal':'Attention Required';warnings.textContent=attention+' Warning'+(attention===1?'':'s');
+    cfgJourney.textContent=cfg;diagJourney.textContent=diag;addLog('INF','Operations','Status refresh completed');addLog(cfg.toLowerCase()==='healthy'?'INF':'WRN','Configuration','State '+cfg);addLog(diag.toLowerCase()==='healthy'?'INF':'WRN','Diagnostics','State '+diag);
+  }catch{
+    healthText.textContent='UNAVAILABLE';healthDot.style.background='var(--red)';nominal.textContent='Telemetry Unavailable';warnings.textContent='1 Warning';addLog('WRN','Operations','Status telemetry unavailable');
   }
 }
-load(); setInterval(load,30000);
+load();setInterval(load,30000);
 </script>
 </body>
 </html>
