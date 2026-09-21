@@ -277,7 +277,7 @@ small{color:#9fb7c8}
       <div class="flow-node" data-stage="Claim"><i></i><b>Claim</b><small>one time</small></div>
       <div class="flow-node" data-stage="Authenticate"><i></i><b>Authenticate</b><small>durable ID</small></div>
       <div class="flow-node" data-stage="Publish"><i></i><b>Publish</b><small>contract</small></div>
-      <div class="flow-node" data-stage="Running"><i></i><b>Running</b><small>healthy</small></div>
+      <div class="flow-node" data-stage="Running"><i></i><b id="runtimeFlowParent">Registered</b><small id="runtimeFlowQualifier">(RUNNING)</small></div>
     </div>
   </div>
   <div id="flowMeta" class="flow-meta"></div>
@@ -319,6 +319,18 @@ function fmtAge(seconds){
  return Math.floor(s/3600)+'h '+Math.floor((s%3600)/60)+'m';
 }
 function selectJourney(id){selectedRegistrationId=id;renderFlow()}
+function formatLifecycleState(state){
+ const s=String(state||'');
+ if(s==='Pending')return 'Pending Approval';
+ if(s==='RecoveryPending')return 'Recovery Pending';
+ if(s==='IdentityConflict')return 'Identity Conflict';
+ return s||'Unknown Authority';
+}
+function runtimeQualifier(x){
+ const h=String(x?.health||'').toLowerCase();
+ if(h==='failed'||h==='stalled'||h==='degraded'||h==='warning'||h==='slow')return 'DEGRADED';
+ return 'RUNNING';
+}
 function renderFlow(){
  const js=flowSnapshot.journeys||[];
  if(!selectedRegistrationId||!js.some(x=>x.registrationId===selectedRegistrationId))
@@ -327,13 +339,17 @@ function renderFlow(){
  const x=js.find(y=>y.registrationId===selectedRegistrationId);
  if(!x){flowMeta.innerHTML='<div><small>STATE</small><b>No active journey</b></div>';flowLight.style.left='0%';return}
  const idx=stageIndex(x.currentStage);
+ const registered=String(x.state||'').toLowerCase()==='registered';
+ const parent=document.getElementById('runtimeFlowParent'),qualifier=document.getElementById('runtimeFlowQualifier');
+ if(parent)parent.textContent=registered?'Registered':'Runtime';
+ if(qualifier)qualifier.textContent=registered?'('+runtimeQualifier(x)+')':'';
  const pct=(idx/(stageOrder.length-1))*100;
  flowLight.style.left=pct+'%';
  flowLight.className='flow-light '+String(x.health||'Healthy').toLowerCase();
  document.querySelectorAll('.flow-node').forEach((n,i)=>{n.classList.toggle('active',i===idx);n.classList.toggle('done',i<idx)});
  flowMeta.innerHTML=
   '<div><small>APPLICATION</small><b>'+e(x.applicationId)+'</b></div>'+
-  '<div><small>STATE / STAGE</small><b>'+e(x.state)+' / '+e(x.currentStage)+'</b></div>'+
+  '<div><small>STATE / STAGE</small><b>'+e(registered?('Registered ('+runtimeQualifier(x)+')'):formatLifecycleState(x.state))+' / '+e(x.currentStage)+'</b></div>'+
   '<div><small>HEALTH</small><b class="health '+e(String(x.health).toLowerCase())+'">'+e(x.health)+'</b></div>'+
   '<div><small>STAGE AGE</small><b>'+e(fmtAge(x.stageAgeSeconds))+'</b></div>'+
   '<div><small>CORRELATION</small><b class="mono">'+e(x.correlationId||'—')+'</b></div>';
@@ -393,7 +409,7 @@ async function load(){
    return '<tr><td><b>'+e(x.applicationId)+'</b><br><small>'+e(x.registrationId)+'</small></td>'+
      '<td>'+e(x.instanceId)+'</td>'+
      '<td class="mono">'+e(x.installationId)+'</td>'+
-     '<td><span class="badge '+e(x.state.toLowerCase())+'">'+e(x.state)+'</span></td>'+
+     '<td><span class="badge '+e(x.state.toLowerCase())+'">'+e(formatLifecycleState(x.state))+'</span></td>'+
      '<td>'+e(localTime(x.updatedAtUtc))+'</td>'+
      '<td>'+history+metadata+'</td>'+
      '<td>'+(actions||'—')+'</td></tr>';
