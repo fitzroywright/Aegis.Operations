@@ -99,7 +99,7 @@ body{position:relative}a{color:inherit;text-decoration:none}
     <a href="/#systems">Applications</a>
     <a href="/#deployments">Deployments</a>
     <a href="/handoff/registration">Registration</a>
-    <a class="active" href="/activity">Logs</a>
+    <a class="active" href="/logs">Logs</a>
   </nav>
   <button class="lcars-back" type="button" onclick="if(history.length>1){history.back()}else{location.href='/'}">Back</button>
 
