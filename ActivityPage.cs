@@ -68,7 +68,7 @@ body{position:relative}a{color:inherit;text-decoration:none}
 .toolbar{display:flex;align-items:center;justify-content:flex-end;gap:8px;margin-bottom:10px}.toolbar .state{margin-left:0;margin-right:auto;order:-1}.action{border:0;border-radius:8px;padding:8px 13px;background:var(--blue);color:#071018;font-weight:900;text-transform:uppercase;cursor:pointer}.action.secondary{background:var(--salmon)}.state{color:var(--muted);font-weight:800}
 .telemetry-panel{border:1px solid var(--line-soft);border-top:2px solid var(--line);border-radius:10px;background:linear-gradient(180deg,rgba(8,27,42,.44),rgba(1,7,12,.36));overflow:hidden}
 .log{height:calc(100vh - 420px);min-height:330px;overflow:auto;padding:6px 0;scrollbar-color:var(--salmon) #111}.log::-webkit-scrollbar,.traces::-webkit-scrollbar{width:9px;height:9px}.log::-webkit-scrollbar-thumb,.traces::-webkit-scrollbar-thumb{background:var(--salmon);border-radius:8px}
-.telemetry-row{display:grid;grid-template-columns:176px 170px 135px 105px minmax(260px,1fr) 92px;grid-template-rows:auto auto;gap:3px 10px;padding:9px 12px;border-bottom:1px solid var(--line-soft);align-items:center;font:13px/1.35 ui-monospace,SFMono-Regular,Consolas,monospace}.telemetry-row:nth-child(odd){background:#030a11}.telemetry-row:nth-child(even){background:#081421}.telemetry-row:hover{background:#0d2130}.telemetry-row>.time,.telemetry-row>.app,.telemetry-row>.flow,.telemetry-row>.outcome,.telemetry-row>.detail,.telemetry-row>.analyze{grid-row:1}.telemetry-row>.registration-id-cell{grid-row:2;grid-column:1 / -1}.telemetry-row button{background:none;border:0;color:inherit;text-align:left;font:inherit;cursor:pointer;padding:0}.time{color:var(--arctic-snow)}.app{color:var(--cyan)}.flow{color:#c7b8ff}.outcome{font-weight:900}.Succeeded{color:var(--green)}.Information,.Started{color:var(--cyan)}.Debug,.Trace{color:var(--muted)}.Warning{color:var(--yellow)}.Error,.Critical,.Failed{color:var(--red)}.Skipped{color:#8798a4}.detail,.registration-id-cell{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.registration-id-cell{color:var(--arctic-ice);font-size:11px;padding-top:3px;border-top:1px solid rgba(69,85,128,.32)}.registration-id-cell b{display:inline;margin-right:8px;color:var(--muted);font:800 9px/1.2 Arial,sans-serif;text-transform:uppercase;letter-spacing:.05em}.registration-id-cell code{font:11px/1.35 ui-monospace,SFMono-Regular,Consolas,monospace;user-select:all}.analyze{color:var(--title-gold)!important;text-align:right!important;font-weight:900!important}
+.telemetry-row{display:grid;grid-template-columns:176px 170px 135px 105px minmax(180px,1fr) 92px;grid-template-rows:auto auto auto;gap:3px 10px;padding:9px 12px;border-bottom:1px solid var(--line-soft);align-items:center;font:13px/1.35 ui-monospace,SFMono-Regular,Consolas,monospace}.telemetry-row:nth-child(odd){background:#030a11}.telemetry-row:nth-child(even){background:#081421}.telemetry-row:hover{background:#0d2130}.telemetry-row>.time,.telemetry-row>.app,.telemetry-row>.flow,.telemetry-row>.outcome,.telemetry-row>.analyze{grid-row:1}.telemetry-row>.detail{grid-row:2;grid-column:1 / -1}.telemetry-row>.registration-id-cell{grid-row:3;grid-column:1 / -1}.telemetry-row button{background:none;border:0;color:inherit;text-align:left;font:inherit;cursor:pointer;padding:0}.time{color:var(--arctic-snow)}.app{color:var(--cyan)}.flow{color:#c7b8ff}.outcome{font-weight:900}.Succeeded{color:var(--green)}.Information,.Started{color:var(--cyan)}.Debug,.Trace{color:var(--muted)}.Warning{color:var(--yellow)}.Error,.Critical,.Failed{color:var(--red)}.Skipped{color:#8798a4}.detail,.registration-id-cell{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.detail{padding-top:2px;color:var(--starship-white)}.registration-id-cell{color:var(--arctic-ice);font-size:11px;padding-top:3px;border-top:1px solid rgba(69,85,128,.32)}.registration-id-cell b{display:inline;margin-right:8px;color:var(--muted);font:800 9px/1.2 Arial,sans-serif;text-transform:uppercase;letter-spacing:.05em}.registration-id-cell code{font:11px/1.35 ui-monospace,SFMono-Regular,Consolas,monospace;user-select:all}.ids-hidden .registration-id-cell{display:none}.analyze{color:var(--title-gold)!important;text-align:right!important;font-weight:900!important}
 .empty{padding:40px;text-align:center;color:var(--muted)}
 
 .traces{height:calc(100vh - 420px);min-height:330px;overflow:auto;padding:12px}
@@ -78,7 +78,7 @@ body{position:relative}a{color:inherit;text-decoration:none}
 .lamp{position:relative;z-index:1;width:24px;height:24px;border-radius:50%;margin:0 auto 8px;background:#53646f;box-shadow:0 0 0 4px #101923}.lamp.Succeeded{background:var(--green)}.lamp.Warning{background:var(--yellow)}.lamp.Failed{background:var(--red)}.lamp.Started{background:var(--blue);animation:pulse 1.2s infinite}.lamp.Skipped{background:#8798a4}@keyframes pulse{50%{box-shadow:0 0 0 8px rgba(102,204,255,.18)}}.stage b{display:block;font-size:12px}.stage small{display:block;color:var(--muted);margin-top:4px}.trace-detail{padding:0 16px 15px;color:var(--arctic-snow)}
 
 @media(max-width:1250px){.brand{width:280px}.live-log{left:410px;right:calc(225px + 50px + 14px)}.top-buttons{right:50px;width:225px}.filters{grid-template-columns:repeat(3,1fr)}}
-@media(max-width:900px){.filters{grid-template-columns:repeat(2,1fr)}.telemetry-row{grid-template-columns:145px 1fr 100px 82px;grid-template-rows:auto auto}.telemetry-row .flow,.telemetry-row .detail{display:none}.telemetry-row>.registration-id-cell{display:block;grid-column:1 / -1;grid-row:2}}
+@media(max-width:900px){.filters{grid-template-columns:repeat(2,1fr)}.telemetry-row{grid-template-columns:145px 1fr 100px 82px;grid-template-rows:auto auto auto}.telemetry-row .flow{display:none}.telemetry-row>.detail{display:block;grid-column:1 / -1;grid-row:2}.telemetry-row>.registration-id-cell{display:block;grid-column:1 / -1;grid-row:3}.ids-hidden .registration-id-cell{display:none}}
  .sound-toggle{margin-left:10px;margin-right:14px;border:0;border-left:3px solid #000;background:#071018;color:var(--title-gold);width:34px;height:26px;padding:4px 7px;cursor:pointer;z-index:6;display:grid;place-items:center}.sound-toggle svg{width:18px;height:18px;fill:currentColor}.sound-toggle:hover{background:#111d2a;color:var(--starship-white)}.sound-toggle:hover{background:#111d2a;color:var(--starship-white)}
 </style>
 </head>
@@ -125,6 +125,7 @@ body{position:relative}a{color:inherit;text-decoration:none}
       <button class="action secondary" id="pause">Pause</button>
       <button class="action secondary" id="follow">Follow Tail: On</button>
       <button class="action secondary" id="clear">Clear View</button>
+      <button class="action secondary" id="toggleIds">IDs: On</button>
       <span class="state" id="state">CONNECTING…</span>
     </div>
     <section class="telemetry-panel">
@@ -138,6 +139,13 @@ body{position:relative}a{color:inherit;text-decoration:none}
 <script>
 const $=id=>document.getElementById(id),esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
 let paused=false,followTail=true,mode='log',hiddenBefore=null;
+const idsKey='aegis.engineering.showIds';
+let showIds=localStorage.getItem(idsKey)!=='off';
+function applyIdsVisibility(){
+  $('logView')?.classList.toggle('ids-hidden',!showIds);
+  const b=$('toggleIds');
+  if(b)b.textContent='IDs: '+(showIds?'On':'Off');
+}
 function recentStamp(v){const d=v?new Date(v):new Date();if(Number.isNaN(d.getTime()))return '--- -- ---- --:--:--';const mon=d.toLocaleString('en-US',{month:'short'});return mon+' '+String(d.getDate()).padStart(2,'0')+' '+d.getFullYear()+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')+':'+String(d.getSeconds()).padStart(2,'0')}
 async function loadBrandUser(){try{const r=await fetch('/auth/me',{cache:'no-store'});if(!r.ok)return;const x=await r.json(),e=document.getElementById('brandUser');if(e)e.textContent='User: '+(x.displayName||x.userName||'Signed in')+' · IP: '+(x.clientIp||'unknown');}catch{}}loadBrandUser();
 function updateClock(){const d=new Date(),t=$('brandDateTime');const mon=d.toLocaleString('en-US',{month:'short'}).toUpperCase();t.textContent=mon+' '+String(d.getDate()).padStart(2,'0')+' '+d.getFullYear()+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')+' '+(d.getHours()>=12?'PM':'AM')}updateClock();setInterval(updateClock,1000);document.querySelector('#liveLog .t').textContent=recentStamp();
@@ -167,7 +175,8 @@ $('apply').onclick=refresh;$('reset').onclick=()=>{for(const id of ['application
 $('pause').onclick=()=>{paused=!paused;$('pause').textContent=paused?'Resume':'Pause';$('state').textContent=paused?'PAUSED · INGESTION CONTINUES':'RESUMED';if(!paused)refresh()};
 $('follow').onclick=()=>{followTail=!followTail;$('follow').textContent='Follow Tail: '+(followTail?'On':'Off')};
 $('clear').onclick=()=>{hiddenBefore=new Date();$('logView').innerHTML='<div class="empty">View cleared. New events will appear here.</div>';$('appLogView').innerHTML='<div class="empty">View cleared. New logs will appear here.</div>';$('flowView').innerHTML='<div class="empty">View cleared. Adjust filters or wait for new flows.</div>'};
-tabs();loadFilters();refresh();setInterval(()=>{loadFilters();refresh()},2000);
+$('toggleIds').onclick=()=>{showIds=!showIds;localStorage.setItem(idsKey,showIds?'on':'off');applyIdsVisibility()};
+tabs();applyIdsVisibility();loadFilters();refresh();setInterval(()=>{loadFilters();refresh()},2000);
 
 function installAegisConsoleAudio(){
   const key='aegis.console.sound',enabled=()=>localStorage.getItem(key)!=='off';
