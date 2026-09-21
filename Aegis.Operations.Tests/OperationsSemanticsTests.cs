@@ -143,7 +143,15 @@ public sealed class OperationsSemanticsTests
                 offline,
                 authorityAvailable: true));
 
-        Assert.Equal("Registered", "Registered");
+        const authoritativeRegistrationState = "Registered";
+        _ = RegistrationFlowStateFormatter.Format(
+            authoritativeRegistrationState,
+            runtimeState,
+            telemetryAvailable,
+            aging,
+            offline,
+            authorityAvailable: true);
+        Assert.Equal("Registered", authoritativeRegistrationState);
     }
 
     [Theory]
