@@ -92,14 +92,14 @@ body{position:relative}a{color:inherit;text-decoration:none}
 </header>
 
 <section class="workspace-shell">
-  <div class="workspace-arm"><div class="workspace-title">Logs & Flow Analyzer</div><div class="last-scan" id="lastScan">Last Scan: SCANNING</div></div>
+  <div class="workspace-arm"><div class="workspace-title">Logs</div><div class="last-scan" id="lastScan">Last Scan: SCANNING</div></div>
   <div class="workspace-leg"></div>
   <nav class="workspace-nav">
-    <a id="navActivity" class="active" data-mode="log">Lifecycle Logs</a>
-    <a id="navLogs" data-mode="appLogs">App Logs</a>
-    <a id="navFlow" data-mode="flow">Flow</a>
+    <a href="/">Overview</a>
+    <a href="/#systems">Applications</a>
+    <a href="/#deployments">Deployments</a>
     <a href="/handoff/registration">Registration</a>
-    <a href="/">Command</a>
+    <a class="active" href="/activity">Logs</a>
   </nav>
   <button class="lcars-back" type="button" onclick="if(history.length>1){history.back()}else{location.href='/'}">Back</button>
 
