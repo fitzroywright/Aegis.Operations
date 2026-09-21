@@ -8,6 +8,8 @@ internal sealed class OperationsTelemetryAuthenticator
     private readonly ILogger<OperationsTelemetryAuthenticator> _logger;
     private readonly string _configurationUrl;
     private readonly string _operationsUrl;
+    private readonly TimeSpan _authorityGrace;
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<string, DateTimeOffset> _lastValidated = new(StringComparer.OrdinalIgnoreCase);
 
     internal OperationsTelemetryAuthenticator(
         IHttpClientFactory factory,
@@ -27,6 +29,11 @@ internal sealed class OperationsTelemetryAuthenticator
             AegisControlPlaneService.Operations,
             _logger,
             configurationKey: "Operations:SelfUrl");
+
+        _authorityGrace = TimeSpan.FromSeconds(Math.Clamp(
+            configuration.GetValue("Operations:TelemetryAuthorityGraceSeconds", 900),
+            30,
+            3600));
     }
 
     internal async Task<bool> IsAuthorizedAsync(
@@ -100,16 +107,48 @@ internal sealed class OperationsTelemetryAuthenticator
         if (!string.IsNullOrWhiteSpace(correlation))
             request.Headers.TryAddWithoutValidation("X-Aegis-Correlation-Id", correlation);
 
+        string cacheKey = suppliedApplicationId + "|" + instanceId + "|" + installationId;
+
         try
         {
             using HttpResponseMessage response = await _factory.CreateClient("ops").SendAsync(request, ct);
-            return response.IsSuccessStatusCode;
+            if (response.IsSuccessStatusCode)
+            {
+                _lastValidated[cacheKey] = DateTimeOffset.UtcNow;
+                return true;
+            }
+
+            if ((int)response.StatusCode >= 500 && IsRecentlyValidated(cacheKey))
+            {
+                _logger.LogWarning(
+                    "Configuration registration authority is unavailable (HTTP {StatusCode}); accepting recently validated telemetry identity {ApplicationId}/{InstanceId} within the configured grace period.",
+                    (int)response.StatusCode,
+                    suppliedApplicationId,
+                    instanceId);
+                return true;
+            }
+
+            return false;
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
         {
+            if (IsRecentlyValidated(cacheKey))
+            {
+                _logger.LogWarning(
+                    ex,
+                    "Configuration registration authority is unavailable; accepting recently validated telemetry identity {ApplicationId}/{InstanceId} within the configured grace period.",
+                    suppliedApplicationId,
+                    instanceId);
+                return true;
+            }
+
             return false;
         }
     }
+
+    private bool IsRecentlyValidated(string cacheKey) =>
+        _lastValidated.TryGetValue(cacheKey, out DateTimeOffset validatedAt) &&
+        DateTimeOffset.UtcNow - validatedAt <= _authorityGrace;
 
     private static bool Has(HttpContext context, string permission) =>
         context.Items.TryGetValue("SuiteIdentity", out object? value) &&
