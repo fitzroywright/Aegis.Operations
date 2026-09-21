@@ -13,7 +13,7 @@ internal static class ActivityTelemetryEndpoints
             CancellationToken ct) =>
         {
             if (!await telemetryAuthenticator.IsAuthorizedAsync(context, incoming.ApplicationId, ct))
-                return Results.Forbid();
+                return Results.Json(new { error = "Forbidden", detail = "The authenticated identity is not authorized for this operation." }, statusCode: StatusCodes.Status403Forbidden);
 
             string? validationError = Validate(incoming);
             if (validationError is not null)
