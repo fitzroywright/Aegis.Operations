@@ -17,6 +17,43 @@ function Invoke-Native {
     }
 }
 
+function Reset-DotNetBuildServers {
+    Write-Host "Resetting .NET build servers..." -ForegroundColor DarkGray
+    & dotnet build-server shutdown | Out-Host
+    if ($LASTEXITCODE -ne 0) {
+        Write-Warning "dotnet build-server shutdown returned exit code $LASTEXITCODE; continuing with a fresh serialized invocation."
+    }
+}
+
+function Get-SafeRestoreArguments {
+    param([Parameter(Mandatory = $true)][string]$Target)
+    return @("restore", $Target, "--disable-parallel", "-p:RestoreDisableParallel=true")
+}
+
+function Get-SafeBuildArguments {
+    param([Parameter(Mandatory = $true)][string]$Target)
+    return @(
+        "build", $Target,
+        "--no-restore",
+        "--configuration", "Release",
+        "-m:1",
+        "/nodeReuse:false",
+        "/p:UseSharedCompilation=false"
+    )
+}
+
+function Get-SafeTestArguments {
+    param([Parameter(Mandatory = $true)][string]$Target)
+    return @(
+        "test", $Target,
+        "--no-restore",
+        "--configuration", "Release",
+        "-m:1",
+        "/nodeReuse:false",
+        "/p:UseSharedCompilation=false"
+    )
+}
+
 function Get-MeaningfulGitChanges {
     param([Parameter(Mandatory = $true)][string]$Path)
 
@@ -102,12 +139,15 @@ function Build-Project {
     Write-Host "====================================================" -ForegroundColor Yellow
 
     Assert-CleanMain $Path
+    Reset-DotNetBuildServers
 
-    Invoke-Native "dotnet" @("restore", $BuildTarget)
-    Invoke-Native "dotnet" @("build", $BuildTarget, "--no-restore", "--configuration", "Release")
+    Invoke-Native "dotnet" (Get-SafeRestoreArguments -Target $BuildTarget)
+    Invoke-Native "dotnet" (Get-SafeBuildArguments -Target $BuildTarget)
 
     if ($TestTarget) {
-        Invoke-Native "dotnet" @("restore", $TestTarget)
+        if (-not [string]::Equals($BuildTarget, $TestTarget, [StringComparison]::OrdinalIgnoreCase)) {
+            Invoke-Native "dotnet" (Get-SafeRestoreArguments -Target $TestTarget)
+        }
 
         $previousEnvironment = @{}
         try {
@@ -118,7 +158,7 @@ function Build-Project {
                 }
             }
 
-            Invoke-Native "dotnet" @("test", $TestTarget, "--no-restore", "--configuration", "Release")
+            Invoke-Native "dotnet" (Get-SafeTestArguments -Target $TestTarget)
         }
         finally {
             if ($TestEnvironment) {
@@ -180,6 +220,8 @@ try {
 
         Build-Project -Name $project.Name -Path $project.Path -BuildTarget $project.Build -TestTarget $project.Test -TestEnvironment $testEnvironment
     }
+
+    Reset-DotNetBuildServers
 
     Write-Host "`n========================================" -ForegroundColor Green
     Write-Host " ALL AUTHORITATIVE MAIN BUILDS/TESTS PASSED" -ForegroundColor Green
