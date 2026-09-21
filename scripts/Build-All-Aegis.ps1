@@ -27,7 +27,14 @@ function Reset-DotNetBuildServers {
 
 function Get-SafeRestoreArguments {
     param([Parameter(Mandatory = $true)][string]$Target)
-    return @("restore", $Target, "--disable-parallel", "-p:RestoreDisableParallel=true")
+    return @(
+        "restore", $Target,
+        "--disable-parallel",
+        "-m:1",
+        "/nodeReuse:false",
+        "-p:RestoreDisableParallel=true",
+        "/p:UseSharedCompilation=false"
+    )
 }
 
 function Get-SafeBuildArguments {
