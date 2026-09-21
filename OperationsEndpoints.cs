@@ -491,11 +491,21 @@ internal static class OperationsEndpoints
                 bool telemetryAvailable = observed is not null;
                 bool stale = telemetryAvailable &&
                     OperationsFreshness.IsStale(observed!.ObservedAtUtc, now, staleAfter);
+                bool aging = telemetryAvailable && !stale &&
+                    OperationsFreshness.IsAging(observed!.ObservedAtUtc, now, staleAfter);
                 string state = !telemetryAvailable
                     ? OperationalState.Unknown.ToString()
                     : stale
                         ? OperationalState.Offline.ToString()
                         : observed!.State.ToString();
+                string registrationFlowLabel = RegistrationFlowStateFormatter.Format(
+                    registration.State,
+                    observed?.State ?? OperationalState.Unknown,
+                    telemetryAvailable,
+                    aging,
+                    stale,
+                    authorityAvailable);
+                string registrationFlowTone = RegistrationFlowStateFormatter.Tone(registrationFlowLabel);
                 string reason = !telemetryAvailable
                     ? "Registered in Configuration; no operational telemetry has been received."
                     : stale
@@ -514,7 +524,10 @@ internal static class OperationsEndpoints
                     registrationObservedAtUtc = registration.LastEventAtUtc,
                     state,
                     telemetryAvailable,
+                    aging,
                     stale,
+                    registrationFlowLabel,
+                    registrationFlowTone,
                     observedAtUtc = observed?.ObservedAtUtc,
                     environment = observed?.Environment ?? "—",
                     version = observed?.Version ?? "—",
@@ -534,6 +547,16 @@ internal static class OperationsEndpoints
                 .ThenBy(x => x.InstanceId, StringComparer.OrdinalIgnoreCase))
             {
                 bool stale = OperationsFreshness.IsStale(observed.ObservedAtUtc, now, staleAfter);
+                bool aging = !stale && OperationsFreshness.IsAging(observed.ObservedAtUtc, now, staleAfter);
+                string nonRegisteredStatus = authorityAvailable ? "NotRegistered" : observed.RegistrationStatus;
+                string registrationFlowLabel = RegistrationFlowStateFormatter.Format(
+                    nonRegisteredStatus,
+                    observed.State,
+                    true,
+                    aging,
+                    stale,
+                    authorityAvailable);
+                string registrationFlowTone = RegistrationFlowStateFormatter.Tone(registrationFlowLabel);
                 applications.Add(new
                 {
                     registrationId = string.Empty,
@@ -541,12 +564,15 @@ internal static class OperationsEndpoints
                     observed.DisplayName,
                     observed.InstanceId,
                     installationId = string.Empty,
-                    registrationStatus = authorityAvailable ? "NotRegistered" : observed.RegistrationStatus,
+                    registrationStatus = nonRegisteredStatus,
                     registrationHealth = authorityAvailable ? "Attention" : "Unknown",
                     registrationObservedAtUtc = (DateTimeOffset?)null,
                     state = stale ? OperationalState.Offline.ToString() : observed.State.ToString(),
                     telemetryAvailable = true,
+                    aging,
                     stale,
+                    registrationFlowLabel,
+                    registrationFlowTone,
                     observedAtUtc = (DateTimeOffset?)observed.ObservedAtUtc,
                     observed.Environment,
                     observed.Version,
