@@ -108,8 +108,8 @@ a{color:inherit;text-decoration:none}
 
 .workspace-nav{position:absolute;left:0;top:calc(var(--workspace-arm-height) + var(--scroll-arrow-space));width:var(--rail-width);z-index:2}
 .workspace-nav a{display:flex;align-items:center;gap:6px;height:48px;padding:0 6px 0 9px;color:#071018;font-weight:900;text-transform:uppercase;font-size:10px;line-height:1.05;white-space:normal;overflow-wrap:normal;word-break:normal;hyphens:none;border-bottom:3px solid #000}
-.workspace-nav a:last-child{border-bottom:0}
-.workspace-nav a:not(.active)::before{content:"◆";display:inline-block;flex:0 0 14px;width:14px;font-size:9px;line-height:1;text-align:center}.workspace-nav a.active{font-size:12px;font-weight:800;background:var(--title-gold);color:#071018}.lcars-back{position:absolute;left:0;bottom:0;width:var(--rail-width);height:48px;z-index:7;border:0;border-top:3px solid #000;border-radius:0 0 0 28px;background:var(--alpha-blue);color:#071018;font:900 12px/1 "Arial Narrow","Roboto Condensed","Segoe UI",Arial,sans-serif;text-transform:uppercase;text-align:left;padding:0 0 0 11px;cursor:pointer}.lcars-back:hover,.lcars-back:focus-visible{background:var(--title-gold);outline:none}.lcars-back:active{background:var(--title-gold);filter:brightness(1.08)}
+.workspace-nav a:last-child{border-bottom:0}.nav-icon{width:15px;height:15px;flex:0 0 15px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}.workspace-nav a.active .nav-icon{stroke-width:2}
+.workspace-nav a.active{font-size:12px;font-weight:800;background:var(--title-gold);color:#071018}.lcars-back{position:absolute;left:0;bottom:0;width:var(--rail-width);height:48px;z-index:7;border:0;border-top:3px solid #000;border-radius:0 0 0 28px;background:var(--alpha-blue);color:#071018;font:900 12px/1 "Arial Narrow","Roboto Condensed","Segoe UI",Arial,sans-serif;text-transform:uppercase;text-align:left;padding:0 0 0 11px;cursor:pointer}.lcars-back:hover,.lcars-back:focus-visible{background:var(--title-gold);outline:none}.lcars-back:active{background:var(--title-gold);filter:brightness(1.08)}
 .top-buttons a,.workspace-nav a{transition:background .12s ease,color .12s ease,filter .12s ease}
 .top-buttons a.nav-flash,.workspace-nav a.nav-flash{background:var(--title-gold)!important;color:#071018!important;filter:brightness(1.08)}
 
@@ -176,11 +176,11 @@ __CONTROL_PLANE_HEADER_CSS__
   </div>
   <div class="workspace-leg"></div>
   <nav class="workspace-nav">
-    <a class="active" href="#overview">Overview</a>
-    <a href="/applications">Applications</a>
-    <a href="/deployments">Deployments</a>
-    <a href="/handoff/registration">Registration</a>
-    <a href="/logs">Logs</a>
+    <a class="active" href="#overview"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg><span>Overview</span></a>
+    <a href="/applications"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="5" r="2.5"/><circle cx="6" cy="18" r="2.5"/><circle cx="18" cy="18" r="2.5"/><path d="M12 7.5v4M10.5 12.5 7.5 15.5M13.5 12.5l3 3"/></svg><span>Applications</span></a>
+    <a href="/deployments"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9 12 4l8 5-8 5-8-5Z"/><path d="M4 9v7l8 5 8-5V9M12 14v7"/></svg><span>Deployments</span></a>
+    <a href="/handoff/registration"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8" cy="11" r="2"/><path d="M5.5 16c.8-1.7 4.2-1.7 5 0M14 11l2 2 4-4"/></svg><span>Registration</span></a>
+    <a href="/logs"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 6h14M5 12h14M5 18h10"/><path d="M3 6h.01M3 12h.01M3 18h.01"/></svg><span>Logs</span></a>
   </nav>
   <button class="lcars-back" type="button" onclick="if(history.length>1){history.back()}else{location.href='/'}">Back</button>
 
