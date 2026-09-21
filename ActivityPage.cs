@@ -65,7 +65,7 @@ body{position:relative}a{color:inherit;text-decoration:none}
 .filters{display:grid;grid-template-columns:repeat(6,minmax(120px,1fr));gap:9px;padding:14px;background:linear-gradient(180deg,rgba(8,27,42,.50),rgba(1,7,12,.40));border:1px solid var(--line-soft);border-top:2px solid var(--line);border-radius:10px;margin-bottom:12px}
 .filters input,.filters select{width:100%;background:#02080d;color:var(--white);border:1px solid var(--line);border-radius:6px;padding:9px;font:13px "Arial Narrow","Segoe UI",Arial,sans-serif}
 .filters .wide{grid-column:span 2}
-.toolbar{display:flex;align-items:center;justify-content:flex-end;gap:8px;margin-bottom:10px}.toolbar .state{margin-left:0;margin-right:auto;order:-1}.action{border:0;border-radius:8px;padding:8px 13px;background:var(--blue);color:#071018;font-weight:900;text-transform:uppercase;cursor:pointer}.action.secondary{background:var(--salmon)}.state{color:var(--muted);font-weight:800}
+.toolbar{display:flex;align-items:center;justify-content:flex-end;gap:5px;margin-bottom:7px;min-height:28px}.toolbar .state{margin-left:0;margin-right:auto;order:-1;font-size:11px}.action{border:0;border-radius:5px;padding:5px 8px;background:var(--blue);color:#071018;font-weight:900;text-transform:uppercase;cursor:pointer;font-size:10px;line-height:1.1;min-height:24px}.action.secondary{background:var(--salmon)}.state{color:var(--muted);font-weight:800}
 .telemetry-panel{border:1px solid var(--line-soft);border-top:2px solid var(--line);border-radius:10px;background:linear-gradient(180deg,rgba(8,27,42,.44),rgba(1,7,12,.36));overflow:hidden}
 .log{height:calc(100vh - 420px);min-height:330px;overflow:auto;padding:6px 0;scrollbar-color:var(--salmon) #111}.log::-webkit-scrollbar,.traces::-webkit-scrollbar{width:9px;height:9px}.log::-webkit-scrollbar-thumb,.traces::-webkit-scrollbar-thumb{background:var(--salmon);border-radius:8px}
 .telemetry-row{display:grid;grid-template-columns:176px 170px 135px 105px minmax(180px,1fr) 92px;grid-template-rows:auto auto auto;gap:3px 10px;padding:9px 12px;border-bottom:1px solid var(--line-soft);align-items:center;font:13px/1.35 ui-monospace,SFMono-Regular,Consolas,monospace}.telemetry-row:nth-child(odd){background:#030a11}.telemetry-row:nth-child(even){background:#081421}.telemetry-row:hover{background:#0d2130}.telemetry-row>.time,.telemetry-row>.app,.telemetry-row>.flow,.telemetry-row>.outcome,.telemetry-row>.analyze{grid-row:1}.telemetry-row>.detail{grid-row:2;grid-column:1 / -1}.telemetry-row>.registration-id-cell{grid-row:3;grid-column:1 / -1}.telemetry-row button{background:none;border:0;color:inherit;text-align:left;font:inherit;cursor:pointer;padding:0}.time{color:var(--arctic-snow)}.app{color:var(--cyan)}.flow{color:#c7b8ff}.outcome{font-weight:900}.Succeeded{color:var(--green)}.Information,.Started{color:var(--cyan)}.Debug,.Trace{color:var(--muted)}.Warning{color:var(--yellow)}.Error,.Critical,.Failed{color:var(--red)}.Skipped{color:#8798a4}.detail,.registration-id-cell{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.detail{padding-top:2px;color:var(--starship-white)}.registration-id-cell{color:var(--arctic-ice);font-size:11px;padding-top:3px;border-top:1px solid rgba(69,85,128,.32)}.registration-id-cell b{display:inline;margin-right:8px;color:var(--muted);font:800 9px/1.2 Arial,sans-serif;text-transform:uppercase;letter-spacing:.05em}.registration-id-cell code{font:11px/1.35 ui-monospace,SFMono-Regular,Consolas,monospace;user-select:all}.ids-hidden .registration-id-cell{display:none}.analyze{color:var(--title-gold)!important;text-align:right!important;font-weight:900!important}
@@ -122,10 +122,10 @@ body{position:relative}a{color:inherit;text-decoration:none}
       <button class="action secondary" id="reset">Reset</button>
     </section>
     <div class="toolbar">
-      <button class="action secondary" id="pause">Pause</button>
-      <button class="action secondary" id="follow">Follow Tail: On</button>
-      <button class="action secondary" id="clear">Clear View</button>
-      <button class="action secondary" id="toggleIds">IDs: On</button>
+      <button class="action secondary" id="pause" title="Pause screen refresh">Pause</button>
+      <button class="action secondary" id="follow" title="Keep view pinned to newest events">Tail: On</button>
+      <button class="action secondary" id="clear" title="Clear the current view only">Clear</button>
+      <button class="action secondary" id="toggleIds" title="Show or hide registration IDs">IDs: On</button>
       <span class="state" id="state">CONNECTING…</span>
     </div>
     <section class="telemetry-panel">
@@ -173,7 +173,7 @@ function tabs(){$('navActivity').classList.toggle('active',mode==='log');$('navL
 document.querySelectorAll('.workspace-nav [data-mode]').forEach(a=>a.addEventListener('click',e=>{e.preventDefault();mode=a.dataset.mode;tabs();refresh()}));
 $('apply').onclick=refresh;$('reset').onclick=()=>{for(const id of ['application','instance','flow','outcome','correlation','stage','text','logLevel','category'])$(id).value='';$('sinceMinutes').value='60';hiddenBefore=null;refresh()};
 $('pause').onclick=()=>{paused=!paused;$('pause').textContent=paused?'Resume':'Pause';$('state').textContent=paused?'PAUSED · INGESTION CONTINUES':'RESUMED';if(!paused)refresh()};
-$('follow').onclick=()=>{followTail=!followTail;$('follow').textContent='Follow Tail: '+(followTail?'On':'Off')};
+$('follow').onclick=()=>{followTail=!followTail;$('follow').textContent='Tail: '+(followTail?'On':'Off')};
 $('clear').onclick=()=>{hiddenBefore=new Date();$('logView').innerHTML='<div class="empty">View cleared. New events will appear here.</div>';$('appLogView').innerHTML='<div class="empty">View cleared. New logs will appear here.</div>';$('flowView').innerHTML='<div class="empty">View cleared. Adjust filters or wait for new flows.</div>'};
 $('toggleIds').onclick=()=>{showIds=!showIds;localStorage.setItem(idsKey,showIds?'on':'off');applyIdsVisibility()};
 tabs();applyIdsVisibility();loadFilters();refresh();setInterval(()=>{loadFilters();refresh()},2000);
