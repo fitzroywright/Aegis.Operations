@@ -41,3 +41,68 @@ internal sealed record FlowDefinitionStage(
     string? Branch = null,
     int? WarningAfterSeconds = null,
     int? CriticalAfterSeconds = null);
+
+
+internal static class RegistrationFlowStateFormatter
+{
+    internal static string Format(
+        string? registrationState,
+        OperationalState runtimeState,
+        bool telemetryAvailable,
+        bool aging,
+        bool offline,
+        bool authorityAvailable)
+    {
+        if (!authorityAvailable)
+            return "Unknown Authority";
+
+        string state = (registrationState ?? string.Empty).Trim();
+
+        if (state.Equals("IdentityConflict", StringComparison.OrdinalIgnoreCase) ||
+            state.Equals("Identity Conflict", StringComparison.OrdinalIgnoreCase))
+            return "Identity Conflict";
+
+        if (state.Equals("Pending", StringComparison.OrdinalIgnoreCase))
+            return "Pending Approval";
+
+        if (state.Equals("RecoveryPending", StringComparison.OrdinalIgnoreCase) ||
+            state.Equals("Recovery Pending", StringComparison.OrdinalIgnoreCase))
+            return "Recovery Pending";
+
+        if (state.Equals("Revoked", StringComparison.OrdinalIgnoreCase))
+            return "Revoked";
+
+        if (state.Equals("Purged", StringComparison.OrdinalIgnoreCase))
+            return "Purged";
+
+        if (!state.Equals("Registered", StringComparison.OrdinalIgnoreCase))
+            return string.IsNullOrWhiteSpace(state) ? "Unknown Authority" : state;
+
+        if (offline || runtimeState == OperationalState.Offline || !telemetryAvailable)
+            return "Registered (Offline)";
+
+        if (runtimeState is OperationalState.Degraded
+            or OperationalState.Warning
+            or OperationalState.Failed
+            or OperationalState.Maintenance
+            or OperationalState.NotSupported
+            or OperationalState.Unknown)
+            return "Registered (Degraded)";
+
+        if (aging)
+            return "Registered (Stale)";
+
+        return "Registered (Running)";
+    }
+
+    internal static string Tone(string label)
+        => label switch
+        {
+            "Registered (Running)" => "good",
+            "Registered (Stale)" or "Registered (Degraded)" or "Recovery Pending" or "Pending Approval" => "warn",
+            "Registered (Offline)" => "offline",
+            "Revoked" or "Identity Conflict" => "bad",
+            "Unknown Authority" => "warn",
+            _ => "neutral"
+        };
+}
