@@ -121,4 +121,82 @@ public sealed class OperationsSemanticsTests
         Assert.Equal("[REDACTED]", sanitized.GetProperty("nested")[0].GetProperty("apiKey").GetString());
         Assert.Equal("value", sanitized.GetProperty("nested")[0].GetProperty("safe").GetString());
     }
+    [Theory]
+    [InlineData(OperationalState.Healthy, true, false, false, "Registered (Running)")]
+    [InlineData(OperationalState.Healthy, true, true, false, "Registered (Stale)")]
+    [InlineData(OperationalState.Healthy, true, false, true, "Registered (Offline)")]
+    [InlineData(OperationalState.Degraded, true, false, false, "Registered (Degraded)")]
+    public void Registered_flow_label_combines_authoritative_and_runtime_state(
+        OperationalState runtimeState,
+        bool telemetryAvailable,
+        bool aging,
+        bool offline,
+        string expected)
+    {
+        Assert.Equal(
+            expected,
+            RegistrationFlowStateFormatter.Format(
+                "Registered",
+                runtimeState,
+                telemetryAvailable,
+                aging,
+                offline,
+                authorityAvailable: true));
+
+        Assert.Equal("Registered", "Registered");
+    }
+
+    [Theory]
+    [InlineData("Pending", "Pending Approval")]
+    [InlineData("RecoveryPending", "Recovery Pending")]
+    [InlineData("Revoked", "Revoked")]
+    [InlineData("Purged", "Purged")]
+    [InlineData("IdentityConflict", "Identity Conflict")]
+    public void Non_registered_lifecycle_labels_are_preserved(string state, string expected)
+        => Assert.Equal(
+            expected,
+            RegistrationFlowStateFormatter.Format(
+                state,
+                OperationalState.Unknown,
+                telemetryAvailable: false,
+                aging: false,
+                offline: false,
+                authorityAvailable: true));
+
+    [Fact]
+    public void Unavailable_registration_authority_is_unknown_authority()
+        => Assert.Equal(
+            "Unknown Authority",
+            RegistrationFlowStateFormatter.Format(
+                "Registered",
+                OperationalState.Healthy,
+                telemetryAvailable: true,
+                aging: false,
+                offline: false,
+                authorityAvailable: false));
+
+    [Fact]
+    public void Missing_telemetry_is_offline_not_stopped()
+        => Assert.Equal(
+            "Registered (Offline)",
+            RegistrationFlowStateFormatter.Format(
+                "Registered",
+                OperationalState.Unknown,
+                telemetryAvailable: false,
+                aging: false,
+                offline: false,
+                authorityAvailable: true));
+
+    [Fact]
+    public void Aging_classification_does_not_change_existing_offline_threshold()
+    {
+        DateTimeOffset now = DateTimeOffset.UtcNow;
+        TimeSpan threshold = TimeSpan.FromMinutes(5);
+
+        Assert.False(OperationsFreshness.IsAging(now.AddMinutes(-2), now, threshold));
+        Assert.True(OperationsFreshness.IsAging(now.AddMinutes(-3), now, threshold));
+        Assert.False(OperationsFreshness.IsStale(now.AddMinutes(-3), now, threshold));
+        Assert.True(OperationsFreshness.IsStale(now.AddMinutes(-6), now, threshold));
+    }
+
 }
