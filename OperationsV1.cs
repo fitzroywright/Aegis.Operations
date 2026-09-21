@@ -234,7 +234,7 @@ internal static class OperationsV1Endpoints
         {
             var all = await store.LoadAsync<ApplicationOperationalRecord>("applications", ct);
             DateTimeOffset now = DateTimeOffset.UtcNow;
-            int staleSeconds = app.Configuration.GetValue("Operations:StaleAfterSeconds", 300);
+            int staleSeconds = app.Configuration.GetValue("Operations:StaleAfterSeconds", 90);
             TimeSpan staleAfter = TimeSpan.FromSeconds(staleSeconds);
             return Results.Ok(all.Select(x =>
             {
@@ -291,7 +291,7 @@ internal static class OperationsV1Endpoints
 
             DateTimeOffset now = DateTimeOffset.UtcNow;
             TimeSpan staleAfter = TimeSpan.FromSeconds(
-                app.Configuration.GetValue("Operations:StaleAfterSeconds", 300));
+                app.Configuration.GetValue("Operations:StaleAfterSeconds", 90));
 
             return Results.Ok(new
             {
