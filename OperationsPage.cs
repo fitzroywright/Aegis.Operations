@@ -321,7 +321,7 @@ function renderLandscape(apps,summary,self){
     runtime;
   const applications=rows.length?rows.map(a=>{
     const state=String(a.stale?'Offline':(a.state??'Unknown')),lower=state.toLowerCase(),cls=lower==='healthy'?'good':(['unhealthy','failed','critical'].includes(lower)?'bad':'warn');
-    const flowLabel=String(a.registrationFlowLabel||a.registrationStatus||'Unknown'),flowTone=String(a.registrationFlowTone||cls);return '<a class="landscape-app" href="/applications"><div class="landscape-top"><b>'+esc(a.displayName||a.applicationId)+'</b><span class="landscape-state '+esc(flowTone)+'">'+esc(flowLabel.toUpperCase())+'</span></div><small>'+esc(a.applicationId)+' · '+esc(a.instanceId||'—')+' · '+esc(a.environment||'—')+'</small><small>'+esc(a.reason||a.version||'')+'</small></a>'
+    const flowLabel=String(a.registrationFlowLabel||a.registrationStatus||'Unknown'),flowTone=String(a.registrationFlowTone||cls),displayName=String(a.displayName||a.applicationId||'Application'),applicationId=String(a.applicationId||''),sameName=displayName.localeCompare(applicationId,undefined,{sensitivity:'accent'})===0,identityBits=[sameName?'':applicationId,String(a.instanceId||'—'),String(a.environment||'—')].filter(Boolean);return '<a class="landscape-app" href="/applications"><div class="landscape-top"><b>'+esc(displayName)+'</b><span class="landscape-state '+esc(flowTone)+'">'+esc(flowLabel.toUpperCase())+'</span></div><small>'+identityBits.map(esc).join(' · ')+'</small><small>'+esc(a.reason||a.version||'')+'</small></a>'
   }).join(''):'<div class="landscape-app"><b>No registered applications</b><small>Nothing is currently reporting into Operations.</small></div>';
   installationLandscape.innerHTML=infrastructure+applications;
 }
