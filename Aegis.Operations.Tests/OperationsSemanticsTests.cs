@@ -122,17 +122,19 @@ public sealed class OperationsSemanticsTests
         Assert.Equal("value", sanitized.GetProperty("nested")[0].GetProperty("safe").GetString());
     }
     [Theory]
-    [InlineData(OperationalState.Healthy, true, false, false, "Registered (Running)")]
-    [InlineData(OperationalState.Healthy, true, true, false, "Registered (Stale)")]
-    [InlineData(OperationalState.Healthy, true, false, true, "Registered (Offline)")]
-    [InlineData(OperationalState.Degraded, true, false, false, "Registered (Degraded)")]
+    [InlineData("Healthy", true, false, false, "Registered (Running)")]
+    [InlineData("Healthy", true, true, false, "Registered (Stale)")]
+    [InlineData("Healthy", true, false, true, "Registered (Offline)")]
+    [InlineData("Degraded", true, false, false, "Registered (Degraded)")]
     public void Registered_flow_label_combines_authoritative_and_runtime_state(
-        OperationalState runtimeState,
+        string runtimeStateName,
         bool telemetryAvailable,
         bool aging,
         bool offline,
         string expected)
     {
+        OperationalState runtimeState = Enum.Parse<OperationalState>(runtimeStateName);
+
         Assert.Equal(
             expected,
             RegistrationFlowStateFormatter.Format(
