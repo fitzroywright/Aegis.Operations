@@ -76,6 +76,22 @@ Operations__ConfigurationUrl=https://config.ffpja.org
 Operations__DiagnosticsUrl=https://diagnostics.ffpja.org
 ```
 
+Common.Secrets environment overrides must use the provider-instance contract. For a
+production OpenBao provider named `PrimarySecrets`, use keys such as:
+
+```text
+CommonSecrets__ProviderOrder__0=PrimarySecrets
+CommonSecrets__Providers__PrimarySecrets__Type=OpenBao
+CommonSecrets__Providers__PrimarySecrets__Settings__Enabled=true
+CommonSecrets__Providers__PrimarySecrets__Settings__RequireHttps=true
+CommonSecrets__Providers__PrimarySecrets__Settings__Address=https://openbao.ffpja.org
+```
+
+Do not use legacy keys such as `CommonSecrets__OpenBao__Address`. The bootstrap
+credential itself remains external; for the current AppRole deployment
+`OPENBAO_SECRET_ID` remains an environment secret and is not moved under
+`CommonSecrets__Providers__...__Settings`.
+
 Remove temporary `SuiteSecurity__Mock__*` settings after AD validation.
 
 ## 6. systemd
