@@ -176,8 +176,8 @@ a{color:inherit;text-decoration:none}
   <div class="workspace-leg"></div>
   <nav class="workspace-nav">
     <a class="active" href="#overview">Overview</a>
-    <a href="#systems">Applications</a>
-    <a href="#deployments">Deployments</a>
+    <a href="/applications">Applications</a>
+    <a href="/deployments">Deployments</a>
     <a href="/handoff/registration">Registration</a>
     <a href="/logs">Logs</a>
   </nav>
@@ -187,18 +187,11 @@ a{color:inherit;text-decoration:none}
     <section class="page-head" id="overview"></section>
 
     <section class="metrics">
-      <a class="metric" href="#systems"><b id="registeredCount">—</b><small>Registered Applications</small></a>
-      <a class="metric good" href="#systems"><b id="healthyCount">—</b><small>Healthy Applications</small></a>
-      <a class="metric" id="warningCard" href="#systems"><b id="warningCount">—</b><small>Warnings / Unknown</small></a>
+      <a class="metric" href="/applications"><b id="registeredCount">—</b><small>Registered Applications</small></a>
+      <a class="metric good" href="/applications"><b id="healthyCount">—</b><small>Healthy Applications</small></a>
+      <a class="metric" id="warningCard" href="/applications"><b id="warningCount">—</b><small>Warnings / Unknown</small></a>
       <a class="metric" id="activeAlertCard" href="#attention"><b id="activeAlertCount">—</b><small>Active Alerts</small></a>
       <a class="metric" href="#flow"><b id="activeFlowCount">—</b><small>Active Flows</small></a>
-    </section>
-
-    <section class="content-grid" id="systems">
-      <article class="panel" style="grid-column:1 / -1;min-height:0">
-        <h2>Applications</h2><p id="registrationAuthority">Loading authoritative registration inventory…</p>
-        <div id="applicationsList"></div>
-      </article>
     </section>
 
     <section class="flow" id="flow">
@@ -214,14 +207,6 @@ a{color:inherit;text-decoration:none}
       <article class="panel" style="min-height:0">
         <h2>Recent Logs</h2><p>Latest control-plane and application lifecycle events.</p>
         <div id="activityList"><div class="activity-row"><i class="dot"></i><span>LOADING</span><b>Reading operational history…</b></div></div>
-      </article>
-    </section>
-
-    <section class="content-grid" id="deployments" style="margin-top:10px">
-      <article class="panel" style="grid-column:1 / -1;min-height:0">
-        <h2>Deployments</h2>
-        <p>Deployment state and release controls for registered applications.</p>
-        <div class="activity-row"><i class="dot"></i><span>READY</span><b>Deployment telemetry will appear here as applications publish deployment state.</b></div>
       </article>
     </section>
 
@@ -385,7 +370,6 @@ async function load(){
     const healthy=attention===0;
     document.title='Operations · '+(healthy?'Nominal':'Attention');
 
-    renderApplications(registered);
     renderFlows(flows);
     renderAlerts(alerts);
     renderHistory(history);
@@ -398,8 +382,6 @@ async function load(){
     document.title='Operations · Telemetry Unavailable';
     const message=err?.message??'Status telemetry unavailable';
     addLog('ERR','Operations',message);
-    registrationAuthority.textContent='Operations overview telemetry failed: '+message;
-    applicationsList.innerHTML='<div class="activity-row"><i class="dot" style="background:var(--red)"></i><span>ERROR</span><b>'+esc(message)+'</b></div>';
     console.error('Operations overview load failed',err);
   }
 }
