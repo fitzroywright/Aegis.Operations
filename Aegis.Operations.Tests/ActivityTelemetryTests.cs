@@ -40,3 +40,42 @@ public sealed class ActivityTelemetryTests
         Assert.Equal(at, value.OccurredAtUtc);
     }
 }
+
+
+public sealed class ActivityPageInteractionContractTests
+{
+    private static readonly string Page = ActivityPage.Render();
+
+    [Fact]
+    public void Activity_page_preserves_lcars_shell_and_uses_compact_collapsible_filters()
+    {
+        Assert.Contains("workspace-shell", Page);
+        Assert.Contains("workspace-arm", Page);
+        Assert.Contains("workspace-leg", Page);
+        Assert.Contains("id=\"filterToggle\"", Page);
+        Assert.Contains("filters collapsed", Page);
+        Assert.Contains("Show Filters", Page);
+        Assert.Contains("setFiltersOpen(false)", Page);
+    }
+
+    [Fact]
+    public void Activity_page_has_sticky_summary_zero_state_and_keyboard_selection()
+    {
+        Assert.Contains("id=\"filterSummary\"", Page);
+        Assert.Contains("Reset Filters", Page);
+        Assert.Contains("ArrowDown", Page);
+        Assert.Contains("ArrowUp", Page);
+        Assert.Contains("telemetry-row.active", Page);
+        Assert.Contains("restoreSelection", Page);
+    }
+
+    [Fact]
+    public void Flow_analyzer_is_a_non_destructive_floating_overlay()
+    {
+        Assert.Contains("id=\"flowOverlay\"", Page);
+        Assert.Contains("position:absolute;z-index:40", Page);
+        Assert.Contains("refreshFlowOverlay", Page);
+        Assert.Contains("lastFocusedList", Page);
+        Assert.Contains("focus({preventScroll:true})", Page);
+    }
+}
