@@ -596,6 +596,8 @@ internal static class OperationsV1Endpoints
         });
 
         app.MapGet("/", (HttpContext context) => Results.Content(OperationsPage.Render(configurationUrl, diagnosticsUrl, site, environment, ResolveDisplayUser(context)), "text/html; charset=utf-8"));
+        app.MapGet("/applications", (HttpContext context) => Results.Content(OperationsSectionPage.RenderApplications(configurationUrl, diagnosticsUrl, ResolveDisplayUser(context)), "text/html; charset=utf-8"));
+        app.MapGet("/deployments", (HttpContext context) => Results.Content(OperationsSectionPage.RenderDeployments(configurationUrl, diagnosticsUrl, ResolveDisplayUser(context)), "text/html; charset=utf-8"));
         app.MapGet("/operations-v1", (HttpContext context) => Results.Content(OperationsPage.Render(configurationUrl, diagnosticsUrl, site, environment, ResolveDisplayUser(context)), "text/html; charset=utf-8"));
     }
 
