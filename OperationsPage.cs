@@ -91,7 +91,7 @@ a{color:inherit;text-decoration:none}
 
 .top-buttons{position:absolute;right:50px;top:18px;width:250px;height:72px;display:grid;grid-template-columns:1fr 1fr;gap:8px 10px;padding-left:12px}
 .top-buttons a,.top-buttons button{border:0;border-radius:8px;font-weight:900;text-transform:uppercase;color:#071018;cursor:pointer;font-size:12px;display:flex;align-items:center;justify-content:center;line-height:1;padding:0 8px;box-shadow:inset 0 1px 0 rgba(255,255,255,.28),0 1px 0 rgba(0,0,0,.55)}
-.top-buttons .gold{background:var(--gold)}.top-buttons .blue{background:var(--blue)}.top-buttons .salmon{background:var(--salmon)}.top-buttons .gray{background:var(--peach)}
+.top-buttons .gold{background:var(--gold)}.top-buttons .blue{background:var(--blue)}.top-buttons .salmon{background:var(--salmon)}.top-buttons .gray{background:var(--peach)}.top-buttons .logout{background:var(--sunset-red);color:#fff}
 
 
 /* --- fixed mirrored workspace L --- */
@@ -106,7 +106,7 @@ a{color:inherit;text-decoration:none}
 .workspace-shell::after{content:"";position:absolute;left:var(--rail-width);top:var(--workspace-arm-height);width:var(--elbow-radius);height:var(--elbow-radius);background:radial-gradient(circle at 100% 100%,transparent 0 calc(var(--elbow-radius) - 1px),var(--alpha-blue) var(--elbow-radius));z-index:5;pointer-events:none}
 
 .workspace-nav{position:absolute;left:0;top:calc(var(--workspace-arm-height) + var(--scroll-arrow-space));width:var(--rail-width);z-index:2}
-.workspace-nav a{display:flex;align-items:center;height:48px;padding-left:11px;color:#071018;font-weight:900;text-transform:uppercase;font-size:12px;border-bottom:3px solid #000}
+.workspace-nav a{display:flex;align-items:center;height:48px;padding:0 6px 0 9px;color:#071018;font-weight:900;text-transform:uppercase;font-size:10px;line-height:1.05;white-space:normal;overflow-wrap:anywhere;border-bottom:3px solid #000}
 .workspace-nav a:last-child{border-bottom:0}
 .workspace-nav a.active{font-size:13px;background:var(--title-gold);color:#071018}.lcars-back{position:absolute;left:0;bottom:0;width:var(--rail-width);height:48px;z-index:7;border:0;border-top:3px solid #000;border-radius:0 0 0 28px;background:var(--alpha-blue);color:#071018;font:900 12px/1 "Arial Narrow","Roboto Condensed","Segoe UI",Arial,sans-serif;text-transform:uppercase;text-align:left;padding:0 0 0 11px;cursor:pointer}.lcars-back:hover,.lcars-back:focus-visible{background:var(--title-gold);outline:none}.lcars-back:active{background:var(--title-gold);filter:brightness(1.08)}
 .top-buttons a,.workspace-nav a{transition:background .12s ease,color .12s ease,filter .12s ease}
@@ -152,7 +152,7 @@ a{color:inherit;text-decoration:none}
     <div class="datetime" id="brandDateTime"></div><div class="brand-user" id="brandUser">SIGNED IN</div>
   </div>
 
-  <div class="live-log"><div class="recent-title">Recent Activity</div><div class="recent-rows" id="liveLog">
+  <div class="live-log"><div class="recent-title">Recent Logs</div><div class="recent-rows" id="liveLog">
     <div class="row"><span class="t">--:--:--</span> <span class="inf">INF</span> <span class="src">[Operations]</span> Loading control-plane state</div>
     <div class="row"><span class="t">--:--:--</span> <span class="inf">INF</span> <span class="src">[Configuration]</span> Awaiting status</div>
     <div class="row"><span class="t">--:--:--</span> <span class="inf">INF</span> <span class="src">[Diagnostics]</span> Awaiting status</div>
@@ -164,7 +164,7 @@ a{color:inherit;text-decoration:none}
     <a class="blue" href="/">Operations</a>
     <a class="salmon" href="__DIAGNOSTICS_URL__">Diagnostics</a>
     <a class="gold" href="__CONFIGURATION_URL__">Configuration</a>
-    <a class="gray" href="/handoff/registration">Registration</a>
+    <a class="logout" href="/auth/logout">Logout</a>
   </div>
 </header>
 
@@ -176,7 +176,8 @@ a{color:inherit;text-decoration:none}
   <div class="workspace-leg"></div>
   <nav class="workspace-nav">
     <a class="active" href="#overview">Command</a>
-    <a href="/activity">Engineering</a>
+    <a href="/activity">Logs</a>
+    <a href="/handoff/registration">Registration</a>
     <a href="#systems">Apps</a>
     <a href="#flow">Flows</a>
     <a href="#attention">Attention</a>
@@ -214,7 +215,7 @@ a{color:inherit;text-decoration:none}
         <div id="alertList"><div class="activity-row"><i class="dot"></i><span>LOADING</span><b>Reading active alerts…</b></div></div>
       </article>
       <article class="panel" style="min-height:0">
-        <h2>Recent Activity</h2><p>Latest control-plane and application lifecycle events.</p>
+        <h2>Recent Logs</h2><p>Latest control-plane and application lifecycle events.</p>
         <div id="activityList"><div class="activity-row"><i class="dot"></i><span>LOADING</span><b>Reading operational history…</b></div></div>
       </article>
     </section>
