@@ -170,7 +170,7 @@ a{color:inherit;text-decoration:none}
 
 <section class="workspace-shell">
   <div class="workspace-arm">
-    <div class="workspace-title">Overview</div>
+    <div class="workspace-title" id="workspaceTitle">Overview</div>
     <div class="last-scan" id="checked">Last Scan: SCANNING</div>
   </div>
   <div class="workspace-leg"></div>
@@ -276,6 +276,8 @@ refreshControlPlaneHealthBanner();setInterval(refreshControlPlaneHealthBanner,30
 const workspaceLinks=[...document.querySelectorAll('.workspace-nav a[href^="#"]')];
 function setActiveWorkspaceLink(link){
   workspaceLinks.forEach(x=>x.classList.toggle('active',x===link));
+  const title=document.getElementById('workspaceTitle');
+  if(title&&link)title.textContent=(link.textContent||'').trim();
 }
 workspaceLinks.forEach(a=>a.addEventListener('click',e=>{
   const id=a.getAttribute('href'); if(!id?.startsWith('#')) return; e.preventDefault();
