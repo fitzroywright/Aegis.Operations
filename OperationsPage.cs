@@ -117,18 +117,18 @@ a{color:inherit;text-decoration:none}
 
 /* --- current Operations content, intentionally inside the L only --- */
 .control-plane-health-banner{display:none;margin:0 0 14px;padding:11px 13px;border:1px solid #c88a27;border-top:3px solid #e5a83f;border-radius:9px;background:#6d4911;color:#ffe1a3}.control-plane-health-banner strong{display:block;color:#ffd27a;font-size:12px;letter-spacing:.08em;text-transform:uppercase;margin-bottom:3px}.control-plane-health-banner.critical{background:#4a1711;border-color:#b94832;border-top-color:#e25b40;color:#ffd0c7}.control-plane-health-banner.critical strong{color:#ffb0a1}.control-plane-health-banner.health-unavailable{background:#30280e;border-color:#8f7620;color:#f0dfa0}
-.page-head{display:flex;justify-content:space-between;align-items:flex-start;gap:20px;margin-bottom:16px}
+.page-head{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;margin-bottom:6px}
 .page-head h1{margin:0;color:var(--blue);font-size:31px}.page-head p{margin:4px 0 0;color:var(--starship-white)}
 .scan{color:var(--cyan);text-align:right}
-.metrics{display:grid;grid-template-columns:repeat(5,minmax(120px,1fr));gap:14px;margin:10px 0 22px}
-.metric{position:relative;padding:14px 30px 15px 14px;border:1px solid var(--line-soft);border-top:2px solid var(--line);background:linear-gradient(180deg,rgba(12,34,52,.68),rgba(2,10,16,.78));border-radius:10px;box-shadow:inset 0 1px 0 rgba(96,183,230,.08);cursor:pointer;transition:transform .12s ease,border-color .12s ease,background .12s ease}.metric::after{content:"›";position:absolute;right:12px;top:50%;transform:translateY(-50%);color:var(--arctic-ice);font-size:22px;font-weight:900}.metric:hover,.metric:focus-visible{transform:translateY(-1px);border-color:var(--arctic-ice);background:linear-gradient(180deg,rgba(18,49,72,.78),rgba(4,15,24,.86));outline:none}.metric b{display:block;font-size:29px;color:var(--cyan)}.metric small{color:var(--muted)}.metric.good b{color:var(--green)}.metric.warn,.metric.issue-card{background:#6d4911;border-color:#c88a27;box-shadow:inset 0 1px 0 rgba(255,224,160,.10)}.metric.warn b,.metric.issue-card b{color:#ffd27a}.metric.warn small,.metric.issue-card small{color:#ffe1a3}.metric.warn::after,.metric.issue-card::after{color:#ffd27a}.metric.warn:hover,.metric.issue-card:hover,.metric.warn:focus-visible,.metric.issue-card:focus-visible{border-color:#e5a83f;background:#7a5214}
-.content-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}
-.panel{border:1px solid var(--line-soft);border-top:2px solid var(--line);padding:16px 16px 12px;min-height:250px;background:linear-gradient(180deg,rgba(8,27,42,.50),rgba(1,7,12,.40));border-radius:10px;box-shadow:inset 0 1px 0 rgba(96,183,230,.07)}.panel h2{margin:0;color:var(--blue)}.panel p{color:var(--muted)}
+.metrics{display:grid;grid-template-columns:repeat(5,minmax(120px,1fr));gap:8px;margin:4px 0 10px}
+.metric{position:relative;min-height:56px;padding:7px 26px 7px 10px;border:1px solid var(--line-soft);border-top:2px solid var(--line);background:linear-gradient(180deg,rgba(12,34,52,.68),rgba(2,10,16,.78));border-radius:10px;box-shadow:inset 0 1px 0 rgba(96,183,230,.08);cursor:pointer;transition:transform .12s ease,border-color .12s ease,background .12s ease}.metric::after{content:"›";position:absolute;right:12px;top:50%;transform:translateY(-50%);color:var(--arctic-ice);font-size:22px;font-weight:900}.metric:hover,.metric:focus-visible{transform:translateY(-1px);border-color:var(--arctic-ice);background:linear-gradient(180deg,rgba(18,49,72,.78),rgba(4,15,24,.86));outline:none}.metric b{display:block;font-size:22px;line-height:1;color:var(--cyan)}.metric small{color:var(--muted);font-size:10px;line-height:1.05}.metric.good b{color:var(--green)}.metric.warn,.metric.issue-card{background:#6d4911;border-color:#c88a27;box-shadow:inset 0 1px 0 rgba(255,224,160,.10)}.metric.warn b,.metric.issue-card b{color:#ffd27a}.metric.warn small,.metric.issue-card small{color:#ffe1a3}.metric.warn::after,.metric.issue-card::after{color:#ffd27a}.metric.warn:hover,.metric.issue-card:hover,.metric.warn:focus-visible,.metric.issue-card:focus-visible{border-color:#e5a83f;background:#7a5214}
+.content-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.panel{border:1px solid var(--line-soft);border-top:2px solid var(--line);padding:9px 12px 8px;min-height:150px;background:linear-gradient(180deg,rgba(8,27,42,.50),rgba(1,7,12,.40));border-radius:10px;box-shadow:inset 0 1px 0 rgba(96,183,230,.07)}.panel h2{margin:0;color:var(--blue)}.panel p{color:var(--muted)}
 .status-pill{display:inline-block;padding:4px 9px;border:1px solid;border-radius:12px;font-weight:900}.ok{color:var(--green)}.bad{color:var(--red)}
-.facts{display:grid;grid-template-columns:1fr 1fr;margin-top:12px}.facts div{padding:9px 12px 9px 0;border-bottom:1px solid #173747}.facts small,.facts b{display:block}.facts small{color:var(--muted)}
-.activity,.flow{margin-top:18px;border:1px solid var(--line-soft);border-top:2px solid var(--line);padding:14px 16px 8px;background:linear-gradient(180deg,rgba(8,27,42,.40),rgba(1,7,12,.34));border-radius:10px;box-shadow:inset 0 1px 0 rgba(96,183,230,.06)}.activity h2,.flow h2{color:var(--blue);margin:0 0 10px}
-.activity-row{display:grid;grid-template-columns:16px 170px 1fr;gap:10px;padding:10px 0;border-bottom:1px solid var(--line-soft);align-items:center}.activity-row:last-child{border-bottom:0}.dot{width:12px;height:12px;border-radius:50%;background:var(--green);display:block;justify-self:center}
-.flow-row{display:grid;grid-template-columns:180px 140px 1fr minmax(140px,auto);gap:12px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line-soft)}.flow-row:last-child{border-bottom:0}.lights{display:flex;gap:7px;align-items:center}.lights i{width:11px;height:11px;border-radius:50%;background:#53646f;display:block}.lights i.on{background:var(--green)}.lights i.warn{background:var(--yellow)}
+.facts{display:grid;grid-template-columns:1fr 1fr;margin-top:6px}.facts div{padding:5px 10px 5px 0;border-bottom:1px solid #173747}.facts small,.facts b{display:block}.facts small{color:var(--muted)}
+.activity,.flow{margin-top:10px;border:1px solid var(--line-soft);border-top:2px solid var(--line);padding:8px 12px 5px;background:linear-gradient(180deg,rgba(8,27,42,.40),rgba(1,7,12,.34));border-radius:10px;box-shadow:inset 0 1px 0 rgba(96,183,230,.06)}.activity h2,.flow h2{color:var(--blue);margin:0 0 10px}
+.activity-row{display:grid;grid-template-columns:14px 145px 1fr;gap:8px;padding:6px 0;border-bottom:1px solid var(--line-soft);align-items:center}.activity-row:last-child{border-bottom:0}.dot{width:12px;height:12px;border-radius:50%;background:var(--green);display:block;justify-self:center}
+.flow-row{display:grid;grid-template-columns:160px 120px 1fr minmax(120px,auto);gap:8px;align-items:center;padding:6px 0;border-bottom:1px solid var(--line-soft)}.flow-row:last-child{border-bottom:0}.lights{display:flex;gap:7px;align-items:center}.lights i{width:11px;height:11px;border-radius:50%;background:#53646f;display:block}.lights i.on{background:var(--green)}.lights i.warn{background:var(--yellow)}
 
 @media(max-width:1250px){
   .brand{width:280px}
@@ -206,7 +206,7 @@ a{color:inherit;text-decoration:none}
       <div id="flowList"><div class="flow-row"><b>Loading</b><span>Telemetry</span><div class="lights"><i></i><i></i><i></i><i></i></div><span>—</span></div></div>
     </section>
 
-    <section class="content-grid" id="attention" style="margin-top:18px">
+    <section class="content-grid" id="attention" style="margin-top:10px">
       <article class="panel" style="min-height:0">
         <h2>Attention</h2><p>Active alerts and conditions that require operator review.</p>
         <div id="alertList"><div class="activity-row"><i class="dot"></i><span>LOADING</span><b>Reading active alerts…</b></div></div>
@@ -217,7 +217,7 @@ a{color:inherit;text-decoration:none}
       </article>
     </section>
 
-    <section class="content-grid" id="deployments" style="margin-top:18px">
+    <section class="content-grid" id="deployments" style="margin-top:10px">
       <article class="panel" style="grid-column:1 / -1;min-height:0">
         <h2>Deployments</h2>
         <p>Deployment state and release controls for registered applications.</p>
@@ -225,7 +225,7 @@ a{color:inherit;text-decoration:none}
       </article>
     </section>
 
-    <section class="content-grid" id="controlplane" style="margin-top:18px">
+    <section class="content-grid" id="controlplane" style="margin-top:10px">
       <article class="panel" style="min-height:0">
         <h2>Configuration Authority</h2><p id="cfgReason">Configuration authority status</p>
         <span id="cfgStatus" class="status-pill">SCANNING</span>
