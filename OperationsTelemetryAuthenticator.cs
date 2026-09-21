@@ -9,6 +9,7 @@ internal sealed class OperationsTelemetryAuthenticator
     private readonly string _configurationUrl;
     private readonly string _operationsUrl;
     private readonly TimeSpan _authorityGrace;
+    private readonly TimeSpan _validationCache;
     private readonly System.Collections.Concurrent.ConcurrentDictionary<string, DateTimeOffset> _lastValidated = new(StringComparer.OrdinalIgnoreCase);
 
     internal OperationsTelemetryAuthenticator(
@@ -34,6 +35,11 @@ internal sealed class OperationsTelemetryAuthenticator
             configuration.GetValue("Operations:TelemetryAuthorityGraceSeconds", 900),
             30,
             3600));
+
+        _validationCache = TimeSpan.FromSeconds(Math.Clamp(
+            configuration.GetValue("Operations:TelemetryValidationCacheSeconds", 30),
+            5,
+            300));
     }
 
     internal async Task<bool> IsAuthorizedAsync(
@@ -108,6 +114,12 @@ internal sealed class OperationsTelemetryAuthenticator
             request.Headers.TryAddWithoutValidation("X-Aegis-Correlation-Id", correlation);
 
         string cacheKey = suppliedApplicationId + "|" + instanceId + "|" + installationId;
+
+        if (_lastValidated.TryGetValue(cacheKey, out DateTimeOffset cachedAt) &&
+            DateTimeOffset.UtcNow - cachedAt <= _validationCache)
+        {
+            return true;
+        }
 
         try
         {
