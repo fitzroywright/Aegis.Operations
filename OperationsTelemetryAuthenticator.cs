@@ -43,7 +43,7 @@ internal sealed class OperationsTelemetryAuthenticator
         string authorization = context.Request.Headers.Authorization.ToString();
 
         if (string.IsNullOrWhiteSpace(applicationId) ||
-            !applicationId.Equals(suppliedApplicationId, StringComparison.OrdinalIgnoreCase) ||
+            string.IsNullOrWhiteSpace(suppliedApplicationId) ||
             string.IsNullOrWhiteSpace(instanceId) ||
             !AuthenticationHeaderValue.TryParse(authorization, out AuthenticationHeaderValue? parsed) ||
             !parsed.Scheme.Equals("Bearer", StringComparison.OrdinalIgnoreCase) ||
@@ -52,9 +52,19 @@ internal sealed class OperationsTelemetryAuthenticator
             return false;
         }
 
-        bool controlPlane = applicationId.Equals("Aegis.Operations", StringComparison.OrdinalIgnoreCase) ||
-            applicationId.Equals("Aegis.Configuration", StringComparison.OrdinalIgnoreCase) ||
-            applicationId.Equals("Aegis.Diagnostics", StringComparison.OrdinalIgnoreCase);
+        bool delegatedConfigurationTelemetry =
+            suppliedApplicationId.Equals("Aegis.Configuration", StringComparison.OrdinalIgnoreCase) &&
+            !applicationId.Equals(suppliedApplicationId, StringComparison.OrdinalIgnoreCase);
+
+        if (!delegatedConfigurationTelemetry &&
+            !applicationId.Equals(suppliedApplicationId, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        bool controlPlane = suppliedApplicationId.Equals("Aegis.Operations", StringComparison.OrdinalIgnoreCase) ||
+            suppliedApplicationId.Equals("Aegis.Configuration", StringComparison.OrdinalIgnoreCase) ||
+            suppliedApplicationId.Equals("Aegis.Diagnostics", StringComparison.OrdinalIgnoreCase);
 
         if (controlPlane)
         {
