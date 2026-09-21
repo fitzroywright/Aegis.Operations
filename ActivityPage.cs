@@ -148,7 +148,7 @@ body{position:relative}a{color:inherit;text-decoration:none}
 
 <script>
 const $=id=>document.getElementById(id),esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
-let paused=false,followTail=true,mode='log',hiddenBefore=null;
+const initialQuery=new URLSearchParams(location.search);let paused=false,followTail=true,mode=['log','appLogs','flow'].includes(initialQuery.get('mode'))?initialQuery.get('mode'):'log',hiddenBefore=null;
 let selectedKey=null,selectedEvent=null,overlayOpen=false,lastFocusedList=null;
 let currentActivityEvents=[],currentAppLogEvents=[];
 const idsKey='aegis.engineering.showIds';
@@ -169,7 +169,7 @@ refreshControlPlaneHealthBanner();setInterval(refreshControlPlaneHealthBanner,30
 
 function params(){const p=new URLSearchParams(),map={applicationId:'application',instanceId:'instance',flow:'flow',outcome:'outcome',correlationId:'correlation',stage:'stage',text:'text'};for(const[q,id]of Object.entries(map)){const v=$(id).value.trim();if(v)p.set(q,v)}const m=parseInt($('sinceMinutes').value||'0',10);if(m>0)p.set('since',new Date(Date.now()-m*60000).toISOString());p.set('take',mode==='flow'?'250':'1000');return p}
 function setOptions(id,values,label){const el=$(id),current=el.value;el.innerHTML='<option value="">All '+label+'</option>'+values.map(v=>'<option>'+esc(v)+'</option>').join('');el.value=current}
-async function loadFilters(){try{const r=await fetch('/api/operations/activity/filters',{cache:'no-store'});if(!r.ok)return;const x=await r.json();setOptions('application',x.applications||[],'applications');setOptions('instance',x.instances||[],'instances');setOptions('flow',x.flows||[],'flows');setOptions('outcome',x.outcomes||[],'outcomes')}catch{}}
+async function loadFilters(){try{const r=await fetch('/api/operations/activity/filters',{cache:'no-store'});if(!r.ok)return;const x=await r.json();setOptions('application',x.applications||[],'applications');setOptions('instance',x.instances||[],'instances');setOptions('flow',x.flows||[],'flows');setOptions('outcome',x.outcomes||[],'outcomes');for(const[q,id]of Object.entries({applicationId:'application',instanceId:'instance',flow:'flow',outcome:'outcome',correlationId:'correlation',stage:'stage',text:'text',level:'logLevel',category:'category'})){const v=initialQuery.get(q);if(v&&$(id))$(id).value=v}const since=initialQuery.get('sinceMinutes');if(since&&$('sinceMinutes'))$('sinceMinutes').value=since}catch{}}
 function fmt(v){const d=new Date(v);return Number.isNaN(d.valueOf())?'—':recentStamp(d)+'.'+String(d.getMilliseconds()).padStart(3,'0')}
 function detail(e){return[e.stage,e.code,e.detail].filter(Boolean).join(' · ')}
 function levelClass(level){return String(level||'Information')}
@@ -258,7 +258,7 @@ $('pause').onclick=()=>{paused=!paused;$('pause').textContent=paused?'Resume':'P
 $('follow').onclick=()=>{followTail=!followTail;$('follow').textContent='Tail: '+(followTail?'On':'Off')};
 $('clear').onclick=()=>{hiddenBefore=new Date();$('logView').innerHTML='<div class="empty">View cleared. New logs will appear here.</div>';$('appLogView').innerHTML='<div class="empty">View cleared. New logs will appear here.</div>';$('flowView').innerHTML='<div class="empty">View cleared. Adjust filters or wait for new flows.</div>'};
 $('toggleIds').onclick=()=>{showIds=!showIds;localStorage.setItem(idsKey,showIds?'on':'off');applyIdsVisibility()};
-tabs();applyIdsVisibility();loadFilters();refresh();setInterval(()=>{loadFilters();refresh()},2000);
+tabs();applyIdsVisibility();loadFilters().then(refresh);setInterval(()=>{loadFilters();refresh()},2000);
 
 function installAegisConsoleAudio(){
   const key='aegis.console.sound',enabled=()=>localStorage.getItem(key)!=='off';
