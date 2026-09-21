@@ -122,7 +122,7 @@ a{color:inherit;text-decoration:none}
 .scan{color:var(--cyan);text-align:right}
 .metrics{display:grid;grid-template-columns:repeat(5,minmax(120px,1fr));gap:8px;margin:4px 0 10px}
 .metric{position:relative;min-height:56px;padding:7px 26px 7px 10px;border:1px solid var(--line-soft);border-top:2px solid var(--line);background:linear-gradient(180deg,rgba(12,34,52,.68),rgba(2,10,16,.78));border-radius:10px;box-shadow:inset 0 1px 0 rgba(96,183,230,.08);cursor:pointer;transition:transform .12s ease,border-color .12s ease,background .12s ease}.metric::after{content:"›";position:absolute;right:12px;top:50%;transform:translateY(-50%);color:var(--arctic-ice);font-size:22px;font-weight:900}.metric:hover,.metric:focus-visible{transform:translateY(-1px);border-color:var(--arctic-ice);background:linear-gradient(180deg,rgba(18,49,72,.78),rgba(4,15,24,.86));outline:none}.metric b{display:block;font-size:22px;line-height:1;color:var(--cyan)}.metric small{color:var(--muted);font-size:10px;line-height:1.05}.metric.good b{color:var(--green)}.metric.warn,.metric.issue-card{background:#6d4911;border-color:#c88a27;box-shadow:inset 0 1px 0 rgba(255,224,160,.10)}.metric.warn b,.metric.issue-card b{color:#ffd27a}.metric.warn small,.metric.issue-card small{color:#ffe1a3}.metric.warn::after,.metric.issue-card::after{color:#ffd27a}.metric.warn:hover,.metric.issue-card:hover,.metric.warn:focus-visible,.metric.issue-card:focus-visible{border-color:#e5a83f;background:#7a5214}
-.content-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.content-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.landscape{margin:0 0 10px;border:1px solid var(--line-soft);border-top:2px solid var(--line);border-radius:10px;background:linear-gradient(180deg,rgba(8,27,42,.46),rgba(1,7,12,.36));overflow:hidden}.landscape-head{display:flex;align-items:center;justify-content:space-between;padding:8px 10px;border-bottom:1px solid var(--line-soft)}.landscape-head h2{margin:0;color:var(--blue);font-size:16px}.landscape-head a{font-size:10px;color:var(--arctic-ice);font-weight:800;text-transform:uppercase}.landscape-grid{display:grid;grid-template-columns:repeat(4,minmax(180px,1fr));gap:0}.landscape-app{padding:8px 10px;border-right:1px solid var(--line-soft);border-bottom:1px solid var(--line-soft);min-height:64px}.landscape-app b{display:block;font-size:12px}.landscape-app small{display:block;color:var(--muted);font-size:10px}.landscape-state{display:inline-block;margin-top:5px;font-weight:900;font-size:10px}.landscape-state.good{color:var(--green)}.landscape-state.warn{color:var(--title-gold)}.landscape-state.bad{color:var(--red)}
 .panel{border:1px solid var(--line-soft);border-top:2px solid var(--line);padding:9px 12px 8px;min-height:150px;background:linear-gradient(180deg,rgba(8,27,42,.50),rgba(1,7,12,.40));border-radius:10px;box-shadow:inset 0 1px 0 rgba(96,183,230,.07)}.panel h2{margin:0;color:var(--blue)}.panel p{color:var(--muted)}
 .status-pill{display:inline-block;padding:4px 9px;border:1px solid;border-radius:12px;font-weight:900}.ok{color:var(--green)}.bad{color:var(--red)}
 .facts{display:grid;grid-template-columns:1fr 1fr;margin-top:6px}.facts div{padding:5px 10px 5px 0;border-bottom:1px solid #173747}.facts small,.facts b{display:block}.facts small{color:var(--muted)}
@@ -192,6 +192,11 @@ a{color:inherit;text-decoration:none}
       <a class="metric" id="warningCard" href="/applications"><b id="warningCount">—</b><small>Warnings / Unknown</small></a>
       <a class="metric" id="activeAlertCard" href="#attention"><b id="activeAlertCount">—</b><small>Active Alerts</small></a>
       <a class="metric" href="#flow"><b id="activeFlowCount">—</b><small>Active Flows</small></a>
+    </section>
+
+    <section class="landscape">
+      <div class="landscape-head"><h2>Installation Landscape</h2><a href="/applications">Open Applications →</a></div>
+      <div class="landscape-grid" id="installationLandscape"><div class="landscape-app"><b>Loading installation landscape…</b></div></div>
     </section>
 
     <section class="flow" id="flow">
@@ -320,6 +325,13 @@ function renderApplications(data){
     return '<div class="activity-row"><i class="dot" style="background:'+(cls==='ok'?'var(--green)':'var(--yellow)')+'"></i><span style="display:flex;align-items:center;gap:8px">'+appIcon(a)+esc(a.applicationId)+'</span><b>'+esc(a.instanceId)+' · '+esc(a.stale?'Offline':state)+(a.stale?' · NO RECENT HEARTBEAT':'')+'</b></div>'
   }).join('');
 }
+function renderLandscape(apps){
+  const rows=apps??[];
+  installationLandscape.innerHTML=rows.length?rows.map(a=>{
+    const state=String(a.stale?'Offline':(a.state??'Unknown')),lower=state.toLowerCase(),cls=lower==='healthy'?'good':(['unhealthy','failed','critical'].includes(lower)?'bad':'warn');
+    return '<a class="landscape-app" href="/applications"><b>'+esc(a.displayName||a.applicationId)+'</b><small>'+esc(a.applicationId)+' · '+esc(a.instanceId||'—')+' · '+esc(a.environment||'—')+'</small><span class="landscape-state '+cls+'">'+esc(state.toUpperCase())+'</span><small>'+esc(a.reason||a.version||'')+'</small></a>'
+  }).join(''):'<div class="landscape-app"><b>No registered applications</b><small>Nothing is currently reporting into Operations.</small></div>';
+}
 function renderHistory(items){
   const rows=(items??[]).slice(0,8);
   if(!rows.length){activityList.innerHTML='<div class="activity-row"><i class="dot"></i><span>—</span><b>No operational history available.</b></div>';liveLog.innerHTML='<div class="row"><span class="t">'+recentStamp()+'</span> <span class="inf">INF</span> <span class="src">[Operations]</span> No operational history available</div>';return}
@@ -370,6 +382,7 @@ async function load(){
     const healthy=attention===0;
     document.title='Operations · '+(healthy?'Nominal':'Attention');
 
+    renderLandscape(apps);
     renderFlows(flows);
     renderAlerts(alerts);
     renderHistory(history);
@@ -385,7 +398,18 @@ async function load(){
     console.error('Operations overview load failed',err);
   }
 }
-load();setInterval(load,30000);
+async function refreshRecentLogs(){
+  try{
+    const r=await fetch('/api/operations/activity?take=5',{cache:'no-store'});if(!r.ok)return;
+    const x=await r.json(),events=x.events||[];
+    if(!events.length)return;
+    liveLog.innerHTML=events.slice(-5).map(e=>{
+      const outcome=String(e.outcome||e.level||'Information'),lower=outcome.toLowerCase(),level=(lower.includes('fail')||lower.includes('error')||lower.includes('critical'))?'ERR':(lower.includes('warn')?'WRN':'INF');
+      return '<div class="row"><span class="t">'+fmtTime(e.occurredAtUtc||e.atUtc||e.at)+'</span> <span class="'+level.toLowerCase()+'">'+level+'</span> <span class="src">['+esc(e.applicationId||e.application||'Operations')+']</span> '+esc(e.detail||e.stage||e.flow||e.code||outcome)+'</div>'
+    }).join('');
+  }catch{}
+}
+load();setInterval(load,30000);refreshRecentLogs();setInterval(refreshRecentLogs,5000);
 
 function installAegisConsoleAudio(){
   const key='aegis.console.sound',enabled=()=>localStorage.getItem(key)!=='off';
