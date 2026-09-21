@@ -16,7 +16,7 @@ internal static class ActivityPage
   --starship-white:#f3f3fc;--sunset-red:#ff3500;--peach:#99ccff;--salmon:#7799dd;
   --gold:#88eeff;--blue:#5588ee;--cyan:#66ccff;--green:#88eeff;--yellow:#99ccff;
   --red:#ff3500;--white:#f3f3fc;--muted:#99ccff;--line:#455580;--line-soft:#344470;
-  --panel:#071020;--title-gold:#ffcc66;--rail-width:96px;--top-arm-height:14px;
+  --panel:#071020;--title-gold:#ffcc66;--rail-width:132px;--top-arm-height:14px;
   --workspace-arm-height:48px;--elbow-radius:18px;--scroll-arrow-space:18px;
   --top-right-inset:18px;--header-gap:18px
 }
@@ -55,7 +55,7 @@ body{position:relative}a{color:inherit;text-decoration:none}
 .workspace-arm .workspace-title{position:relative;z-index:1;height:100%;display:flex;align-items:center;font-weight:900;text-transform:uppercase;color:#071018;letter-spacing:.055em;font-size:30px;line-height:1;margin-left:var(--elbow-radius);padding:0 1ch;border-left:6px solid #000;border-right:6px solid #000}.workspace-arm .last-scan{margin-left:auto;margin-right:12px;color:#3b2f16;font:700 9px/1 Arial,sans-serif;letter-spacing:.06em;text-transform:uppercase;white-space:nowrap;opacity:.9}
 .workspace-shell::after{content:"";position:absolute;left:var(--rail-width);top:var(--workspace-arm-height);width:var(--elbow-radius);height:var(--elbow-radius);background:radial-gradient(circle at 100% 100%,transparent 0 calc(var(--elbow-radius) - 1px),var(--alpha-blue) var(--elbow-radius));z-index:5;pointer-events:none}
 .workspace-nav{position:absolute;left:0;top:calc(var(--workspace-arm-height) + var(--scroll-arrow-space));width:var(--rail-width);z-index:2}
-.workspace-nav a{display:flex;align-items:center;height:48px;padding:0 6px 0 9px;color:#071018;font-weight:900;text-transform:uppercase;font-size:10px;line-height:1.05;white-space:normal;overflow-wrap:anywhere;border-bottom:3px solid #000;cursor:pointer}
+.workspace-nav a{display:flex;align-items:center;height:48px;padding:0 6px 0 9px;color:#071018;font-weight:900;text-transform:uppercase;font-size:10px;line-height:1.05;white-space:normal;overflow-wrap:normal;word-break:normal;hyphens:none;border-bottom:3px solid #000;cursor:pointer}
 .workspace-nav a.active{font-size:12px;background:var(--title-gold);color:#071018}.lcars-back{position:absolute;left:0;bottom:0;width:var(--rail-width);height:48px;z-index:7;border:0;border-top:3px solid #000;border-radius:0 0 0 28px;background:var(--alpha-blue);color:#071018;font:900 12px/1 "Arial Narrow","Roboto Condensed","Segoe UI",Arial,sans-serif;text-transform:uppercase;text-align:left;padding:0 0 0 11px;cursor:pointer}.lcars-back:hover,.lcars-back:focus-visible{background:var(--title-gold);outline:none}.lcars-back:active{background:var(--title-gold);filter:brightness(1.08)}
 .detail-scroll{position:absolute;left:var(--rail-width);right:0;top:calc(var(--workspace-arm-height) + var(--scroll-arrow-space));bottom:var(--scroll-arrow-space);min-height:0;overflow:hidden;background:#000;padding:8px 10px 6px 10px;display:flex;flex-direction:column;gap:6px}
 
