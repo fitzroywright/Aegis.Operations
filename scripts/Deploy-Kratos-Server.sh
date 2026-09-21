@@ -179,6 +179,36 @@ cleanup_legacy_registration() {
   rm -f /var/lib/aegis/configuration/bootstrap-credentials.json
 }
 
+migrate_common_secrets_env() {
+  log "Migrating Common.Secrets environment configuration to provider instances"
+
+  for app in "${SELECTED[@]}"; do
+    env_file="/etc/aegis/$app.env"
+    [[ -f "$env_file" ]] || continue
+
+    if grep -q '^CommonSecrets__Bitwarden\(__\|PasswordManager__\)' "$env_file"; then
+      echo "ERROR: $env_file contains legacy Bitwarden Common.Secrets keys." >&2
+      echo "Migrate them explicitly to CommonSecrets__Providers__<name>__Type/Settings before deployment." >&2
+      return 1
+    fi
+
+    if grep -q '^CommonSecrets__OpenBao__' "$env_file"; then
+      # Production control-plane services standardize the existing OpenBao provider
+      # instance as PrimarySecrets. Values are preserved; only the configuration path changes.
+      sed -i 's/^CommonSecrets__OpenBao__/CommonSecrets__Providers__PrimarySecrets__Settings__/' "$env_file"
+
+      if ! grep -q '^CommonSecrets__Providers__PrimarySecrets__Type=' "$env_file"; then
+        printf '\nCommonSecrets__Providers__PrimarySecrets__Type=OpenBao\n' >> "$env_file"
+      fi
+    fi
+
+    # ProviderOrder now references instance names rather than provider types.
+    sed -i -E 's/^(CommonSecrets__ProviderOrder__[0-9]+)=OpenBao$/\1=PrimarySecrets/' "$env_file"
+
+    chmod 600 "$env_file"
+  done
+}
+
 deploy_payload() {
   for app in "${SELECTED[@]}"; do
     target="${TARGET[$app]}"
@@ -219,12 +249,18 @@ rollback() {
   for app in "${SELECTED[@]}"; do
     target="${TARGET[$app]}"
     rm -rf "$target"
-    if [[ -f "$BACKUP_DIR/$app.__absent__" ]]; then
-      continue
+    if [[ ! -f "$BACKUP_DIR/$app.__absent__" ]]; then
+      mkdir -p "$target"
+      cp -a "$BACKUP_DIR/$app/." "$target/"
+      chown -R "$OWNER" "$target"
     fi
-    mkdir -p "$target"
-    cp -a "$BACKUP_DIR/$app/." "$target/"
-    chown -R "$OWNER" "$target"
+
+    env_file="/etc/aegis/$app.env"
+    backup_env="$BACKUP_DIR/etc-aegis/$app.env"
+    if [[ -f "$backup_env" ]]; then
+      cp -a "$backup_env" "$env_file"
+      chmod 600 "$env_file"
+    fi
   done
   start_selected || true
   echo "Rollback attempted. Inspect systemctl/journalctl before retrying." >&2
@@ -274,6 +310,7 @@ fi
 log "Backing up current deployment to $BACKUP_DIR"
 backup_current
 
+migrate_common_secrets_env
 cleanup_legacy_registration
 
 # Only enable automatic rollback after the backup has completed successfully.
