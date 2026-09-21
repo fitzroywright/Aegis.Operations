@@ -332,7 +332,7 @@ internal static class OperationsV1Endpoints
             OperationsTelemetryAuthenticator telemetryAuthenticator,
             CancellationToken ct) =>
         {
-            if (!await telemetryAuthenticator.IsAuthorizedAsync(context, record.ApplicationId, ct)) return Results.Forbid();
+            if (!await telemetryAuthenticator.IsAuthorizedAsync(context, record.ApplicationId, ct)) return Results.Json(new { error = "Forbidden", detail = "The authenticated identity is not authorized for this operation." }, statusCode: StatusCodes.Status403Forbidden);
             var safe = record with
             {
                 ObservedAtUtc = record.ObservedAtUtc == default ? DateTimeOffset.UtcNow : record.ObservedAtUtc,
@@ -391,7 +391,7 @@ internal static class OperationsV1Endpoints
             OperationsTelemetryAuthenticator telemetryAuthenticator,
             CancellationToken ct) =>
         {
-            if (!await telemetryAuthenticator.IsAuthorizedAsync(context, record.ApplicationId, ct)) return Results.Forbid();
+            if (!await telemetryAuthenticator.IsAuthorizedAsync(context, record.ApplicationId, ct)) return Results.Json(new { error = "Forbidden", detail = "The authenticated identity is not authorized for this operation." }, statusCode: StatusCodes.Status403Forbidden);
             if (string.IsNullOrWhiteSpace(record.CorrelationId) ||
                 string.IsNullOrWhiteSpace(record.ApplicationId) ||
                 record.Stages is null ||
@@ -416,7 +416,7 @@ internal static class OperationsV1Endpoints
             OperationsTelemetryAuthenticator telemetryAuthenticator,
             CancellationToken ct) =>
         {
-            if (!await telemetryAuthenticator.IsAuthorizedAsync(context, record.ApplicationId, ct)) return Results.Forbid();
+            if (!await telemetryAuthenticator.IsAuthorizedAsync(context, record.ApplicationId, ct)) return Results.Json(new { error = "Forbidden", detail = "The authenticated identity is not authorized for this operation." }, statusCode: StatusCodes.Status403Forbidden);
             string id = string.IsNullOrWhiteSpace(record.AlertId)
                 ? "ALT-" + Guid.NewGuid().ToString("N")[..12].ToUpperInvariant()
                 : record.AlertId;
@@ -436,7 +436,7 @@ internal static class OperationsV1Endpoints
             OperationsV1Store store,
             CancellationToken ct) =>
         {
-            if (!Has(context, "Operations.Alerts.Acknowledge")) return Results.Forbid();
+            if (!Has(context, "Operations.Alerts.Acknowledge")) return Results.Json(new { error = "Forbidden", detail = "The authenticated identity is not authorized for this operation." }, statusCode: StatusCodes.Status403Forbidden);
             List<AlertRecord> all = [.. await store.LoadAsync<AlertRecord>("alerts", ct)];
             int index = all.FindIndex(x => x.AlertId.Equals(alertId, StringComparison.OrdinalIgnoreCase));
             if (index < 0) return Results.NotFound();
@@ -461,7 +461,7 @@ internal static class OperationsV1Endpoints
             OperationsV1Store store,
             CancellationToken ct) =>
         {
-            if (!Has(context, "Operations.Alerts.Resolve")) return Results.Forbid();
+            if (!Has(context, "Operations.Alerts.Resolve")) return Results.Json(new { error = "Forbidden", detail = "The authenticated identity is not authorized for this operation." }, statusCode: StatusCodes.Status403Forbidden);
             List<AlertRecord> all = [.. await store.LoadAsync<AlertRecord>("alerts", ct)];
             int index = all.FindIndex(x => x.AlertId.Equals(alertId, StringComparison.OrdinalIgnoreCase));
             if (index < 0) return Results.NotFound();
@@ -487,7 +487,7 @@ internal static class OperationsV1Endpoints
             OperationsV1Store store,
             CancellationToken ct) =>
         {
-            if (!Has(context, "Operations.EngineerLog.Create")) return Results.Forbid();
+            if (!Has(context, "Operations.EngineerLog.Create")) return Results.Json(new { error = "Forbidden", detail = "The authenticated identity is not authorized for this operation." }, statusCode: StatusCodes.Status403Forbidden);
             string id = string.IsNullOrWhiteSpace(record.EntryId)
                 ? "ENG-" + Guid.NewGuid().ToString("N")[..12].ToUpperInvariant()
                 : record.EntryId;
@@ -578,7 +578,7 @@ internal static class OperationsV1Endpoints
             OperationsTelemetryAuthenticator telemetryAuthenticator,
             CancellationToken ct) =>
         {
-            if (!await telemetryAuthenticator.IsAuthorizedAsync(context, record.ApplicationId, ct)) return Results.Forbid();
+            if (!await telemetryAuthenticator.IsAuthorizedAsync(context, record.ApplicationId, ct)) return Results.Json(new { error = "Forbidden", detail = "The authenticated identity is not authorized for this operation." }, statusCode: StatusCodes.Status403Forbidden);
             if (string.IsNullOrWhiteSpace(record.ApplicationId) ||
                 string.IsNullOrWhiteSpace(record.FlowType) ||
                 record.Stages is null ||
