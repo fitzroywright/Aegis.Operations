@@ -14,6 +14,11 @@ builder.Services.AddHttpClient("ops", client =>
     int timeoutSeconds = builder.Configuration.GetValue("Operations:RequestTimeoutSeconds", 3);
     client.Timeout = TimeSpan.FromSeconds(timeoutSeconds);
 });
+builder.Services.AddHttpClient("registration-authority", client =>
+{
+    int timeoutSeconds = builder.Configuration.GetValue("Operations:RegistrationAuthorityTimeoutSeconds", 12);
+    client.Timeout = TimeSpan.FromSeconds(Math.Clamp(timeoutSeconds, 5, 30));
+});
 builder.Services.AddSuiteSecurity();
 builder.Services.AddSingleton(sp => new OperationsV1Store(
     sp.GetRequiredService<IConfiguration>()));
