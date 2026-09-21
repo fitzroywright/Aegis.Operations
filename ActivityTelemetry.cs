@@ -195,8 +195,9 @@ internal static class ActivityTelemetryEndpoints
             });
         });
 
-        app.MapGet("/activity", () =>
+        app.MapGet("/logs", () =>
             Results.Content(ActivityPage.Render(), "text/html; charset=utf-8"));
+        app.MapGet("/activity", () => Results.Redirect("/logs"));
     }
 
     private static async Task<bool> CanReadAsync(
