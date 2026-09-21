@@ -64,7 +64,10 @@ function Invoke-SafePublish {
     Invoke-Native -FilePath "dotnet" -ArgumentList @(
         "restore", $Project,
         "--disable-parallel",
-        "-p:RestoreDisableParallel=true"
+        "-m:1",
+        "/nodeReuse:false",
+        "-p:RestoreDisableParallel=true",
+        "/p:UseSharedCompilation=false"
     )
 
     Invoke-Native -FilePath "dotnet" -ArgumentList @(
