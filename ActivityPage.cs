@@ -76,9 +76,7 @@ body{position:relative}a{color:inherit;text-decoration:none}
 @media(max-width:1250px){.brand{width:280px}.live-log{left:410px;right:calc(225px + 50px + 14px)}.top-buttons{right:50px;width:225px}.filters{grid-template-columns:repeat(3,1fr)}}
 @media(max-width:900px){.filters{grid-template-columns:repeat(2,1fr)}.flow-overlay{right:12px;width:calc(100% - var(--rail-width) - 24px)}.telemetry-row{grid-template-columns:145px 1fr 100px 82px;grid-template-rows:auto auto auto}.telemetry-row .flow{display:none}.telemetry-row>.detail{display:block;grid-column:1 / -1;grid-row:2}.telemetry-row>.registration-id-cell{display:block;grid-column:1 / -1;grid-row:3}.ids-hidden .registration-id-cell{display:none}}
  .sound-toggle{margin-left:10px;margin-right:14px;border:0;border-left:3px solid #000;background:#071018;color:var(--title-gold);width:34px;height:26px;padding:4px 7px;cursor:pointer;z-index:6;display:grid;place-items:center}.sound-toggle svg{width:18px;height:18px;fill:currentColor}.sound-toggle:hover{background:#111d2a;color:var(--starship-white)}.sound-toggle:hover{background:#111d2a;color:var(--starship-white)}
-
-/* Shared Control Plane nucleus mark. Keep identical on every Operations surface. */
-.lcars-top .left-vertical::after,.left-vertical::after{content:"";position:absolute;left:26px;top:16px;width:108px;height:108px;background:url("data:image/svg+xml,%3Csvg xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22 viewBox%3D%220 0 108 108%22%3E%3Cg fill%3D%22none%22 stroke%3D%22%23bfeaff%22 stroke-width%3D%221.2%22 opacity%3D%22.7%22%3E%3Ccircle cx%3D%2254%22 cy%3D%2254%22 r%3D%2225%22%2F%3E%3Ccircle cx%3D%2254%22 cy%3D%2254%22 r%3D%2238%22%2F%3E%3Ccircle cx%3D%2254%22 cy%3D%2254%22 r%3D%2249%22%2F%3E%3C%2Fg%3E%3Cg fill%3D%22%23071018%22 stroke%3D%22%2366ccff%22 stroke-width%3D%221.4%22%3E%3Crect x%3D%2240%22 y%3D%2243%22 width%3D%2228%22 height%3D%227%22 rx%3D%221%22%2F%3E%3Crect x%3D%2240%22 y%3D%2251%22 width%3D%2228%22 height%3D%227%22 rx%3D%221%22%2F%3E%3Crect x%3D%2240%22 y%3D%2259%22 width%3D%2228%22 height%3D%227%22 rx%3D%221%22%2F%3E%3C%2Fg%3E%3Cg fill%3D%22%2366ccff%22%3E%3Ccircle cx%3D%2264%22 cy%3D%2246.5%22 r%3D%221.3%22%2F%3E%3Ccircle cx%3D%2264%22 cy%3D%2254.5%22 r%3D%221.3%22%2F%3E%3Ccircle cx%3D%2264%22 cy%3D%2262.5%22 r%3D%221.3%22%2F%3E%3C%2Fg%3E%3Cg stroke-width%3D%222%22%3E%3Ccircle cx%3D%2230%22 cy%3D%2232%22 r%3D%228%22 fill%3D%22%23071018%22 stroke%3D%22%23ffb43d%22%2F%3E%3Ccircle cx%3D%2282%22 cy%3D%2224%22 r%3D%228%22 fill%3D%22%23071018%22 stroke%3D%22%2332e79a%22%2F%3E%3Ccircle cx%3D%2288%22 cy%3D%2276%22 r%3D%228%22 fill%3D%22%23071018%22 stroke%3D%22%23b99aff%22%2F%3E%3Ccircle cx%3D%2226%22 cy%3D%2283%22 r%3D%228%22 fill%3D%22%23071018%22 stroke%3D%22%2366ccff%22%2F%3E%3C%2Fg%3E%3Cg fill%3D%22none%22 stroke-linecap%3D%22round%22 stroke-linejoin%3D%22round%22 stroke-width%3D%221.7%22%3E%3Cpath d%3D%22M26 34h8m-6-4h4v8h-4z%22 stroke%3D%22%23ffb43d%22%2F%3E%3Cpath d%3D%22M79 20h6v8h-6zm2 2h2m-2 3h2%22 stroke%3D%22%2332e79a%22%2F%3E%3Cpath d%3D%22M83 76h3l2-4 3 8 2-4h3%22 stroke%3D%22%23b99aff%22%2F%3E%3Cpath d%3D%22M22 83h8m-4-4v8%22 stroke%3D%22%2366ccff%22%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E") center/contain no-repeat;pointer-events:none;filter:drop-shadow(0 2px 2px rgba(0,0,0,.45));}
+__CONTROL_PLANE_HEADER_CSS__
 </style>
 </head>
 <body>
@@ -299,6 +297,6 @@ installAegisConsoleAudio();
 </script>
 </body>
 </html>
-""";
+""".Replace("__CONTROL_PLANE_HEADER_CSS__", ControlPlaneHeader.Css, StringComparison.Ordinal);
     }
 }
