@@ -84,7 +84,7 @@ internal sealed class OperationsTelemetryAuthenticator
             try
             {
                 using HttpResponseMessage response =
-                    await _factory.CreateClient("ops").SendAsync(validation, ct);
+                    await _factory.CreateClient("registration-authority").SendAsync(validation, ct);
                 return response.IsSuccessStatusCode;
             }
             catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
@@ -111,7 +111,7 @@ internal sealed class OperationsTelemetryAuthenticator
 
         try
         {
-            using HttpResponseMessage response = await _factory.CreateClient("ops").SendAsync(request, ct);
+            using HttpResponseMessage response = await _factory.CreateClient("registration-authority").SendAsync(request, ct);
             if (response.IsSuccessStatusCode)
             {
                 _lastValidated[cacheKey] = DateTimeOffset.UtcNow;
@@ -128,6 +128,11 @@ internal sealed class OperationsTelemetryAuthenticator
                 return true;
             }
 
+            _logger.LogWarning(
+                "Telemetry authentication for {ApplicationId}/{InstanceId} was rejected by Configuration with HTTP {StatusCode}.",
+                suppliedApplicationId,
+                instanceId,
+                (int)response.StatusCode);
             return false;
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
@@ -142,6 +147,11 @@ internal sealed class OperationsTelemetryAuthenticator
                 return true;
             }
 
+            _logger.LogWarning(
+                ex,
+                "Telemetry authentication could not validate {ApplicationId}/{InstanceId} against Configuration and no recent successful validation is cached.",
+                suppliedApplicationId,
+                instanceId);
             return false;
         }
     }
