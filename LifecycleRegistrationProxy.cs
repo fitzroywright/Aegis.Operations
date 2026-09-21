@@ -10,7 +10,7 @@ internal static class LifecycleRegistrationProxy
             IHttpClientFactory factory,
             CancellationToken ct) =>
         {
-            if (!Has(context, "Configuration.Manage")) return Results.Forbid();
+            if (!Has(context, "Configuration.Manage")) return Results.Json(new { error = "Forbidden", detail = "The authenticated identity is not authorized for this operation." }, statusCode: StatusCodes.Status403Forbidden);
             return await ForwardAsync(
                 context,
                 suiteSecurity,
@@ -27,7 +27,7 @@ internal static class LifecycleRegistrationProxy
             IHttpClientFactory factory,
             CancellationToken ct) =>
         {
-            if (!Has(context, "Configuration.View")) return Results.Forbid();
+            if (!Has(context, "Configuration.View")) return Results.Json(new { error = "Forbidden", detail = "The authenticated identity is not authorized for this operation." }, statusCode: StatusCodes.Status403Forbidden);
             return await ForwardAsync(
                 context,
                 suiteSecurity,
@@ -44,7 +44,7 @@ internal static class LifecycleRegistrationProxy
             IHttpClientFactory factory,
             CancellationToken ct) =>
         {
-            if (!Has(context, "Configuration.Manage")) return Results.Forbid();
+            if (!Has(context, "Configuration.Manage")) return Results.Json(new { error = "Forbidden", detail = "The authenticated identity is not authorized for this operation." }, statusCode: StatusCodes.Status403Forbidden);
             return await ForwardAsync(
                 context,
                 suiteSecurity,
@@ -63,7 +63,7 @@ internal static class LifecycleRegistrationProxy
             IHttpClientFactory factory,
             CancellationToken ct) =>
         {
-            if (!Has(context, "Configuration.Manage")) return Results.Forbid();
+            if (!Has(context, "Configuration.Manage")) return Results.Json(new { error = "Forbidden", detail = "The authenticated identity is not authorized for this operation." }, statusCode: StatusCodes.Status403Forbidden);
             return await ForwardAsync(
                 context,
                 suiteSecurity,
@@ -82,7 +82,7 @@ internal static class LifecycleRegistrationProxy
             IHttpClientFactory factory,
             CancellationToken ct) =>
         {
-            if (!Has(context, "Configuration.Manage")) return Results.Forbid();
+            if (!Has(context, "Configuration.Manage")) return Results.Json(new { error = "Forbidden", detail = "The authenticated identity is not authorized for this operation." }, statusCode: StatusCodes.Status403Forbidden);
             return await ForwardAsync(
                 context,
                 suiteSecurity,
@@ -101,7 +101,7 @@ internal static class LifecycleRegistrationProxy
             IHttpClientFactory factory,
             CancellationToken ct) =>
         {
-            if (!Has(context, "Configuration.Manage")) return Results.Forbid();
+            if (!Has(context, "Configuration.Manage")) return Results.Json(new { error = "Forbidden", detail = "The authenticated identity is not authorized for this operation." }, statusCode: StatusCodes.Status403Forbidden);
             return await ForwardAsync(
                 context,
                 suiteSecurity,
@@ -120,7 +120,7 @@ internal static class LifecycleRegistrationProxy
             IHttpClientFactory factory,
             CancellationToken ct) =>
         {
-            if (!Has(context, "Configuration.Manage")) return Results.Forbid();
+            if (!Has(context, "Configuration.Manage")) return Results.Json(new { error = "Forbidden", detail = "The authenticated identity is not authorized for this operation." }, statusCode: StatusCodes.Status403Forbidden);
             return await ForwardAsync(
                 context,
                 suiteSecurity,
@@ -139,7 +139,7 @@ internal static class LifecycleRegistrationProxy
             IHttpClientFactory factory,
             CancellationToken ct) =>
         {
-            if (!Has(context, "Configuration.Manage")) return Results.Forbid();
+            if (!Has(context, "Configuration.Manage")) return Results.Json(new { error = "Forbidden", detail = "The authenticated identity is not authorized for this operation." }, statusCode: StatusCodes.Status403Forbidden);
             return await ForwardAsync(
                 context,
                 suiteSecurity,
@@ -159,7 +159,7 @@ internal static class LifecycleRegistrationProxy
             IHttpClientFactory factory,
             CancellationToken ct) =>
         {
-            if (!Has(context, "Configuration.Manage")) return Results.Forbid();
+            if (!Has(context, "Configuration.Manage")) return Results.Json(new { error = "Forbidden", detail = "The authenticated identity is not authorized for this operation." }, statusCode: StatusCodes.Status403Forbidden);
             return await ForwardAsync(
                 context,
                 suiteSecurity,
@@ -174,7 +174,7 @@ internal static class LifecycleRegistrationProxy
 
         app.MapGet("/registration-lifecycle", (HttpContext context) =>
         {
-            if (!Has(context, "Configuration.Manage")) return Results.Forbid();
+            if (!Has(context, "Configuration.Manage")) return Results.Json(new { error = "Forbidden", detail = "The authenticated identity is not authorized for this operation." }, statusCode: StatusCodes.Status403Forbidden);
             return Results.Content(Page(), "text/html; charset=utf-8");
         });
     }
