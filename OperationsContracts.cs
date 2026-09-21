@@ -5,6 +5,16 @@ internal static class OperationsFreshness
     internal static bool IsStale(DateTimeOffset observedAtUtc, DateTimeOffset now, TimeSpan threshold)
         => threshold >= TimeSpan.Zero && now - observedAtUtc > threshold;
 
+    internal static bool IsAging(DateTimeOffset observedAtUtc, DateTimeOffset now, TimeSpan offlineThreshold)
+    {
+        if (offlineThreshold <= TimeSpan.Zero)
+            return false;
+
+        TimeSpan age = now - observedAtUtc;
+        TimeSpan agingThreshold = TimeSpan.FromTicks(offlineThreshold.Ticks / 2);
+        return age > agingThreshold && age <= offlineThreshold;
+    }
+
     internal static OperationalState Apply(
         OperationalState publishedState,
         DateTimeOffset observedAtUtc,
