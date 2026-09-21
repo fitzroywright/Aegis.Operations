@@ -137,7 +137,8 @@ try {
         Write-Host "`n========================================"
         Write-Host " PUBLISH $app"
         Write-Host "========================================"
-        Invoke-SafePublish -Project $definition.Project -Output $output -NoBuild:$SkipPublishBuild
+        $reuseValidatedBuild = $SkipPublishBuild -or (-not $SkipAuthoritativeBuild)
+        Invoke-SafePublish -Project $definition.Project -Output $output -NoBuild:$reuseValidatedBuild
     }
 
     $bundleFile = Join-Path ([IO.Path]::GetTempPath()) ("aegis-control-plane-" + [Guid]::NewGuid().ToString("N") + ".tgz")
@@ -224,8 +225,8 @@ try {
     Write-Host "========================================"
     Write-Host "Applications: $appsCsv"
     Write-Host "Host:         $HostName"
-    if ($SkipPublishBuild) {
-        Write-Host "Publish:      reused existing Release build outputs"
+    if ($SkipPublishBuild -or (-not $SkipAuthoritativeBuild)) {
+        Write-Host "Publish:      reused existing validated Release build outputs"
     } else {
         Write-Host "Publish:      serialized restore/publish"
     }
