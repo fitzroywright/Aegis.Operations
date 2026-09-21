@@ -175,14 +175,11 @@ a{color:inherit;text-decoration:none}
   </div>
   <div class="workspace-leg"></div>
   <nav class="workspace-nav">
-    <a class="active" href="#overview">Command</a>
-    <a href="/activity">Logs</a>
+    <a class="active" href="#overview">Overview</a>
+    <a href="#systems">Applications</a>
+    <a href="#deployments">Deployments</a>
     <a href="/handoff/registration">Registration</a>
-    <a href="#systems">Apps</a>
-    <a href="#flow">Flows</a>
-    <a href="#attention">Attention</a>
-    <a href="#controlplane">Control</a>
-    <a href="#settings">Runtime</a>
+    <a href="/activity">Logs</a>
   </nav>
   <button class="lcars-back" type="button" onclick="if(history.length>1){history.back()}else{location.href='/'}">Back</button>
 
@@ -217,6 +214,14 @@ a{color:inherit;text-decoration:none}
       <article class="panel" style="min-height:0">
         <h2>Recent Logs</h2><p>Latest control-plane and application lifecycle events.</p>
         <div id="activityList"><div class="activity-row"><i class="dot"></i><span>LOADING</span><b>Reading operational history…</b></div></div>
+      </article>
+    </section>
+
+    <section class="content-grid" id="deployments" style="margin-top:18px">
+      <article class="panel" style="grid-column:1 / -1;min-height:0">
+        <h2>Deployments</h2>
+        <p>Deployment state and release controls for registered applications.</p>
+        <div class="activity-row"><i class="dot"></i><span>READY</span><b>Deployment telemetry will appear here as applications publish deployment state.</b></div>
       </article>
     </section>
 
