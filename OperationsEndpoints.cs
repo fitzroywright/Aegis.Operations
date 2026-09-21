@@ -491,13 +491,15 @@ internal static class OperationsEndpoints
                 bool telemetryAvailable = observed is not null;
                 bool stale = telemetryAvailable &&
                     OperationsFreshness.IsStale(observed!.ObservedAtUtc, now, staleAfter);
-                string state = !telemetryAvailable || stale
+                string state = !telemetryAvailable
                     ? OperationalState.Unknown.ToString()
-                    : observed!.State.ToString();
+                    : stale
+                        ? OperationalState.Offline.ToString()
+                        : observed!.State.ToString();
                 string reason = !telemetryAvailable
                     ? "Registered in Configuration; no operational telemetry has been received."
                     : stale
-                        ? "Operational telemetry is stale."
+                        ? "No recent heartbeat has been received."
                         : observed!.Reason ?? string.Empty;
 
                 applications.Add(new
@@ -542,7 +544,7 @@ internal static class OperationsEndpoints
                     registrationStatus = authorityAvailable ? "NotRegistered" : observed.RegistrationStatus,
                     registrationHealth = authorityAvailable ? "Attention" : "Unknown",
                     registrationObservedAtUtc = (DateTimeOffset?)null,
-                    state = stale ? OperationalState.Unknown.ToString() : observed.State.ToString(),
+                    state = stale ? OperationalState.Offline.ToString() : observed.State.ToString(),
                     telemetryAvailable = true,
                     stale,
                     observedAtUtc = (DateTimeOffset?)observed.ObservedAtUtc,
