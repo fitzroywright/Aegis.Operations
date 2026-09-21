@@ -8,7 +8,7 @@ internal static class ActivityPage
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Activity & Flow Analyzer · Operations</title>
+<title>Logs & Flow Analyzer · Operations</title>
 <style>
 :root{
   --black:#000;--alpha-blue:#5588ee;--arctic-ice:#66ccff;--arctic-snow:#99ccff;
@@ -43,7 +43,7 @@ body{position:relative}a{color:inherit;text-decoration:none}
 
 .top-buttons{position:absolute;right:50px;top:18px;width:250px;height:72px;display:grid;grid-template-columns:1fr 1fr;gap:8px 10px;padding-left:12px}
 .top-buttons a{border:0;border-radius:8px;font-weight:900;text-transform:uppercase;color:#071018;cursor:pointer;font-size:12px;display:flex;align-items:center;justify-content:center;line-height:1;padding:0 8px;box-shadow:inset 0 1px 0 rgba(255,255,255,.28),0 1px 0 rgba(0,0,0,.55)}
-.top-buttons .gold{background:var(--gold)}.top-buttons .blue{background:var(--blue)}.top-buttons .salmon{background:var(--salmon)}.top-buttons .gray{background:var(--peach)}
+.top-buttons .gold{background:var(--gold)}.top-buttons .blue{background:var(--blue)}.top-buttons .salmon{background:var(--salmon)}.top-buttons .gray{background:var(--peach)}.top-buttons .logout{background:var(--sunset-red);color:#fff}
 .top-buttons a,.workspace-nav a{transition:background .12s ease,color .12s ease,filter .12s ease}
 .top-buttons a.nav-flash,.workspace-nav a.nav-flash{background:var(--title-gold)!important;color:#071018!important;filter:brightness(1.08)}
 
@@ -55,7 +55,7 @@ body{position:relative}a{color:inherit;text-decoration:none}
 .workspace-arm .workspace-title{position:relative;z-index:1;height:100%;display:flex;align-items:center;font-weight:900;text-transform:uppercase;color:#071018;letter-spacing:.055em;font-size:30px;line-height:1;margin-left:var(--elbow-radius);padding:0 1ch;border-left:6px solid #000;border-right:6px solid #000}.workspace-arm .last-scan{margin-left:auto;margin-right:12px;color:#3b2f16;font:700 9px/1 Arial,sans-serif;letter-spacing:.06em;text-transform:uppercase;white-space:nowrap;opacity:.9}
 .workspace-shell::after{content:"";position:absolute;left:var(--rail-width);top:var(--workspace-arm-height);width:var(--elbow-radius);height:var(--elbow-radius);background:radial-gradient(circle at 100% 100%,transparent 0 calc(var(--elbow-radius) - 1px),var(--alpha-blue) var(--elbow-radius));z-index:5;pointer-events:none}
 .workspace-nav{position:absolute;left:0;top:calc(var(--workspace-arm-height) + var(--scroll-arrow-space));width:var(--rail-width);z-index:2}
-.workspace-nav a{display:flex;align-items:center;height:48px;padding-left:11px;color:#071018;font-weight:900;text-transform:uppercase;font-size:11px;border-bottom:3px solid #000;cursor:pointer}
+.workspace-nav a{display:flex;align-items:center;height:48px;padding:0 6px 0 9px;color:#071018;font-weight:900;text-transform:uppercase;font-size:10px;line-height:1.05;white-space:normal;overflow-wrap:anywhere;border-bottom:3px solid #000;cursor:pointer}
 .workspace-nav a.active{font-size:12px;background:var(--title-gold);color:#071018}.lcars-back{position:absolute;left:0;bottom:0;width:var(--rail-width);height:48px;z-index:7;border:0;border-top:3px solid #000;border-radius:0 0 0 28px;background:var(--alpha-blue);color:#071018;font:900 12px/1 "Arial Narrow","Roboto Condensed","Segoe UI",Arial,sans-serif;text-transform:uppercase;text-align:left;padding:0 0 0 11px;cursor:pointer}.lcars-back:hover,.lcars-back:focus-visible{background:var(--title-gold);outline:none}.lcars-back:active{background:var(--title-gold);filter:brightness(1.08)}
 .detail-scroll{position:absolute;left:var(--rail-width);right:0;top:calc(var(--workspace-arm-height) + var(--scroll-arrow-space));bottom:var(--scroll-arrow-space);min-height:0;overflow:hidden;background:#000;padding:8px 10px 6px 10px;display:flex;flex-direction:column;gap:6px}
 
@@ -82,22 +82,23 @@ body{position:relative}a{color:inherit;text-decoration:none}
 <header class="lcars-top">
   <div class="left-vertical"></div><div class="bottom-arm"></div>
   <div class="brand"><div class="section">Operations</div><div class="org">Food For The Poor Jamaica</div><div class="datetime" id="brandDateTime"></div><div class="brand-user" id="brandUser">SIGNED IN</div></div>
-  <div class="live-log"><div class="recent-title">Recent Activity</div><div class="recent-rows" id="liveLog"><div class="row"><span class="t"></span> <span class="inf">INF</span> <span class="src">[Operations]</span> Loading suite telemetry</div></div></div>
+  <div class="live-log"><div class="recent-title">Recent Logs</div><div class="recent-rows" id="liveLog"><div class="row"><span class="t"></span> <span class="inf">INF</span> <span class="src">[Operations]</span> Loading suite telemetry</div></div></div>
   <div class="top-buttons">
     <a class="blue" href="/">Operations</a>
     <a class="salmon" href="/handoff/diagnostics">Diagnostics</a>
     <a class="gold" href="/handoff/configuration">Configuration</a>
-    <a class="gray" href="/handoff/registration">Registration</a>
+    <a class="logout" href="/auth/logout">Logout</a>
   </div>
 </header>
 
 <section class="workspace-shell">
-  <div class="workspace-arm"><div class="workspace-title">Activity & Flow Analyzer</div><div class="last-scan" id="lastScan">Last Scan: SCANNING</div></div>
+  <div class="workspace-arm"><div class="workspace-title">Logs & Flow Analyzer</div><div class="last-scan" id="lastScan">Last Scan: SCANNING</div></div>
   <div class="workspace-leg"></div>
   <nav class="workspace-nav">
-    <a id="navActivity" class="active" data-mode="log">Activity</a>
+    <a id="navActivity" class="active" data-mode="log">Lifecycle Logs</a>
     <a id="navLogs" data-mode="appLogs">App Logs</a>
     <a id="navFlow" data-mode="flow">Flow</a>
+    <a href="/handoff/registration">Registration</a>
     <a href="/">Command</a>
   </nav>
   <button class="lcars-back" type="button" onclick="if(history.length>1){history.back()}else{location.href='/'}">Back</button>
@@ -126,7 +127,7 @@ body{position:relative}a{color:inherit;text-decoration:none}
       <span class="state" id="state">CONNECTING…</span>
     </div>
     <section class="telemetry-panel">
-      <div id="logView" class="log" tabindex="0" aria-label="Activity results"></div>
+      <div id="logView" class="log" tabindex="0" aria-label="Log results"></div>
       <div id="appLogView" class="log" tabindex="0" aria-label="Application log results" hidden></div>
       <div id="flowView" class="traces" hidden></div>
     </section>
