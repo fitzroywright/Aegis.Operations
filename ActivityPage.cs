@@ -104,7 +104,14 @@ body{position:relative}a{color:inherit;text-decoration:none}
   <button class="lcars-back" type="button" onclick="if(history.length>1){history.back()}else{location.href='/'}">Back</button>
 
   <main class="detail-scroll">
-    <div class="filter-toggle-row"><button class="action" id="filterToggle" type="button" aria-expanded="false" aria-controls="filtersPanel">Show Filters</button></div>
+    <div class="filter-toggle-row">
+      <div class="log-mode-tabs" role="tablist" aria-label="Log views">
+        <button class="action active" id="navActivity" type="button" data-mode="log">Lifecycle Logs</button>
+        <button class="action" id="navLogs" type="button" data-mode="appLogs">Application Logs</button>
+        <button class="action" id="navFlow" type="button" data-mode="flow">Flow Analyzer</button>
+      </div>
+      <button class="action" id="filterToggle" type="button" aria-expanded="false" aria-controls="filtersPanel">Show Filters</button>
+    </div>
 <section class="filters collapsed" id="filtersPanel" aria-hidden="true">
       <select id="application"><option value="">All applications</option></select>
       <select id="instance"><option value="">All instances</option></select>
@@ -131,7 +138,7 @@ body{position:relative}a{color:inherit;text-decoration:none}
       <div id="appLogView" class="log" tabindex="0" aria-label="Application log results" hidden></div>
       <div id="flowView" class="traces" hidden></div>
     </section>
-    <div class="filter-summary" id="filterSummary"><b>FILTER</b><span>None · showing all activity from the last 60 minutes</span></div>
+    <div class="filter-summary" id="filterSummary"><b>FILTER</b><span>None · showing all logs from the last 60 minutes</span></div>
   </main>
   <aside class="flow-overlay" id="flowOverlay" hidden role="dialog" aria-modal="false" aria-labelledby="flowOverlayTitle">
     <div class="flow-overlay-head"><span id="flowOverlayTitle">Flow Analyzer</span><span class="grow" id="flowOverlayContext"></span><button id="flowOverlayClose" type="button" aria-label="Close Flow Analyzer">Close</button></div>
@@ -245,11 +252,11 @@ async function loadAppLogs(){const p=params();p.delete('flow');p.delete('outcome
 async function loadFlows(){const r=await fetch('/api/operations/activity/flows?'+params(),{cache:'no-store'});if(!r.ok)throw new Error('HTTP '+r.status);const x=await r.json(),traces=x.traces||[];$('flowView').innerHTML=traces.length?traces.map(t=>'<article class="trace"><div class="trace-head"><b class="'+esc(t.status)+'">'+esc(t.status)+'</b><div class="grow"><b>'+esc(t.flow)+'</b><div class="trace-meta">'+esc(t.applicationId)+' / '+esc(t.instanceId)+' · '+esc(t.correlationId)+'</div></div><div class="trace-meta">'+t.durationMs+' ms · '+t.eventCount+' events</div></div><div class="stages">'+(t.stages||[]).map(s=>'<div class="stage"><div class="lamp '+esc(s.outcome)+'"></div><b>'+esc(s.stage)+'</b><small>'+esc(s.outcome)+' · '+fmt(s.occurredAtUtc)+'</small></div>').join('')+'</div>'+(t.relatedBusinessId?'<div class="trace-detail">Business ID: '+esc(t.relatedBusinessId)+'</div>':'')+'</article>').join(''):emptyMarkup('correlated flows');$('state').textContent=traces.length+' FLOWS · '+recentStamp();updateFilterSummary(traces.length)}
 async function refresh(){if(paused)return;try{if(mode==='log')await loadLog();else if(mode==='appLogs')await loadAppLogs();else await loadFlows();$('lastScan').textContent='Last Scan: '+new Date().toLocaleString()}catch(e){$('state').textContent='TELEMETRY UNAVAILABLE · '+e.message;$('lastScan').textContent='Last Scan: UNAVAILABLE'}}
 function tabs(){$('navActivity').classList.toggle('active',mode==='log');$('navLogs').classList.toggle('active',mode==='appLogs');$('navFlow').classList.toggle('active',mode==='flow');$('logView').hidden=mode!=='log';$('appLogView').hidden=mode!=='appLogs';$('flowView').hidden=mode!=='flow';for(const id of ['flow','outcome','stage']){$(id).disabled=mode==='appLogs';$(id).hidden=mode==='appLogs'}for(const id of ['logLevel','category']){$(id).disabled=mode!=='appLogs';$(id).hidden=mode!=='appLogs'}updateFilterSummary(mode==='appLogs'?currentAppLogEvents.length:mode==='log'?currentActivityEvents.length:0)}
-document.querySelectorAll('.workspace-nav [data-mode]').forEach(a=>a.addEventListener('click',e=>{e.preventDefault();mode=a.dataset.mode;tabs();refresh()}));
+document.querySelectorAll('[data-mode]').forEach(a=>a.addEventListener('click',e=>{e.preventDefault();mode=a.dataset.mode;tabs();refresh()}));
 async function applyFilters(){await refresh();setFiltersOpen(false)}$('apply').onclick=applyFilters;function resetFilters(){for(const id of ['application','instance','flow','outcome','correlation','stage','text','logLevel','category'])$(id).value='';$('sinceMinutes').value='60';hiddenBefore=null;selectedKey=null;selectedEvent=null;setFiltersOpen(false);refresh()}window.resetFilters=resetFilters;$('reset').onclick=resetFilters;
 $('pause').onclick=()=>{paused=!paused;$('pause').textContent=paused?'Resume':'Pause';$('state').textContent=paused?'PAUSED · INGESTION CONTINUES':'RESUMED';if(!paused)refresh()};
 $('follow').onclick=()=>{followTail=!followTail;$('follow').textContent='Tail: '+(followTail?'On':'Off')};
-$('clear').onclick=()=>{hiddenBefore=new Date();$('logView').innerHTML='<div class="empty">View cleared. New events will appear here.</div>';$('appLogView').innerHTML='<div class="empty">View cleared. New logs will appear here.</div>';$('flowView').innerHTML='<div class="empty">View cleared. Adjust filters or wait for new flows.</div>'};
+$('clear').onclick=()=>{hiddenBefore=new Date();$('logView').innerHTML='<div class="empty">View cleared. New logs will appear here.</div>';$('appLogView').innerHTML='<div class="empty">View cleared. New logs will appear here.</div>';$('flowView').innerHTML='<div class="empty">View cleared. Adjust filters or wait for new flows.</div>'};
 $('toggleIds').onclick=()=>{showIds=!showIds;localStorage.setItem(idsKey,showIds?'on':'off');applyIdsVisibility()};
 tabs();applyIdsVisibility();loadFilters();refresh();setInterval(()=>{loadFilters();refresh()},2000);
 
