@@ -181,7 +181,7 @@ internal static class OperationsEndpoints
                 "Aegis.Diagnostics"
             ];
             if (!controlPlaneApplications.Contains(request.ApplicationId, StringComparer.OrdinalIgnoreCase))
-                return Results.Forbid();
+                return Results.Json(new { error = "Forbidden", detail = "The authenticated identity is not authorized for this operation." }, statusCode: StatusCodes.Status403Forbidden);
 
             if (string.IsNullOrWhiteSpace(request.InstanceId))
                 return Results.BadRequest(new { error = "instanceId is required." });
