@@ -143,7 +143,7 @@ public sealed class OperationsSemanticsTests
                 offline,
                 authorityAvailable: true));
 
-        const authoritativeRegistrationState = "Registered";
+        const string authoritativeRegistrationState = "Registered";
         _ = RegistrationFlowStateFormatter.Format(
             authoritativeRegistrationState,
             runtimeState,
