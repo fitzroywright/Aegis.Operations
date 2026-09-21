@@ -247,10 +247,10 @@ internal static class OperationsV1Endpoints
                     x.Environment,
                     x.Version,
                     x.RegistrationStatus,
-                    state = stale ? OperationalState.Unknown.ToString() : x.State.ToString(),
+                    state = stale ? OperationalState.Offline.ToString() : x.State.ToString(),
                     observedAtUtc = x.ObservedAtUtc,
                     stale,
-                    reason = stale ? "Telemetry is stale." : x.Reason,
+                    reason = stale ? "No recent heartbeat has been received." : x.Reason,
                     x.ConfigurationStatus,
                     dependencies = x.Dependencies ?? [],
                     x.Build,
@@ -304,12 +304,12 @@ internal static class OperationsV1Endpoints
                     x.Environment,
                     x.Version,
                     x.RegistrationStatus,
-                    state = OperationsFreshness.Apply(x.State, x.ObservedAtUtc, now, staleAfter).ToString(),
+                    state = OperationsFreshness.IsStale(x.ObservedAtUtc, now, staleAfter) ? OperationalState.Offline.ToString() : OperationsFreshness.Apply(x.State, x.ObservedAtUtc, now, staleAfter).ToString(),
                     publishedState = x.State.ToString(),
                     x.ObservedAtUtc,
                     stale = OperationsFreshness.IsStale(x.ObservedAtUtc, now, staleAfter),
                     reason = OperationsFreshness.IsStale(x.ObservedAtUtc, now, staleAfter)
-                        ? "Telemetry is stale."
+                        ? "No recent heartbeat has been received."
                         : x.Reason,
                     x.ConfigurationStatus,
                     dependencies = x.Dependencies ?? [],
