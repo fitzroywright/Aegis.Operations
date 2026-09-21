@@ -197,13 +197,14 @@ $('filterToggle').onclick=()=>setFiltersOpen($('filtersPanel').classList.contain
 function eventKey(e,type){return type==='log'?String(e.eventId||[e.timestampUtc,e.applicationId,e.instanceId,e.category,e.message].join('|')):String(e.eventId||[e.occurredAtUtc,e.applicationId,e.instanceId,e.correlationId,e.stage,e.code].join('|'))}
 function currentEvents(){return mode==='appLogs'?currentAppLogEvents:currentActivityEvents}
 function selectedIndex(events,type){return events.findIndex(e=>eventKey(e,type)===selectedKey)}
-function selectEvent(e,type,viewId,focusRow=false){
+function selectEvent(e,type,viewId,focusRow=false,refreshOverlay=false){
   if(!e)return;
-  selectedKey=eventKey(e,type);selectedEvent=e;
+  const nextKey=eventKey(e,type),changed=nextKey!==selectedKey;
+  selectedKey=nextKey;selectedEvent=e;
   const view=$(viewId);
   view.querySelectorAll('.telemetry-row').forEach(row=>{const selected=row.dataset.key===selectedKey;row.classList.toggle('active',selected);row.setAttribute('aria-selected',String(selected));row.tabIndex=selected?0:-1;});
   const active=view.querySelector('.telemetry-row[aria-selected="true"]');if(active){active.scrollIntoView({block:'nearest'});if(focusRow)active.focus({preventScroll:true})}
-  if(overlayOpen)refreshFlowOverlay();
+  if(overlayOpen&&refreshOverlay&&changed)refreshFlowOverlay();
 }
 function restoreSelection(events,type,viewId){
   if(!events.length){selectedKey=null;selectedEvent=null;return}
@@ -213,14 +214,14 @@ function restoreSelection(events,type,viewId){
 function bindRows(viewId,events,type){
   const view=$(viewId);
   view.querySelectorAll('.telemetry-row').forEach(row=>{
-    row.onclick=e=>{if(e.target.closest('.analyze'))return;const item=events.find(x=>eventKey(x,type)===row.dataset.key);selectEvent(item,type,viewId,true)};
-    row.onfocus=()=>{const item=events.find(x=>eventKey(x,type)===row.dataset.key);if(item)selectEvent(item,type,viewId,false)};
+    row.onclick=e=>{if(e.target.closest('.analyze'))return;const item=events.find(x=>eventKey(x,type)===row.dataset.key);selectEvent(item,type,viewId,true,true)};
+    row.onfocus=()=>{const item=events.find(x=>eventKey(x,type)===row.dataset.key);if(item)selectEvent(item,type,viewId,false,false)};
   });
   view.onkeydown=e=>{
     if(e.key!=='ArrowDown'&&e.key!=='ArrowUp')return;
     e.preventDefault();if(!events.length)return;
     let i=selectedIndex(events,type);if(i<0)i=0;else i=Math.max(0,Math.min(events.length-1,i+(e.key==='ArrowDown'?1:-1)));
-    selectEvent(events[i],type,viewId,true);
+    selectEvent(events[i],type,viewId,true,true);
   };
 }
 function rowMarkup(e,type){
