@@ -11,6 +11,7 @@ param(
     [string]$IdentityFile,
     [System.Management.Automation.PSCredential]$Credential,
     [switch]$SkipAuthoritativeBuild,
+    [switch]$SkipPublishBuild,
     [switch]$KeepLocalBundle,
     [switch]$KeepRemoteBundle
 )
@@ -27,6 +28,54 @@ function Invoke-Native {
     if ($LASTEXITCODE -ne 0) {
         throw "$FilePath exited with code ${LASTEXITCODE}: $($ArgumentList -join ' ')"
     }
+}
+
+function Reset-DotNetBuildServers {
+    Write-Host "Resetting .NET build servers..." -ForegroundColor DarkGray
+    & dotnet build-server shutdown | Out-Host
+    if ($LASTEXITCODE -ne 0) {
+        Write-Warning "dotnet build-server shutdown returned exit code $LASTEXITCODE; continuing."
+    }
+}
+
+function Invoke-SafePublish {
+    param(
+        [Parameter(Mandatory)][string]$Project,
+        [Parameter(Mandatory)][string]$Output,
+        [switch]$NoBuild
+    )
+
+    Reset-DotNetBuildServers
+
+    if ($NoBuild) {
+        Invoke-Native -FilePath "dotnet" -ArgumentList @(
+            "publish", $Project,
+            "--configuration", "Release",
+            "--output", $Output,
+            "--no-build",
+            "--no-restore",
+            "-m:1",
+            "/nodeReuse:false",
+            "/p:UseSharedCompilation=false"
+        )
+        return
+    }
+
+    Invoke-Native -FilePath "dotnet" -ArgumentList @(
+        "restore", $Project,
+        "--disable-parallel",
+        "-p:RestoreDisableParallel=true"
+    )
+
+    Invoke-Native -FilePath "dotnet" -ArgumentList @(
+        "publish", $Project,
+        "--configuration", "Release",
+        "--output", $Output,
+        "--no-restore",
+        "-m:1",
+        "/nodeReuse:false",
+        "/p:UseSharedCompilation=false"
+    )
 }
 
 function ConvertTo-PlainText {
@@ -88,11 +137,7 @@ try {
         Write-Host "`n========================================"
         Write-Host " PUBLISH $app"
         Write-Host "========================================"
-        Invoke-Native -FilePath "dotnet" -ArgumentList @(
-            "publish", $definition.Project,
-            "--configuration", "Release",
-            "--output", $output
-        )
+        Invoke-SafePublish -Project $definition.Project -Output $output -NoBuild:$SkipPublishBuild
     }
 
     $bundleFile = Join-Path ([IO.Path]::GetTempPath()) ("aegis-control-plane-" + [Guid]::NewGuid().ToString("N") + ".tgz")
@@ -179,6 +224,11 @@ try {
     Write-Host "========================================"
     Write-Host "Applications: $appsCsv"
     Write-Host "Host:         $HostName"
+    if ($SkipPublishBuild) {
+        Write-Host "Publish:      reused existing Release build outputs"
+    } else {
+        Write-Host "Publish:      serialized restore/publish"
+    }
 }
 finally {
     if (Test-Path $bundleRoot) {
