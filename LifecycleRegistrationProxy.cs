@@ -194,5 +194,45 @@ internal static class LifecycleRegistrationProxy
         app.MapGet("/registration-lifecycle", () => Results.Redirect("/registration/lifecycle", permanent: true));
     }
 
+    private static async Task<IResult> ForwardAsync(
+        HttpContext source,
+        SuiteSecurity suiteSecurity,
+        IHttpClientFactory factory,
+        string url,
+        HttpMethod method,
+        object? body,
+        CancellationToken ct)
+    {
+        using var request = new HttpRequestMessage(method, url);
+        if (body is not null)
+            request.Content = System.Net.Http.Json.JsonContent.Create(body);
+
+        if (!source.Items.TryGetValue("SuiteIdentity", out object? value) || value is not SuiteIdentity identity)
+            return Results.Unauthorized();
+
+        request.Headers.TryAddWithoutValidation(
+            "X-Aegis-Suite-Handoff",
+            suiteSecurity.CreateHandoff(identity, "Aegis.Configuration"));
+        request.Headers.TryAddWithoutValidation(
+            "X-Aegis-Correlation-Id",
+            Guid.NewGuid().ToString("N"));
+
+        using HttpResponseMessage response = await factory
+            .CreateClient("ops")
+            .SendAsync(request, ct);
+
+        string content = await response.Content.ReadAsStringAsync(ct);
+
+        return Results.Content(
+            content,
+            response.Content.Headers.ContentType?.ToString() ?? "application/json",
+            statusCode: (int)response.StatusCode);
+    }
+
+    private static bool Has(HttpContext context, string permission)
+        => context.Items.TryGetValue("SuiteIdentity", out object? value) &&
+           value is SuiteIdentity identity &&
+           identity.Permissions.Contains(permission, StringComparer.OrdinalIgnoreCase);
+
     private sealed record LifecycleDecision(string? Reason);
 }
