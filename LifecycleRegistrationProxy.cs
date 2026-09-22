@@ -131,6 +131,25 @@ internal static class LifecycleRegistrationProxy
                 ct);
         });
 
+        app.MapPost("/api/lifecycle-registrations/{registrationId}/remove-orphan", async (
+            HttpContext context,
+            string registrationId,
+            [Microsoft.AspNetCore.Mvc.FromBody] LifecycleDecision request,
+            SuiteSecurity suiteSecurity,
+            IHttpClientFactory factory,
+            CancellationToken ct) =>
+        {
+            if (!Has(context, "Configuration.Manage")) return Results.Json(new { error = "Forbidden", detail = "The authenticated identity is not authorized for this operation." }, statusCode: StatusCodes.Status403Forbidden);
+            return await ForwardAsync(
+                context,
+                suiteSecurity,
+                factory,
+                configurationUrl + "/api/registration/" + Uri.EscapeDataString(registrationId) + "/remove-orphan",
+                HttpMethod.Post,
+                request,
+                ct);
+        });
+
         app.MapPost("/api/lifecycle-registrations/{registrationId}/conflict/retain-existing", async (
             HttpContext context,
             string registrationId,
@@ -383,13 +402,14 @@ async function loadFlow(){
 
 
 async function load(){
+ let reconciliationIssues=[];
  const rr=await fetch('/api/lifecycle-registrations/reconciliation');
  if(rr.ok){
    const s=await rr.json();
-   const issues=Array.isArray(s.issues)?s.issues:[];
+   reconciliationIssues=Array.isArray(s.issues)?s.issues:[];
    reconciliation.innerHTML=s.healthy
      ? '<b>Reconciliation: Healthy</b> · '+e(s.registrationCount)+' registration(s) checked'
-     : '<b>Reconciliation: Attention required</b> · '+e(issues.length)+' issue(s)<br><small>'+issues.map(i=>e(i.code)+': '+e(i.applicationId)+'/'+e(i.instanceId)).join(' · ')+'</small>';
+     : '<b>Reconciliation: Attention required</b> · '+e(reconciliationIssues.length)+' issue(s)<br><small>'+reconciliationIssues.map(i=>e(i.code)+': '+e(i.applicationId)+'/'+e(i.instanceId)).join(' · ')+'</small>';
  }
  const r=await fetch('/api/lifecycle-registrations');
  if(!r.ok){rows.innerHTML='<tr><td colspan="7">Unable to load registrations.</td></tr>';return}
@@ -399,6 +419,7 @@ async function load(){
    const conflict=x.state==='IdentityConflict';
    const canRevoke=x.state==='Registered'||x.state==='IdentityConflict';
    const canPurge=x.state==='Revoked'||x.state==='Rejected';
+   const orphanIssue=reconciliationIssues.find(i=>i.registrationId===x.registrationId&&(i.code==='AUTHENTICATION_STALE'||i.code==='NEVER_AUTHENTICATED'));
    let actions='';
    if(actionable){
      actions+='<button onclick="decide(\''+e(x.registrationId)+'\',\'approve\')">Approve</button>';
@@ -412,7 +433,10 @@ async function load(){
      actions+='<button class="danger" onclick="decide(\''+e(x.registrationId)+'\',\'revoke\')">Revoke</button>';
    }
    if(canPurge){
-     actions+='<button class="danger" onclick="purge(\''+e(x.registrationId)+'\')">Purge</button>';
+     actions+='<button class="danger" onclick="purge(\''+e(x.registrationId)+'\')">Remove</button>';
+   }
+   if(orphanIssue&&x.state==='Registered'){
+     actions+='<button class="danger" onclick="removeOrphan(\''+e(x.registrationId)+'\')">Remove Orphan</button>';
    }
    const audit=Array.isArray(x.audit)?x.audit:[];
    const history=audit.length
@@ -444,8 +468,9 @@ async function decide(id,action){
 }
 
 async function purge(id){
- if(!confirm('Purge this revoked/rejected registration? Audit history will be retained.'))return;
- const reason=prompt('Reason/comment for purge:')||'';
+ if(!confirm('Remove this revoked/rejected registration from the active lifecycle? Audit history will be retained.'))return;
+ const reason=prompt('Reason/comment for removal:')||'';
+ if(!reason.trim())return;
  const r=await fetch('/api/lifecycle-registrations/'+encodeURIComponent(id),{
    method:'DELETE',
    headers:{'content-type':'application/json'},
@@ -453,9 +478,26 @@ async function purge(id){
  });
  if(!r.ok){
    let d={}; try{d=await r.json()}catch{}
-   alert(d.error||d.detail||'Purge failed');
+   alert(d.error||d.detail||'Remove failed');
  }
- await load();
+ await Promise.all([load(),loadFlow()]);
+}
+
+async function removeOrphan(id){
+ if(!confirm('Remove this orphaned registration? It will be safely revoked and purged. Audit history will be retained.'))return;
+ const reason=prompt('Reason/comment for orphan removal:')||'';
+ if(!reason.trim())return;
+ const r=await fetch('/api/lifecycle-registrations/'+encodeURIComponent(id)+'/remove-orphan',{
+   method:'POST',
+   headers:{'content-type':'application/json'},
+   body:JSON.stringify({reason})
+ });
+ if(!r.ok){
+   let d={}; try{d=await r.json()}catch{}
+   alert(d.error||d.detail||'Orphan removal failed');
+   return;
+ }
+ await Promise.all([load(),loadFlow()]);
 }
 
 load();
