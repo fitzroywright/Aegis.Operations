@@ -163,9 +163,9 @@ __CONTROL_PLANE_HEADER_CSS__
 
   <div class="top-buttons">
     <a class="blue" href="/">Operations</a>
-    <a class="salmon" href="__DIAGNOSTICS_URL__">Diagnostics</a>
-    <a class="gold" href="__CONFIGURATION_URL__">Configuration</a>
     <a class="gray" href="/registration">Registration</a>
+    <a class="gold" href="__CONFIGURATION_URL__">Configuration</a>
+    <a class="salmon" href="__DIAGNOSTICS_URL__">Diagnostics</a>
   </div>
   <a class="lcars-logout" href="/auth/logout">Logout</a>
 </header>

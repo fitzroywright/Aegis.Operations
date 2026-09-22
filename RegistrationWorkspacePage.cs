@@ -39,7 +39,7 @@ __CONTROL_PLANE_HEADER_CSS__
 <header class="lcars-top">
 <div class="left-vertical"></div><div class="bottom-arm"></div>
 <div class="brand"><div class="section">Operations</div><div class="sub">Registration Workspace</div><div class="brand-user" id="brandUser">__USER__</div></div>
-<div class="top-buttons"><a class="blue" href="/">Operations</a><a class="salmon" href="/handoff/diagnostics">Diagnostics</a><a class="gold" href="/handoff/configuration">Configuration</a><a class="gray" href="/registration">Registration</a></div><a class="lcars-logout" href="/auth/logout">Logout</a>
+<div class="top-buttons"><a class="blue" href="/">Operations</a><a class="gray" href="/registration">Registration</a><a class="gold" href="/handoff/configuration">Configuration</a><a class="salmon" href="/handoff/diagnostics">Diagnostics</a></div><a class="lcars-logout" href="/auth/logout">Logout</a>
 </header>
 <section class="workspace-shell">
 <div class="workspace-arm"><div class="workspace-title">__TITLE__</div><div class="crumb">Operations → Registration</div><div class="last-scan" id="lastScan">Last Scan: SCANNING</div></div>
