@@ -149,10 +149,10 @@ internal static class SuiteSecurityExtensions
                 string pending=c.Request.Path+c.Request.QueryString;
                 return Results.Redirect("/login?returnUrl="+Uri.EscapeDataString(pending));
             }
+            if(target.Equals("registration",StringComparison.OrdinalIgnoreCase)) return Results.Redirect("/registration");
             string audience,url,permission;
             string destination=SafeLocal(returnUrl??string.Empty)?returnUrl!:"/";
             if(target.Equals("configuration",StringComparison.OrdinalIgnoreCase)){audience="Aegis.Configuration";url=configurationPublicUrl;permission="Configuration.View";}
-            else if(target.Equals("registration",StringComparison.OrdinalIgnoreCase)){audience="Aegis.Configuration";url=configurationPublicUrl;permission="Configuration.View";destination="/registration-lifecycle";}
             else if(target.Equals("diagnostics",StringComparison.OrdinalIgnoreCase)){audience="Aegis.Diagnostics";url=diagnosticsPublicUrl;permission="Diagnostics.View";}
             else return Results.BadRequest();
             if(!id.Permissions.Contains(permission,StringComparer.OrdinalIgnoreCase))return Results.StatusCode(StatusCodes.Status403Forbidden);
