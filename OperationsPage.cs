@@ -165,10 +165,10 @@ __CONTROL_PLANE_HEADER_CSS__
     <a class="blue" href="/">Operations</a>
     <a class="salmon" href="__DIAGNOSTICS_URL__">Diagnostics</a>
     <a class="gold" href="__CONFIGURATION_URL__">Configuration</a>
-    <a class="gray" href="/handoff/registration">Registration</a>
+    <a class="logout" href="/auth/logout">Logout</a>
   </div>
 
-  <a class="lcars-logout" href="/auth/logout">Logout</a></header>
+</header>
 
 <section class="workspace-shell">
   <div class="workspace-arm">
