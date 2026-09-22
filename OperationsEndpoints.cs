@@ -439,7 +439,13 @@ internal static class OperationsEndpoints
                                     continue;
 
                                 DateTimeOffset? lastEvent = null;
-                                if (journey.TryGetProperty("lastEventAtUtc", out JsonElement lastEventValue) &&
+                                if (journey.TryGetProperty("lastAuthenticatedAtUtc", out JsonElement authenticatedValue) &&
+                                    authenticatedValue.ValueKind == JsonValueKind.String &&
+                                    DateTimeOffset.TryParse(authenticatedValue.GetString(), out DateTimeOffset parsedAuthenticated))
+                                {
+                                    lastEvent = parsedAuthenticated;
+                                }
+                                else if (journey.TryGetProperty("lastEventAtUtc", out JsonElement lastEventValue) &&
                                     lastEventValue.ValueKind == JsonValueKind.String &&
                                     DateTimeOffset.TryParse(lastEventValue.GetString(), out DateTimeOffset parsedLastEvent))
                                 {
