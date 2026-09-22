@@ -192,7 +192,7 @@ __CONTROL_PLANE_HEADER_CSS__
       <a class="status-cell good" href="/applications"><b id="healthyCount">—</b><small>Healthy</small></a>
       <a class="status-cell" id="warningCard" href="/applications"><b id="warningCount">—</b><small>Warnings</small></a>
       <a class="status-cell" id="activeAlertCard" href="#attention"><b id="activeAlertCount">—</b><small>Alerts</small></a>
-      <a class="status-cell" href="#flow"><b id="activeFlowCount">—</b><small>Flows</small></a>
+      <a class="status-cell" href="/logs"><b id="activeFlowCount">—</b><small>Active Flows</small></a>
     </section>
 
     <section class="landscape">
@@ -200,18 +200,13 @@ __CONTROL_PLANE_HEADER_CSS__
       <div class="landscape-grid" id="installationLandscape"><div class="landscape-app"><b>Loading installation landscape…</b></div></div>
     </section>
 
-    <section class="flow" id="flow">
-      <h2>Active Flow Analyzer</h2>
-      <div id="flowList"><div class="flow-row"><b>Loading</b><span>Telemetry</span><div class="lights"><i></i><i></i><i></i><i></i></div><span>—</span></div></div>
-    </section>
-
     <section class="content-grid" id="attention" style="margin-top:10px">
       <article class="panel" style="min-height:0">
-        <h2>Attention</h2><p>Active alerts and conditions that require operator review.</p>
+        <h2>Attention</h2><p>Warnings, alerts and unhealthy conditions requiring operator review.</p>
         <div id="alertList"><div class="activity-row"><i class="dot"></i><span>LOADING</span><b>Reading active alerts…</b></div></div>
       </article>
       <article class="panel" style="min-height:0">
-        <h2>Recent Logs</h2><p>Latest control-plane and application lifecycle events.</p>
+        <h2>Recent Operations</h2><p>Latest observed control-plane and application lifecycle events. <a href="/logs">Open full Logs →</a></p>
         <div id="activityList"><div class="activity-row"><i class="dot"></i><span>LOADING</span><b>Reading operational history…</b></div></div>
       </article>
     </section>
@@ -328,13 +323,13 @@ function renderLandscape(apps,summary,self){
 }
 function renderHistory(items){
   const rows=(items??[]).slice(0,8);
-  if(!rows.length){activityList.innerHTML='<div class="activity-row"><i class="dot"></i><span>—</span><b>No operational history available.</b></div>';liveLog.innerHTML='<div class="row"><span class="t">'+recentStamp()+'</span> <span class="inf">INF</span> <span class="src">[Operations]</span> No operational history available</div>';return}
+  if(!rows.length){activityList.innerHTML='<div class="activity-row"><i class="dot" style="background:var(--green)"></i><span>NOW</span><b>No recent operational events. Open Logs for full history.</b></div>';liveLog.innerHTML='<div class="row"><span class="t">'+recentStamp()+'</span> <span class="inf">INF</span> <span class="src">[Operations]</span> No operational history available</div>';return}
   activityList.innerHTML=rows.map(x=>'<div class="activity-row"><i class="dot"></i><span>'+fmtTime(x.at)+'</span><b>'+esc(x.application||x.type)+' · '+esc(x.text)+'</b></div>').join('');
   liveLog.innerHTML=rows.slice(0,5).reverse().map(x=>'<div class="row"><span class="t">'+fmtTime(x.at)+'</span> <span class="'+levelFromType(x.type).toLowerCase()+'">'+levelFromType(x.type)+'</span> <span class="src">['+esc(x.application||x.type)+']</span> '+esc(x.text)+'</div>').join('');
 }
 function renderAlerts(items){
   const rows=(items??[]).filter(a=>String(a.state??'').toLowerCase()!=='resolved').slice(0,6);
-  if(!rows.length){alertList.innerHTML='<div class="activity-row"><i class="dot"></i><span>0</span><b>No active alerts.</b></div>';return}
+  if(!rows.length){alertList.innerHTML='<div class="activity-row"><i class="dot" style="background:var(--green)"></i><span>0</span><b>No conditions currently require operator attention.</b></div>';return}
   alertList.innerHTML=rows.map(a=>'<div class="activity-row"><i class="dot" style="background:var(--yellow)"></i><span>'+esc(a.applicationId||a.application||a.type||'Alert')+'</span><b>'+esc(a.message||a.text||a.title||a.state||'Attention required')+'</b></div>').join('');
 }
 function renderFlows(flows){
@@ -375,7 +370,6 @@ async function load(){
     document.title='Operations · '+(healthy?'Nominal':'Attention');
 
     renderLandscape(apps,summary,self);
-    renderFlows(flows);
     renderAlerts(alerts);
     renderHistory(history);
 
