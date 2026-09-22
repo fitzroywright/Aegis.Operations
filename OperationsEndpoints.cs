@@ -615,7 +615,8 @@ internal static class OperationsEndpoints
                     OperationsFreshness.IsStale(observed!.ObservedAtUtc, now, staleAfter);
                 bool registrationFresh =
                     registration.State.Equals("Registered", StringComparison.OrdinalIgnoreCase) &&
-                    !OperationsFreshness.IsStale(registration.LastEventAtUtc, now, staleAfter);
+                    registration.LastEventAtUtc.HasValue &&
+                    !OperationsFreshness.IsStale(registration.LastEventAtUtc.Value, now, staleAfter);
                 bool stale = telemetryStale && !registrationFresh;
                 bool aging = telemetryAvailable && !stale && !registrationFresh &&
                     OperationsFreshness.IsAging(observed!.ObservedAtUtc, now, staleAfter);
