@@ -710,7 +710,6 @@ internal static class OperationsEndpoints
                     ["effectiveSource"] = "Resolved Control Plane endpoint",
                     ["displayValue"] = operationsPublicUrl
                 },
-            {
                 new JsonObject
                 {
                     ["id"] = "configuration-url",
