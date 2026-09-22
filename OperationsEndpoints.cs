@@ -485,14 +485,55 @@ internal static class OperationsEndpoints
                     StringComparer.OrdinalIgnoreCase);
 
             var applications = new List<object>();
-            var registeredKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var history = new List<object>();
+            var registeredKeys = new HashSet<string>(
+                registrations.Select(x => Key(x.ApplicationId, x.InstanceId)),
+                StringComparer.OrdinalIgnoreCase);
 
-            foreach (RegisteredApplicationJourney registration in registrations
+            var currentRegistrations = new List<RegisteredApplicationJourney>();
+            var historicalRegistrations = new List<RegisteredApplicationJourney>();
+
+            foreach (IGrouping<string, RegisteredApplicationJourney> appGroup in registrations
+                .GroupBy(x => x.ApplicationId, StringComparer.OrdinalIgnoreCase))
+            {
+                RegisteredApplicationJourney[] ordered = appGroup
+                    .OrderByDescending(x => x.LastEventAtUtc ?? DateTimeOffset.MinValue)
+                    .ToArray();
+
+                RegisteredApplicationJourney[] fresh = ordered
+                    .Where(x =>
+                    {
+                        string key = Key(x.ApplicationId, x.InstanceId);
+                        if (!telemetryByKey.TryGetValue(key, out ApplicationOperationalRecord? observed))
+                            return false;
+                        return !OperationsFreshness.IsStale(observed.ObservedAtUtc, now, staleAfter);
+                    })
+                    .ToArray();
+
+                HashSet<string> currentRegistrationIds = new(StringComparer.OrdinalIgnoreCase);
+                if (fresh.Length > 0)
+                {
+                    foreach (RegisteredApplicationJourney item in fresh)
+                    {
+                        if (currentRegistrationIds.Add(item.RegistrationId))
+                            currentRegistrations.Add(item);
+                    }
+                }
+                else if (ordered.Length > 0)
+                {
+                    currentRegistrationIds.Add(ordered[0].RegistrationId);
+                    currentRegistrations.Add(ordered[0]);
+                }
+
+                historicalRegistrations.AddRange(
+                    ordered.Where(x => !currentRegistrationIds.Contains(x.RegistrationId)));
+            }
+
+            foreach (RegisteredApplicationJourney registration in currentRegistrations
                 .OrderBy(x => x.ApplicationId, StringComparer.OrdinalIgnoreCase)
                 .ThenBy(x => x.InstanceId, StringComparer.OrdinalIgnoreCase))
             {
                 string key = Key(registration.ApplicationId, registration.InstanceId);
-                registeredKeys.Add(key);
                 telemetryByKey.TryGetValue(key, out ApplicationOperationalRecord? observed);
                 bool telemetryAvailable = observed is not null;
                 bool stale = telemetryAvailable &&
@@ -547,6 +588,28 @@ internal static class OperationsEndpoints
                 });
             }
 
+            foreach (RegisteredApplicationJourney registration in historicalRegistrations
+                .OrderBy(x => x.ApplicationId, StringComparer.OrdinalIgnoreCase)
+                .ThenByDescending(x => x.LastEventAtUtc))
+            {
+                string key = Key(registration.ApplicationId, registration.InstanceId);
+                telemetryByKey.TryGetValue(key, out ApplicationOperationalRecord? observed);
+                history.Add(new
+                {
+                    registration.RegistrationId,
+                    registration.ApplicationId,
+                    displayName = observed?.DisplayName ?? registration.ApplicationId,
+                    registration.InstanceId,
+                    registration.InstallationId,
+                    registrationStatus = registration.State,
+                    registrationHealth = registration.Health,
+                    lastSeenAtUtc = observed?.ObservedAtUtc ?? registration.LastEventAtUtc,
+                    environment = observed?.Environment ?? "—",
+                    version = observed?.Version ?? "—",
+                    reason = "Historical registration retained for audit. It is not the current authoritative instance."
+                });
+            }
+
             foreach (ApplicationOperationalRecord observed in telemetry
                 .Where(x => !registeredKeys.Contains(Key(x.ApplicationId, x.InstanceId)))
                 .OrderBy(x => x.ApplicationId, StringComparer.OrdinalIgnoreCase)
@@ -597,7 +660,8 @@ internal static class OperationsEndpoints
                 authorityAvailable,
                 authorityError,
                 generatedAtUtc = now,
-                applications
+                applications,
+                history
             });
         });
 
