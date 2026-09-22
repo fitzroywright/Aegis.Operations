@@ -599,6 +599,11 @@ internal static class OperationsV1Endpoints
         app.MapGet("/applications", (HttpContext context) => Results.Content(OperationsSectionPage.RenderApplications(configurationUrl, diagnosticsUrl, ResolveDisplayUser(context)), "text/html; charset=utf-8"));
         app.MapGet("/deployments", (HttpContext context) => Results.Content(OperationsSectionPage.RenderDeployments(configurationUrl, diagnosticsUrl, ResolveDisplayUser(context)), "text/html; charset=utf-8"));
         app.MapGet("/operations-v1", (HttpContext context) => Results.Content(OperationsPage.Render(configurationUrl, diagnosticsUrl, site, environment, ResolveDisplayUser(context)), "text/html; charset=utf-8"));
+        app.MapGet("/registration", (HttpContext context) => Results.Content(RegistrationWorkspacePage.Render("overview", ResolveDisplayUser(context)), "text/html; charset=utf-8"));
+        app.MapGet("/registration/applications", (HttpContext context) => Results.Content(RegistrationWorkspacePage.Render("applications", ResolveDisplayUser(context)), "text/html; charset=utf-8"));
+        app.MapGet("/registration/lifecycle", (HttpContext context) => Results.Content(RegistrationWorkspacePage.Render("lifecycle", ResolveDisplayUser(context)), "text/html; charset=utf-8"));
+        app.MapGet("/registration/actions", (HttpContext context) => Results.Content(RegistrationWorkspacePage.Render("actions", ResolveDisplayUser(context)), "text/html; charset=utf-8"));
+        app.MapGet("/registration/logs", (HttpContext context) => Results.Content(RegistrationWorkspacePage.Render("logs", ResolveDisplayUser(context)), "text/html; charset=utf-8"));
     }
 
     private static string? ResolveDisplayUser(HttpContext context)
