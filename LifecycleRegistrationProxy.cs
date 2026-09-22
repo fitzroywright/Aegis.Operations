@@ -322,6 +322,7 @@ const flowEvents=document.getElementById('flowEvents');
 const reconciliation=document.getElementById('reconciliation');
 const rows=document.getElementById('rows');
 let flowSnapshot={journeys:[],events:[]};
+let runtimeByInstance=new Map();
 let selectedRegistrationId=null;
 const stageOrder=['Request','Approval','Claim','Authenticate','Publish','Registered'];
 function stageIndex(stage){
@@ -334,9 +335,15 @@ function stageIndex(stage){
  return i<0?0:i;
 }
 function fmtAge(seconds){
- const s=Number(seconds||0); if(s<60)return s+'s';
- if(s<3600)return Math.floor(s/60)+'m '+(s%60)+'s';
- return Math.floor(s/3600)+'h '+Math.floor((s%3600)/60)+'m';
+ const total=Math.max(0,Math.floor(Number(seconds)||0));
+ if(total<60)return total+'s';
+ const minutes=Math.floor(total/60);
+ if(minutes<60)return minutes+'m '+String(total%60).padStart(2,'0')+'s';
+ const hours=Math.floor(minutes/60);
+ if(hours<24)return hours+'h '+String(minutes%60).padStart(2,'0')+'m';
+ const days=Math.floor(hours/24);
+ const remainingHours=hours%24;
+ return days+'d'+(remainingHours?' '+remainingHours+'h':'');
 }
 function selectJourney(id){selectedRegistrationId=id;renderFlow()}
 function formatLifecycleState(state){
@@ -346,10 +353,25 @@ function formatLifecycleState(state){
  if(s==='IdentityConflict')return 'Identity Conflict';
  return s||'Unknown Authority';
 }
+function runtimeObservation(x){
+ const key=(String(x?.applicationId||'')+'|'+String(x?.instanceId||'')).toLowerCase();
+ return runtimeByInstance.get(key)||null;
+}
 function runtimeQualifier(x){
- const h=String(x?.health||'').toLowerCase();
- if(h==='healthy'||h==='running'||h==='ready')return 'Running';
- return 'Stopped';
+ const observed=runtimeObservation(x);
+ const raw=String(observed?.state||'').trim();
+ const state=raw.toLowerCase();
+ if(state==='healthy'||state==='running'||state==='ready'||state==='available')return 'Running';
+ if(state==='offline'||state==='unhealthy'||state==='failed'||state==='failure'||state==='critical')return 'Stopped';
+ if(state==='degraded')return 'Degraded';
+ if(state==='unknown'||!state)return 'Unknown';
+ return raw;
+}
+function runtimeTone(x){
+ const runtime=runtimeQualifier(x).toLowerCase();
+ if(runtime==='running')return 'healthy';
+ if(runtime==='degraded'||runtime==='unknown')return 'slow';
+ return 'failed';
 }
 function lifecycleDisplayState(registration){
  const state=String(registration?.state||'');
@@ -367,7 +389,7 @@ function renderFlow(){
  const js=flowSnapshot.journeys||[];
  if(!selectedRegistrationId||!js.some(x=>x.registrationId===selectedRegistrationId))
    selectedRegistrationId=js.length?js[0].registrationId:null;
- journeys.innerHTML=js.length?js.map(x=>'<button class="journey-chip '+e(String(x.health||'').toLowerCase())+(x.registrationId===selectedRegistrationId?' selected':'')+'" onclick="selectJourney(\''+e(x.registrationId)+'\')">'+e(x.applicationId)+' · '+e(x.instanceId)+' · '+e(x.health)+'</button>').join(''):'<span class="empty">No active registration journeys.</span>';
+ journeys.innerHTML=js.length?js.map(x=>'<button class="journey-chip '+e(runtimeTone(x))+(x.registrationId===selectedRegistrationId?' selected':'')+'" onclick="selectJourney(\''+e(x.registrationId)+'\')">'+e(x.applicationId)+' · '+e(x.instanceId)+' · '+e(runtimeQualifier(x))+'</button>').join(''):'<span class="empty">No active registration journeys.</span>';
  const x=js.find(y=>y.registrationId===selectedRegistrationId);
  if(!x){flowMeta.innerHTML='<div><small>STATE</small><b>No active journey</b></div>';flowLight.style.left='0%';return}
  const idx=stageIndex(x.currentStage);
@@ -377,22 +399,32 @@ function renderFlow(){
  if(qualifier)qualifier.textContent=registered?'('+runtimeQualifier(x)+')':'';
  const pct=(idx/(stageOrder.length-1))*100;
  flowLight.style.left=pct+'%';
- flowLight.className='flow-light '+String(x.health||'Healthy').toLowerCase();
+ flowLight.className='flow-light '+runtimeTone(x);
  document.querySelectorAll('.flow-node').forEach((n,i)=>{n.classList.toggle('active',i===idx);n.classList.toggle('done',i<idx)});
  flowMeta.innerHTML=
   '<div><small>APPLICATION</small><b>'+e(x.applicationId)+'</b></div>'+
   '<div><small>STATE / STAGE</small><b>'+e(registered?('Registered ('+runtimeQualifier(x)+')'):formatLifecycleState(x.state))+' / '+e(x.currentStage)+'</b></div>'+
-  '<div><small>HEALTH</small><b class="health '+e(String(x.health).toLowerCase())+'">'+e(x.health)+'</b></div>'+
-  '<div><small>STAGE AGE</small><b>'+e(fmtAge(x.stageAgeSeconds))+'</b></div>'+
+  '<div><small>RUNTIME</small><b class="health '+e(runtimeTone(x))+'">'+e(runtimeQualifier(x))+'</b></div>'+
+  '<div><small>TIME AT STAGE</small><b>'+e(fmtAge(x.stageAgeSeconds))+'</b></div>'+
   '<div><small>CORRELATION</small><b class="mono">'+e(x.correlationId||'—')+'</b></div>';
  const ev=(flowSnapshot.events||[]).filter(v=>!selectedRegistrationId||v.registrationId===selectedRegistrationId).slice(0,30);
  flowEvents.innerHTML=ev.length?ev.map(v=>'<div class="flow-event"><span>'+e(localTimeOnly(v.atUtc))+'</span><b>'+e(v.stage)+'</b><span class="outcome-'+e(String(v.outcome).toLowerCase())+'">'+e(v.outcome)+'</span><span class="app">'+e(v.action)+(v.reason?' · '+e(v.reason):'')+'</span><code class="corr">'+e(v.correlationId||'—')+'</code></div>').join(''):'<div class="empty">No flow events for this journey.</div>';
 }
 async function loadFlow(){
  try{
-  const r=await fetch('/api/lifecycle-registrations/flow',{cache:'no-store'});
-  if(!r.ok)throw new Error('HTTP '+r.status);
-  flowSnapshot=await r.json();
+  const [flowResponse,runtimeResponse]=await Promise.all([
+   fetch('/api/lifecycle-registrations/flow',{cache:'no-store'}),
+   fetch('/api/operations/registered-applications',{cache:'no-store'})
+  ]);
+  if(!flowResponse.ok)throw new Error('HTTP '+flowResponse.status);
+  flowSnapshot=await flowResponse.json();
+  runtimeByInstance=new Map();
+  if(runtimeResponse.ok){
+   const runtime=await runtimeResponse.json();
+   for(const item of (runtime.applications||[])){
+    runtimeByInstance.set((String(item.applicationId||'')+'|'+String(item.instanceId||'')).toLowerCase(),item);
+   }
+  }
   renderFlow();
   load();
  }catch(err){
