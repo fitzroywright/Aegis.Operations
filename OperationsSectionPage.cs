@@ -41,6 +41,13 @@ const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&
 const fmt=v=>{const d=new Date(v);if(Number.isNaN(d.getTime()))return '—';const mon=d.toLocaleString('en-US',{month:'short'});let h=d.getHours(),tt=h>=12?'PM':'AM';h=h%12||12;return mon+' '+String(d.getDate()).padStart(2,'0')+' '+d.getFullYear()+' '+String(h).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')+' '+tt};
 function updateBrandClock(){const d=new Date(),e=document.getElementById('brandDateTime');if(!e)return;const mon=d.toLocaleString('en-US',{month:'short'});let h=d.getHours(),tt=h>=12?'PM':'AM';h=h%12||12;e.textContent=(mon+' '+String(d.getDate()).padStart(2,'0')+' '+d.getFullYear()+' '+String(h).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')+' '+tt).toUpperCase()}updateBrandClock();setInterval(updateBrandClock,1000);
 async function loadBrandUser(){try{const r=await fetch('/auth/me',{cache:'no-store'});if(!r.ok)return;const x=await r.json(),e=document.getElementById('brandUser');if(e)e.textContent='User: '+(x.displayName||x.userName||'Signed in')+' · IP: '+(x.clientIp||'unknown')}catch{}}loadBrandUser();
+async function refreshRecentLogs(){
+ try{
+  const r=await fetch('/api/operations/activity?take=5',{cache:'no-store'});if(!r.ok)throw new Error('HTTP '+r.status);
+  const x=await r.json(),events=[...(x.events||[])].sort((a,b)=>new Date(b.occurredAtUtc||b.atUtc||b.at||0)-new Date(a.occurredAtUtc||a.atUtc||a.at||0));
+  liveLog.innerHTML=events.length?events.slice(0,5).map(e=>{const outcome=String(e.outcome||e.level||'Information'),low=outcome.toLowerCase(),level=(low.includes('fail')||low.includes('error')||low.includes('critical'))?'ERR':(low.includes('warn')?'WRN':'INF');return '<div class="row"><span class="t">'+fmt(e.occurredAtUtc||e.atUtc||e.at)+'</span> <span class="'+level.toLowerCase()+'">'+level+'</span> <span class="src">['+esc(e.applicationId||e.application||'Operations')+']</span> '+esc(e.detail||e.stage||e.flow||e.code||outcome)+'</div>'}).join(''):'<div class="row"><span class="t">'+fmt(new Date())+'</span> <span class="inf">INF</span> <span class="src">[Operations]</span> No recent activity logs</div>';
+ }catch(e){liveLog.innerHTML='<div class="row"><span class="t">'+fmt(new Date())+'</span> <span class="wrn">WRN</span> <span class="src">[Operations]</span> Recent activity unavailable</div>'}
+}
 document.querySelectorAll('.top-buttons a,.workspace-nav a').forEach(a=>a.addEventListener('pointerdown',()=>{a.classList.add('nav-flash');setTimeout(()=>a.classList.remove('nav-flash'),180)}));
 __SCRIPT__
 (()=>{const overlay=document.getElementById('aegisBusyOverlay'),label=document.getElementById('aegisBusyText');if(!overlay)return;let pending=0,timer=0;const show=(text='Analyzing system state')=>{pending++;if(label)label.textContent=text;clearTimeout(timer);timer=setTimeout(()=>{if(pending>0){overlay.classList.add('visible');overlay.setAttribute('aria-hidden','false')}},300)};const hide=()=>{pending=Math.max(0,pending-1);if(!pending){clearTimeout(timer);overlay.classList.remove('visible');overlay.setAttribute('aria-hidden','true')}};const reset=()=>{pending=0;clearTimeout(timer);overlay.classList.remove('visible');overlay.setAttribute('aria-hidden','true')};window.AegisBusy={show,hide,reset,run:async(p,text)=>{show(text);try{return await p}finally{hide()}}};document.querySelectorAll('.top-buttons a,.workspace-nav a,.lcars-back').forEach(a=>a.addEventListener('click',()=>{if(a.tagName==='A'){try{const target=new URL(a.href,location.href),sameDocument=target.origin===location.origin&&target.pathname===location.pathname&&target.search===location.search;if(sameDocument&&target.hash!==location.hash){reset();return}}catch{}}show('Routing control plane')}));window.addEventListener('hashchange',reset);window.addEventListener('pageshow',reset);})();</script>
@@ -86,11 +93,10 @@ async function load(){
   historyBody.innerHTML=history.length?history.map(a=>'<tr><td><b>'+esc(a.displayName||a.applicationId)+'</b><small>'+esc(a.applicationId)+'</small></td><td>'+esc(a.instanceId||'—')+'</td><td>'+esc(a.environment||'—')+'</td><td>'+esc(a.version||'—')+'</td><td><span class="state">'+esc(a.registrationStatus||'Historical')+'</span><small>'+esc(a.registrationHealth||'')+'</small></td><td>'+fmt(a.lastSeenAtUtc)+'</td><td><code>'+esc(a.registrationId||'—')+'</code></td></tr>').join(''):'<tr><td colspan="7">No historical instances have been retained.</td></tr>';
   historyToggle.textContent=instanceHistory.hidden?(history.length?'Show History ('+history.length+')':'Show History'):'Hide History';
   const recentApps=[...apps].filter(a=>a.observedAtUtc||a.registrationObservedAtUtc).sort((a,b)=>new Date(b.observedAtUtc||b.registrationObservedAtUtc)-new Date(a.observedAtUtc||a.registrationObservedAtUtc)).slice(0,5);
-  liveLog.innerHTML=recentApps.length?recentApps.map(a=>'<div class="row"><span class="t">'+fmt(a.observedAtUtc||a.registrationObservedAtUtc)+'</span> <span class="inf">INF</span> <span class="src">['+esc(a.applicationId||'Application')+']</span> '+esc(a.reason||a.registrationFlowLabel||a.state||'Observed')+'</div>').join(''):'<div class="row"><span class="t">'+fmt(new Date())+'</span> <span class="inf">INF</span> <span class="src">[Applications]</span> No recent application activity</div>';
   lastScan.textContent='Last Scan: '+fmt(new Date());
  }catch(e){appsBody.innerHTML='<tr><td colspan="8">Application inventory unavailable · '+esc(e.message)+'</td></tr>';lastScan.textContent='Last Scan: UNAVAILABLE'}
 }
-historyToggle.onclick=()=>{instanceHistory.hidden=!instanceHistory.hidden;historyToggle.textContent=instanceHistory.hidden?(window.__historyCount?'Show History ('+window.__historyCount+')':'Show History'):'Hide History'};load();setInterval(load,15000);
+historyToggle.onclick=()=>{instanceHistory.hidden=!instanceHistory.hidden;historyToggle.textContent=instanceHistory.hidden?(window.__historyCount?'Show History ('+window.__historyCount+')':'Show History'):'Hide History'};load();refreshRecentLogs();setInterval(load,15000);setInterval(refreshRecentLogs,5000);
 """;
 
     private const string DeploymentsBody = """
@@ -113,6 +119,6 @@ async function load(){
  liveLog.innerHTML=(history||[]).slice(0,5).map(x=>'<div class="row"><span class="t">'+fmt(x.at||x.atUtc||x.observedAtUtc||x.timestampUtc)+'</span> <span class="inf">INF</span> <span class="src">['+esc(x.application||x.type||'Operations')+']</span> '+esc(x.text||'Operational event')+'</div>').join('')||'<div class="row"><span class="t">--</span> <span class="inf">INF</span> <span class="src">[Deployments]</span> No recent deployment activity</div>';
  lastScan.textContent='Last Scan: '+fmt(new Date());
 }
-load();setInterval(load,15000);
+load();refreshRecentLogs();setInterval(load,15000);setInterval(refreshRecentLogs,5000);
 """;
 }
