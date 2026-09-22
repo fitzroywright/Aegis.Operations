@@ -328,9 +328,8 @@ function formatLifecycleState(state){
 }
 function runtimeQualifier(x){
  const h=String(x?.health||'').toLowerCase();
- if(h==='healthy'||h==='running'||h==='ready')return 'RUNNING/HEALTHY';
- if(h==='failed'||h==='stalled'||h==='degraded'||h==='warning'||h==='slow'||h==='unknown'||h==='offline'||!h)return 'STOPPED/UNHEALTHY';
- return 'STOPPED/UNHEALTHY';
+ if(h==='healthy'||h==='running'||h==='ready')return 'Running';
+ return 'Stopped';
 }
 function lifecycleDisplayState(registration){
  const state=String(registration?.state||'');
@@ -340,7 +339,7 @@ function lifecycleDisplayState(registration){
 }
 function lifecycleBadgeTone(registration){
  const display=lifecycleDisplayState(registration).toLowerCase();
- if(display.includes('stopped')||display.includes('unhealthy')||display.includes('failed')||display.includes('revoked')||display.includes('rejected')||display.includes('conflict')||display.includes('offline'))return 'bad';
+ if(display.includes('stopped')||display.includes('failed')||display.includes('revoked')||display.includes('rejected')||display.includes('conflict')||display.includes('offline'))return 'bad';
  if(display.includes('pending')||display.includes('unknown')||display.includes('stale')||display.includes('degraded'))return 'warn';
  return '';
 }
