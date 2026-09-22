@@ -90,7 +90,7 @@ __CONTROL_PLANE_HEADER_CSS__
     <a class="gold" href="/handoff/configuration">Configuration</a>
     <a class="gray" href="/registration">Registration</a>
   </div>
-
+  <a class="lcars-logout" href="/auth/logout">Logout</a>
 </header>
 
 <section class="workspace-shell">
