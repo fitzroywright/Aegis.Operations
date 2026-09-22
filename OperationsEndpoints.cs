@@ -20,6 +20,7 @@ internal static class OperationsEndpoints
         string State,
         string Health,
         DateTimeOffset? LastEventAtUtc,
+        DateTimeOffset? LastAuthenticatedAtUtc,
         string? IconUrl = null,
         string? ShortName = null,
         string? Accent = null);
@@ -439,17 +440,19 @@ internal static class OperationsEndpoints
                                     continue;
 
                                 DateTimeOffset? lastEvent = null;
-                                if (journey.TryGetProperty("lastAuthenticatedAtUtc", out JsonElement authenticatedValue) &&
-                                    authenticatedValue.ValueKind == JsonValueKind.String &&
-                                    DateTimeOffset.TryParse(authenticatedValue.GetString(), out DateTimeOffset parsedAuthenticated))
-                                {
-                                    lastEvent = parsedAuthenticated;
-                                }
-                                else if (journey.TryGetProperty("lastEventAtUtc", out JsonElement lastEventValue) &&
+                                if (journey.TryGetProperty("lastEventAtUtc", out JsonElement lastEventValue) &&
                                     lastEventValue.ValueKind == JsonValueKind.String &&
                                     DateTimeOffset.TryParse(lastEventValue.GetString(), out DateTimeOffset parsedLastEvent))
                                 {
                                     lastEvent = parsedLastEvent;
+                                }
+
+                                DateTimeOffset? lastAuthenticated = null;
+                                if (journey.TryGetProperty("lastAuthenticatedAtUtc", out JsonElement authenticatedValue) &&
+                                    authenticatedValue.ValueKind == JsonValueKind.String &&
+                                    DateTimeOffset.TryParse(authenticatedValue.GetString(), out DateTimeOffset parsedAuthenticated))
+                                {
+                                    lastAuthenticated = parsedAuthenticated;
                                 }
 
                                 registrations.Add(new RegisteredApplicationJourney(
@@ -466,6 +469,7 @@ internal static class OperationsEndpoints
                                         ? healthValue.GetString() ?? "Unknown"
                                         : "Unknown",
                                     lastEvent,
+                                    lastAuthenticated,
                                     journey.TryGetProperty("iconUrl", out JsonElement iconValue) ? iconValue.GetString() : null,
                                     journey.TryGetProperty("shortName", out JsonElement shortNameValue) ? shortNameValue.GetString() : null,
                                     journey.TryGetProperty("accent", out JsonElement accentValue) ? accentValue.GetString() : null));
@@ -502,17 +506,19 @@ internal static class OperationsEndpoints
                                             continue;
 
                                         DateTimeOffset? updatedAt = null;
-                                        if (record.TryGetProperty("lastAuthenticatedAtUtc", out JsonElement authenticatedValue) &&
-                                            authenticatedValue.ValueKind == JsonValueKind.String &&
-                                            DateTimeOffset.TryParse(authenticatedValue.GetString(), out DateTimeOffset parsedAuthenticated))
-                                        {
-                                            updatedAt = parsedAuthenticated;
-                                        }
-                                        else if (record.TryGetProperty("updatedAtUtc", out JsonElement updatedValue) &&
+                                        if (record.TryGetProperty("updatedAtUtc", out JsonElement updatedValue) &&
                                             updatedValue.ValueKind == JsonValueKind.String &&
                                             DateTimeOffset.TryParse(updatedValue.GetString(), out DateTimeOffset parsedUpdated))
                                         {
                                             updatedAt = parsedUpdated;
+                                        }
+
+                                        DateTimeOffset? lastAuthenticated = null;
+                                        if (record.TryGetProperty("lastAuthenticatedAtUtc", out JsonElement authenticatedValue) &&
+                                            authenticatedValue.ValueKind == JsonValueKind.String &&
+                                            DateTimeOffset.TryParse(authenticatedValue.GetString(), out DateTimeOffset parsedAuthenticated))
+                                        {
+                                            lastAuthenticated = parsedAuthenticated;
                                         }
 
                                         string? iconUrl = null;
@@ -542,6 +548,7 @@ internal static class OperationsEndpoints
                                                 : "Unknown",
                                             "Historical",
                                             updatedAt,
+                                            lastAuthenticated,
                                             iconUrl,
                                             shortName,
                                             accent));
@@ -558,30 +565,6 @@ internal static class OperationsEndpoints
                 catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException)
                 {
                     authorityError = ex.Message;
-                }
-            }
-
-            if (lifecycleHistoryRecords.Count > 0)
-            {
-                Dictionary<string, DateTimeOffset?> authorityFreshnessByRegistration =
-                    lifecycleHistoryRecords
-                        .Where(x => !string.IsNullOrWhiteSpace(x.RegistrationId))
-                        .GroupBy(x => x.RegistrationId, StringComparer.OrdinalIgnoreCase)
-                        .ToDictionary(
-                            g => g.Key,
-                            g => g.Max(x => x.LastEventAtUtc),
-                            StringComparer.OrdinalIgnoreCase);
-
-                for (int i = 0; i < registrations.Count; i++)
-                {
-                    RegisteredApplicationJourney registration = registrations[i];
-                    if (authorityFreshnessByRegistration.TryGetValue(
-                            registration.RegistrationId,
-                            out DateTimeOffset? authenticatedAt) &&
-                        authenticatedAt.HasValue)
-                    {
-                        registrations[i] = registration with { LastEventAtUtc = authenticatedAt };
-                    }
                 }
             }
 
@@ -608,7 +591,7 @@ internal static class OperationsEndpoints
                 .GroupBy(x => x.ApplicationId, StringComparer.OrdinalIgnoreCase))
             {
                 RegisteredApplicationJourney[] ordered = appGroup
-                    .OrderByDescending(x => x.LastEventAtUtc ?? DateTimeOffset.MinValue)
+                    .OrderByDescending(x => x.LastAuthenticatedAtUtc ?? x.LastEventAtUtc ?? DateTimeOffset.MinValue)
                     .ToArray();
 
                 RegisteredApplicationJourney[] fresh = ordered
@@ -651,8 +634,8 @@ internal static class OperationsEndpoints
                     OperationsFreshness.IsStale(observed!.ObservedAtUtc, now, staleAfter);
                 bool registrationFresh =
                     registration.State.Equals("Registered", StringComparison.OrdinalIgnoreCase) &&
-                    registration.LastEventAtUtc.HasValue &&
-                    !OperationsFreshness.IsStale(registration.LastEventAtUtc.Value, now, staleAfter);
+                    registration.LastAuthenticatedAtUtc.HasValue &&
+                    !OperationsFreshness.IsStale(registration.LastAuthenticatedAtUtc.Value, now, staleAfter);
                 bool stale = telemetryStale && !registrationFresh;
                 bool aging = telemetryAvailable && !stale && !registrationFresh &&
                     OperationsFreshness.IsAging(observed!.ObservedAtUtc, now, staleAfter);
@@ -692,7 +675,7 @@ internal static class OperationsEndpoints
                     registration.InstallationId,
                     registrationStatus = registration.State,
                     registrationHealth = registration.Health,
-                    registrationObservedAtUtc = registration.LastEventAtUtc,
+                    registrationObservedAtUtc = registration.LastAuthenticatedAtUtc ?? registration.LastEventAtUtc,
                     state,
                     telemetryAvailable,
                     aging,
@@ -736,7 +719,7 @@ internal static class OperationsEndpoints
                     registration.InstallationId,
                     registrationStatus = registration.State,
                     registrationHealth = registration.Health,
-                    lastSeenAtUtc = observed?.ObservedAtUtc ?? registration.LastEventAtUtc,
+                    lastSeenAtUtc = observed?.ObservedAtUtc ?? registration.LastAuthenticatedAtUtc ?? registration.LastEventAtUtc,
                     environment = observed?.Environment ?? "—",
                     version = observed?.Version ?? "—",
                     reason = "Historical registration retained for audit. It is not the current authoritative instance."
