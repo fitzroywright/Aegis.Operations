@@ -222,7 +222,7 @@ __CONTROL_PLANE_HEADER_CSS__
 
 <script>
 const detail=document.getElementById('detail');
-function recentStamp(v){const d=v?new Date(v):new Date();if(Number.isNaN(d.getTime()))return '--- -- ---- --:--:--';const mon=d.toLocaleString('en-US',{month:'short'});return mon+' '+String(d.getDate()).padStart(2,'0')+' '+d.getFullYear()+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')+':'+String(d.getSeconds()).padStart(2,'0')}
+function recentStamp(v){const d=v?new Date(v):new Date();if(Number.isNaN(d.getTime()))return '--- -- ---- --:-- --';const mon=d.toLocaleString('en-US',{month:'short'});let h=d.getHours(),tt=h>=12?'PM':'AM';h=h%12||12;return mon+' '+String(d.getDate()).padStart(2,'0')+' '+d.getFullYear()+' '+String(h).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')+' '+tt}
 function seedRecentTimestamps(){document.querySelectorAll('#liveLog .t').forEach(x=>{if(!x.textContent||x.textContent.includes('--:--:--'))x.textContent=recentStamp();});}
 seedRecentTimestamps();
 async function loadBrandUser(){try{const r=await fetch('/auth/me',{cache:'no-store'});if(!r.ok)return;const x=await r.json();const e=document.getElementById('brandUser');if(e)e.textContent='User: '+(x.displayName||x.userName||'Signed in')+' · IP: '+(x.clientIp||'unknown');}catch{}}
@@ -234,10 +234,11 @@ function updateBrandClock(){
   const month=d.toLocaleString('en-US',{month:'short'}).toUpperCase();
   const day=String(d.getDate()).padStart(2,'0');
   const year=d.getFullYear();
-  const hours=String(d.getHours()).padStart(2,'0');
+  let hours=d.getHours();
   const minutes=String(d.getMinutes()).padStart(2,'0');
-  const tt=d.getHours()>=12?'PM':'AM';
-  target.textContent=month+' '+day+' '+year+' '+hours+':'+minutes+' '+tt;
+  const tt=hours>=12?'PM':'AM';
+  hours=hours%12||12;
+  target.textContent=month+' '+day+' '+year+' '+String(hours).padStart(2,'0')+':'+minutes+' '+tt;
 }
 updateBrandClock();
 setInterval(updateBrandClock,1000);
@@ -278,7 +279,7 @@ function addLog(level,source,message){
 function stateName(x){return String(x?.stateName??x?.state??(x?.available?'Healthy':'Unknown'))}
 function setPill(id,x){const e=document.getElementById(id);const s=stateName(x);e.textContent=s.toUpperCase();e.className='status-pill '+(s.toLowerCase()==='healthy'?'ok':'bad');return s}
 async function json(url){const r=await fetch(url,{cache:'no-store'});if(!r.ok)throw new Error(url+' HTTP '+r.status);return r.json()}
-function fmtTime(v){if(!v)return '—';const d=new Date(v);return Number.isNaN(d.valueOf())?'—':d.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'})}
+function fmtTime(v){if(!v)return '—';const d=new Date(v);if(Number.isNaN(d.valueOf()))return '—';let h=d.getHours(),tt=h>=12?'PM':'AM';h=h%12||12;return String(h).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')+':'+String(d.getSeconds()).padStart(2,'0')+' '+tt}
 function levelFromType(t){const s=String(t??'').toLowerCase();return s.includes('fail')||s.includes('critical')?'ERR':s.includes('warn')||s.includes('alert')?'WRN':'INF'}
 function flowHealth(flow){
   const stages=flow?.stages??[];
@@ -367,7 +368,7 @@ async function load(){
     activeFlowCount.textContent=activeFlows.length;
 
     const cfg=stateName(summary.configuration), diag=stateName(summary.diagnostics);
-    checked.textContent='Last Scan: '+new Date(summary.checkedAt).toLocaleString();
+    checked.textContent='Last Scan: '+recentStamp(summary.checkedAt);
 
     const attention=warnings+activeAlerts+(summary.registration?.attention??0)+(cfg.toLowerCase()==='healthy'?0:1)+(diag.toLowerCase()==='healthy'?0:1);
     const healthy=attention===0;
