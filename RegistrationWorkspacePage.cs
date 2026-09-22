@@ -116,7 +116,40 @@ async function load(){try{const r=await fetch('/api/lifecycle-registrations',{ca
 async function load(){try{const p=new URLSearchParams({take:'500',text:'Registration'}),r=await fetch('/api/operations/activity?'+p,{cache:'no-store'});if(!r.ok)throw new Error('HTTP '+r.status);const x=await r.json(),ev=(x.events||[]).filter(e=>/registration/i.test([e.flow,e.stage,e.code,e.detail].filter(Boolean).join(' ')));rows.innerHTML=ev.length?ev.map(e=>'<div class="log-row"><span>'+fmt(e.occurredAtUtc)+'</span><b>'+esc(e.applicationId||'—')+'</b><span class="'+tone(e.outcome)+'">'+esc(e.outcome||'—')+'</span><span>'+esc([e.flow,e.stage,e.code,e.detail].filter(Boolean).join(' · '))+'</span></div>').join(''):'<div class="empty">No registration telemetry matches.</div>';scan()}catch(e){rows.innerHTML='<div class="empty">Registration logs unavailable · '+esc(e.message)+'</div>'}}load();setInterval(load,3000);
 """,
         _ => """
-async function load(){try{const [r,q]=await Promise.all([fetch('/api/lifecycle-registrations',{cache:'no-store'}),fetch('/api/lifecycle-registrations/reconciliation',{cache:'no-store'})]);if(!r.ok)throw new Error('HTTP '+r.status);const x=await r.json(),list=Array.isArray(x)?x:(x.registrations||[]);total.textContent=list.length;active.textContent=list.filter(a=>String(a.state).toLowerCase()==='registered').length;pending.textContent=list.filter(a=>String(a.state).toLowerCase()==='pending').length;issues.textContent=list.filter(a=>!['registered','purged'].includes(String(a.state).toLowerCase())).length;let rec='Reconciliation unavailable';if(q.ok){const z=await q.json();rec='Reconciliation: '+esc(z.status||z.health||'Available')}summary.innerHTML='<b>Authority:</b> Configuration Registration · <b>'+rec+'</b>';scan()}catch(e){summary.textContent='Registration overview unavailable · '+e.message}}load();setInterval(load,10000);
+async function load(){
+  try{
+    const flowResponse=await fetch('/api/lifecycle-registrations/flow',{cache:'no-store'});
+    if(!flowResponse.ok)throw new Error('Registration flow HTTP '+flowResponse.status);
+    const flow=await flowResponse.json(),journeys=flow.journeys||flow.records||[];
+    total.textContent=journeys.length;
+    active.textContent=journeys.filter(a=>String(a.state||'').toLowerCase()==='registered').length;
+    pending.textContent=journeys.filter(a=>['pending','approved'].includes(String(a.state||'').toLowerCase())).length;
+    issues.textContent=journeys.filter(a=>!['registered','purged'].includes(String(a.state||'').toLowerCase())).length;
+
+    let rec='Reconciliation unavailable';
+    try{
+      const q=await fetch('/api/lifecycle-registrations/reconciliation',{cache:'no-store'});
+      if(q.ok){
+        const z=await q.json();
+        const issueCount=Array.isArray(z.issues)?z.issues.length:(z.attention??z.issueCount??0);
+        rec='Reconciliation: '+esc(z.status||z.health||(issueCount>0?issueCount+' issue'+(issueCount===1?'':'s'):'Available'));
+      }else if(q.status===403){
+        rec='Reconciliation: management permission required';
+      }else{
+        rec='Reconciliation unavailable · HTTP '+q.status;
+      }
+    }catch{
+      rec='Reconciliation unavailable';
+    }
+
+    summary.innerHTML='<b>Authority:</b> Configuration Registration · <b>'+rec+'</b>';
+    scan();
+  }catch(e){
+    total.textContent='—';active.textContent='—';pending.textContent='—';issues.textContent='—';
+    summary.innerHTML='<span class="bad">Registration authority unavailable</span> · '+esc(e.message);
+  }
+}
+load();setInterval(load,10000);
 """
     };
 }
