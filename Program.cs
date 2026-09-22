@@ -26,6 +26,7 @@ builder.Services.AddSingleton(sp => new OperationsTelemetryAuthenticator(
     sp.GetRequiredService<IHttpClientFactory>(),
     sp.GetRequiredService<IConfiguration>(),
     sp.GetRequiredService<ILogger<OperationsTelemetryAuthenticator>>()));
+builder.Services.AddHostedService<RuntimeStateTransitionMonitor>();
 
 WebApplication app = builder.Build();
 app.UseForwardedHeaders(new ForwardedHeadersOptions
