@@ -240,7 +240,24 @@ function updateBrandClock(){
 updateBrandClock();
 setInterval(updateBrandClock,1000);
 document.querySelectorAll('.top-buttons a,.workspace-nav a').forEach(a=>a.addEventListener('pointerdown',()=>{a.classList.add('nav-flash');setTimeout(()=>a.classList.remove('nav-flash'),180)}));
-function showRegisteredApplicationHealthIssues(apps){const host=document.querySelector('.detail-scroll');if(!host)return;let banner=document.getElementById('registeredApplicationHealthBanner');if(!banner){banner=document.createElement('section');banner.id='registeredApplicationHealthBanner';banner.className='control-plane-health-banner';const own=document.getElementById('controlPlaneHealthBanner');own?.insertAdjacentElement('afterend',banner)??host.prepend(banner);}const issues=(apps||[]).filter(a=>String(a.state||'Unknown').toLowerCase()!=='healthy'||a.stale);if(!issues.length){banner.style.display='none';return;}const critical=issues.some(a=>['unhealthy','failed','critical'].includes(String(a.state||'').toLowerCase()));banner.classList.toggle('critical',critical);banner.innerHTML='<strong>REGISTERED APPLICATION HEALTH · '+issues.length+' ISSUE'+(issues.length===1?'':'S')+'</strong><div>'+issues.slice(0,8).map(a=>esc(a.displayName||a.applicationId)+' — '+esc(a.state||'Unknown')+(a.stale?' (no recent heartbeat)':'')+(a.reason?' · '+esc(a.reason):'')).join('<br>')+(issues.length>8?'<br>+'+(issues.length-8)+' more':'')+'</div>';banner.style.display='block';}
+function normalizedAppHealth(a){
+  const value=String(a?.health??a?.registrationHealth??a?.state??a?.status??'unknown').trim().toLowerCase();
+  if(['1','healthy','passed','running','ready','online','ok','success','succeeded'].includes(value))return 'healthy';
+  if(['3','unhealthy','failed','critical','error','offline','stopped','blocked'].includes(value))return 'unhealthy';
+  if(['2','degraded','warning','attention','aging'].includes(value))return 'degraded';
+  return value||'unknown';
+}
+function showRegisteredApplicationHealthIssues(apps){
+  const host=document.querySelector('.detail-scroll');if(!host)return;
+  let banner=document.getElementById('registeredApplicationHealthBanner');
+  if(!banner){banner=document.createElement('section');banner.id='registeredApplicationHealthBanner';banner.className='control-plane-health-banner';const own=document.getElementById('controlPlaneHealthBanner');own?.insertAdjacentElement('afterend',banner)??host.prepend(banner);}
+  const issues=(apps||[]).filter(a=>a.stale||normalizedAppHealth(a)!=='healthy');
+  if(!issues.length){banner.style.display='none';banner.innerHTML='';banner.classList.remove('critical');return;}
+  const critical=issues.some(a=>normalizedAppHealth(a)==='unhealthy');
+  banner.classList.toggle('critical',critical);
+  banner.innerHTML='<strong>REGISTERED APPLICATION HEALTH · '+issues.length+' ISSUE'+(issues.length===1?'':'S')+'</strong><div>'+issues.slice(0,8).map(a=>esc(a.displayName||a.applicationId)+' — '+esc(a.stale?'Stale':(a.health??a.registrationHealth??a.state??a.status??'Unknown'))+(a.stale?' (no recent heartbeat)':'')+(a.reason?' · '+esc(a.reason):'')).join('<br>')+(issues.length>8?'<br>+'+(issues.length-8)+' more':'')+'</div>';
+  banner.style.display='block';
+}
 async function refreshControlPlaneHealthBanner(){const host=document.querySelector('.detail-scroll');if(!host)return;let banner=document.getElementById('controlPlaneHealthBanner');if(!banner){banner=document.createElement('section');banner.id='controlPlaneHealthBanner';banner.className='control-plane-health-banner';host.prepend(banner);}try{const response=await fetch('/health',{cache:'no-store'});if(!response.ok)throw new Error('HTTP '+response.status);const h=await response.json(),state=String(h.health||h.status||'Unknown'),summary=String(h.summary||'Health check returned no summary.').trim(),lower=state.toLowerCase();if(lower==='healthy'){banner.style.display='none';banner.classList.remove('critical','health-unavailable');return;}banner.classList.toggle('critical',lower==='unhealthy');banner.classList.remove('health-unavailable');banner.innerHTML='<strong>'+state.toUpperCase()+'</strong><div>'+esc(summary)+'</div>';banner.style.display='block';}catch(error){banner.classList.remove('critical');banner.classList.add('health-unavailable');banner.innerHTML='<strong>HEALTH CHECK UNAVAILABLE</strong><div>'+esc(error?.message||'Unable to read /health.')+'</div>';banner.style.display='block';}}
 refreshControlPlaneHealthBanner();setInterval(refreshControlPlaneHealthBanner,30000);
 const workspaceLinks=[...document.querySelectorAll('.workspace-nav a[href^="#"]')];
@@ -253,6 +270,7 @@ workspaceLinks.forEach(a=>a.addEventListener('click',e=>{
   const id=a.getAttribute('href'); if(!id?.startsWith('#')) return; e.preventDefault();
   const target=document.querySelector(id);
   if(target) detail.scrollTo({top:Math.max(0,target.offsetTop-24),behavior:'smooth'});
+  history.replaceState(null,'',id);
   setActiveWorkspaceLink(a);
 }));
 function syncWorkspaceNav(){
@@ -266,6 +284,16 @@ function syncWorkspaceNav(){
 }
 detail.addEventListener('scroll',syncWorkspaceNav,{passive:true});
 syncWorkspaceNav();
+requestAnimationFrame(()=>{
+  const hash=location.hash;
+  if(!hash)return;
+  const link=workspaceLinks.find(x=>x.getAttribute('href')===hash);
+  const target=document.querySelector(hash);
+  if(link&&target){
+    detail.scrollTop=Math.max(0,target.offsetTop-24);
+    setActiveWorkspaceLink(link);
+  }
+});
 
 function esc(v){return String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
 function addLog(level,source,message){
