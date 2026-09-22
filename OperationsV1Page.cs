@@ -32,7 +32,7 @@ input,textarea,select{width:100%;background:#081b28;color:var(--text);border:1px
 <a class="external" href="/handoff/configuration">⚙ Configuration ↗</a>
 <button data-view="diagnostics">◉ Diagnostics</button>
 <a class="external" href="/handoff/diagnostics">Open Diagnostics ↗</a>
-<a class="external" href="/registration-lifecycle">🔑 Registration</a>
+<a class="external" href="/registration">🔑 Registration</a>
 <button data-view="messaging">✉ Messaging</button>
 <div class="navlabel">ENGINEERING</div>
 <button data-view="sync">⇄ Synchronization</button>
@@ -45,7 +45,7 @@ input,textarea,select{width:100%;background:#081b28;color:var(--text);border:1px
 <section id="overview"><div class="metrics" id="metrics"></div><div class="grid" id="estate"></div></section>
 <section id="appdetail" class="hidden"><div class="sectionhead"><h2 id="appDetailTitle">Application</h2><button class="action" onclick="showView('applications')">← Applications</button></div><div id="appDetailBody"></div></section>
 <section id="search" class="hidden"><div class="sectionhead"><h2>Search Results</h2><button class="action" onclick="showView('overview')">Close</button></div><div id="searchResults"></div></section>
-<section id="applications" class="hidden"><div class="sectionhead"><div><h2>Registered Applications</h2><small class="muted">Configuration registration is authoritative; Operations telemetry is overlaid when available.</small></div><div class="sectionactions"><a class="handoff" href="/registration-lifecycle">Registration Lifecycle →</a><a class="handoff" href="/handoff/configuration">Open Configuration ↗</a></div></div><div id="registrationNotice"></div><div id="appsTable"></div></section>
+<section id="applications" class="hidden"><div class="sectionhead"><div><h2>Registered Applications</h2><small class="muted">Configuration registration is authoritative; Operations telemetry is overlaid when available.</small></div><div class="sectionactions"><a class="handoff" href="/registration">Registration Lifecycle →</a><a class="handoff" href="/handoff/configuration">Open Configuration ↗</a></div></div><div id="registrationNotice"></div><div id="appsTable"></div></section>
 <section id="flows" class="hidden"><div class="sectionhead"><h2>Flows</h2></div><div id="flowsList"></div></section>
 <section id="diagnostics" class="hidden"><div class="sectionhead"><div><h2>Integrated Diagnostics</h2><small class="muted">Operational diagnostic observations published into Operations.</small></div><a class="handoff" href="/handoff/diagnostics">Open Aegis.Diagnostics ↗</a></div><div id="diagnosticsList"></div></section>
 <section id="messaging" class="hidden"><div class="sectionhead"><h2>Messaging</h2></div><div id="messagingList"></div></section>
