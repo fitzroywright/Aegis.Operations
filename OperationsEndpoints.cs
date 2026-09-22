@@ -496,7 +496,13 @@ internal static class OperationsEndpoints
                                             continue;
 
                                         DateTimeOffset? updatedAt = null;
-                                        if (record.TryGetProperty("updatedAtUtc", out JsonElement updatedValue) &&
+                                        if (record.TryGetProperty("lastAuthenticatedAtUtc", out JsonElement authenticatedValue) &&
+                                            authenticatedValue.ValueKind == JsonValueKind.String &&
+                                            DateTimeOffset.TryParse(authenticatedValue.GetString(), out DateTimeOffset parsedAuthenticated))
+                                        {
+                                            updatedAt = parsedAuthenticated;
+                                        }
+                                        else if (record.TryGetProperty("updatedAtUtc", out JsonElement updatedValue) &&
                                             updatedValue.ValueKind == JsonValueKind.String &&
                                             DateTimeOffset.TryParse(updatedValue.GetString(), out DateTimeOffset parsedUpdated))
                                         {
@@ -546,6 +552,30 @@ internal static class OperationsEndpoints
                 catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException)
                 {
                     authorityError = ex.Message;
+                }
+            }
+
+            if (lifecycleHistoryRecords.Count > 0)
+            {
+                Dictionary<string, DateTimeOffset?> authorityFreshnessByRegistration =
+                    lifecycleHistoryRecords
+                        .Where(x => !string.IsNullOrWhiteSpace(x.RegistrationId))
+                        .GroupBy(x => x.RegistrationId, StringComparer.OrdinalIgnoreCase)
+                        .ToDictionary(
+                            g => g.Key,
+                            g => g.Max(x => x.LastEventAtUtc),
+                            StringComparer.OrdinalIgnoreCase);
+
+                for (int i = 0; i < registrations.Count; i++)
+                {
+                    RegisteredApplicationJourney registration = registrations[i];
+                    if (authorityFreshnessByRegistration.TryGetValue(
+                            registration.RegistrationId,
+                            out DateTimeOffset? authenticatedAt) &&
+                        authenticatedAt.HasValue)
+                    {
+                        registrations[i] = registration with { LastEventAtUtc = authenticatedAt };
+                    }
                 }
             }
 
