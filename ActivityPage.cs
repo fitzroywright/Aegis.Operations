@@ -45,7 +45,7 @@ body{position:relative}a{color:inherit;text-decoration:none}
 .top-buttons a{border:0;border-radius:8px;font-weight:900;text-transform:uppercase;color:#071018;cursor:pointer;font-size:12px;display:flex;align-items:center;justify-content:center;line-height:1;padding:0 8px;box-shadow:inset 0 1px 0 rgba(255,255,255,.28),0 1px 0 rgba(0,0,0,.55)}
 .top-buttons .gold{background:var(--gold)}.top-buttons .blue{background:var(--blue)}.top-buttons .salmon{background:var(--salmon)}.top-buttons .gray{background:var(--peach)}.lcars-logout{position:absolute;right:0;top:126px;height:14px;min-width:92px;padding:0 12px;background:var(--sunset-red);color:#fff;border:0;border-radius:7px 9px 9px 7px;z-index:8;display:flex;align-items:center;justify-content:center;font:900 9px/14px Arial,sans-serif;letter-spacing:.08em;text-transform:uppercase;text-decoration:none;box-shadow:none}
 .top-buttons a,.workspace-nav a{transition:background .12s ease,color .12s ease,filter .12s ease}
-.top-buttons a.nav-flash,.workspace-nav a.nav-flash{background:var(--title-gold)!important;color:#071018!important;filter:brightness(1.08)}
+.top-buttons a.nav-flash,.workspace-nav a.nav-flash{background:var(--title-gold)!important;color:#071018!important;filter:brightness(1.08)}.top-buttons a.module-active{box-shadow:0 0 0 2px var(--title-gold),0 0 14px 3px rgba(255,204,102,.72),inset 0 1px 0 rgba(255,255,255,.28)!important;filter:brightness(1.06)}.top-buttons a.nav-flash{animation:moduleFlash .18s ease-out}@keyframes moduleFlash{0%{filter:brightness(1);transform:scale(1)}45%{filter:brightness(1.38);transform:scale(1.035)}100%{filter:brightness(1.06);transform:scale(1)}}
 
 /* LCARS workspace */
 .workspace-shell{position:fixed;left:8px;right:14px;top:calc(148px + var(--scroll-arrow-space));bottom:var(--scroll-arrow-space);min-height:0;overflow:hidden;z-index:10}
@@ -85,7 +85,7 @@ __CONTROL_PLANE_HEADER_CSS__
   <div class="brand"><div class="section">Operations</div><div class="org">Food For The Poor Jamaica</div><div class="datetime" id="brandDateTime"></div><div class="brand-user" id="brandUser">SIGNED IN</div></div>
   <div class="live-log"><div class="recent-title">Recent Logs</div><div class="recent-rows" id="liveLog"><div class="row"><span class="t"></span> <span class="inf">INF</span> <span class="src">[Operations]</span> Loading suite telemetry</div></div></div>
   <div class="top-buttons">
-    <a class="blue" href="/">Operations</a>
+    <a class="blue module-active" href="/">Operations</a>
     <a class="gray" href="/registration">Registration</a>
     <a class="gold" href="/handoff/configuration">Configuration</a>
     <a class="salmon" href="/handoff/diagnostics">Diagnostics</a>
