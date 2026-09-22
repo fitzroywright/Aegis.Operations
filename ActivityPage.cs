@@ -86,9 +86,9 @@ __CONTROL_PLANE_HEADER_CSS__
   <div class="live-log"><div class="recent-title">Recent Logs</div><div class="recent-rows" id="liveLog"><div class="row"><span class="t"></span> <span class="inf">INF</span> <span class="src">[Operations]</span> Loading suite telemetry</div></div></div>
   <div class="top-buttons">
     <a class="blue" href="/">Operations</a>
-    <a class="salmon" href="/handoff/diagnostics">Diagnostics</a>
-    <a class="gold" href="/handoff/configuration">Configuration</a>
     <a class="gray" href="/registration">Registration</a>
+    <a class="gold" href="/handoff/configuration">Configuration</a>
+    <a class="salmon" href="/handoff/diagnostics">Diagnostics</a>
   </div>
   <a class="lcars-logout" href="/auth/logout">Logout</a>
 </header>
