@@ -165,9 +165,10 @@ __CONTROL_PLANE_HEADER_CSS__
     <a class="blue" href="/">Operations</a>
     <a class="salmon" href="__DIAGNOSTICS_URL__">Diagnostics</a>
     <a class="gold" href="__CONFIGURATION_URL__">Configuration</a>
-    <a class="logout" href="/auth/logout">Logout</a>
+    <a class="gray" href="/handoff/registration">Registration</a>
   </div>
-</header>
+
+  <a class="lcars-logout" href="/auth/logout">Logout</a></header>
 
 <section class="workspace-shell">
   <div class="workspace-arm">
@@ -179,7 +180,7 @@ __CONTROL_PLANE_HEADER_CSS__
     <a class="active" href="#overview"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg><span>Overview</span></a>
     <a href="/applications"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="5" r="2.5"/><circle cx="6" cy="18" r="2.5"/><circle cx="18" cy="18" r="2.5"/><path d="M12 7.5v4M10.5 12.5 7.5 15.5M13.5 12.5l3 3"/></svg><span>Applications</span></a>
     <a href="/deployments"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9 12 4l8 5-8 5-8-5Z"/><path d="M4 9v7l8 5 8-5V9M12 14v7"/></svg><span>Deployments</span></a>
-    <a href="/handoff/registration"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8" cy="11" r="2"/><path d="M5.5 16c.8-1.7 4.2-1.7 5 0M14 11l2 2 4-4"/></svg><span>Registration</span></a>
+    <a href="/#attention"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 2.5 20h19L12 3Z"/><path d="M12 9v5M12 17h.01"/></svg><span>Attention</span></a>
     <a href="/logs"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 6h14M5 12h14M5 18h10"/><path d="M3 6h.01M3 12h.01M3 18h.01"/></svg><span>Logs</span></a>
   </nav>
   <button class="lcars-back" type="button" onclick="if(history.length>1){history.back()}else{location.href='/'}">Back</button>
