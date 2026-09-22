@@ -72,23 +72,26 @@ internal sealed class RuntimeStateTransitionMonitor(
                 ? "Application heartbeat became stale; runtime is offline."
                 : $"Application runtime changed from {previous} to {effective}.";
 
+            string correlationId = Guid.NewGuid().ToString("N");
+            var properties = new Dictionary<string, string>
+            {
+                ["previousState"] = previous.ToString(),
+                ["currentState"] = effective.ToString()
+            };
+
             LifecycleEvent evt = LifecycleEvent.Create(
                 app.ApplicationId,
                 app.InstanceId,
-                "Runtime",
+                "Application State",
                 "StateChanged",
                 outcome,
-                Guid.NewGuid().ToString("N"),
-                code: "RUNTIME_STATE_CHANGED",
+                correlationId,
+                code: "APPLICATION_STATE_CHANGED",
                 detail: detail,
-                properties: new Dictionary<string, string>
-                {
-                    ["previousState"] = previous.ToString(),
-                    ["currentState"] = effective.ToString()
-                },
+                properties: properties,
                 occurredAtUtc: now);
 
-            int retention = Math.Clamp(
+            int activityRetention = Math.Clamp(
                 configuration.GetValue("Operations:Retention:ActivityEvents", 10000),
                 500,
                 100000);
@@ -98,8 +101,41 @@ internal sealed class RuntimeStateTransitionMonitor(
                 all.Add(evt);
                 return [.. all
                     .OrderByDescending(x => x.OccurredAtUtc)
-                    .Take(retention)
+                    .Take(activityRetention)
                     .OrderBy(x => x.OccurredAtUtc)];
+            }, ct);
+
+            string level = outcome == LifecycleEventOutcome.Failed
+                ? "Error"
+                : outcome == LifecycleEventOutcome.Warning
+                    ? "Warning"
+                    : "Information";
+
+            var logRecord = new OperationsLogRecord(
+                Guid.NewGuid(),
+                now,
+                app.ApplicationId,
+                app.InstanceId,
+                app.Environment ?? "Unknown",
+                level,
+                "Application State",
+                detail,
+                CorrelationId: correlationId,
+                Host: Environment.MachineName,
+                Properties: properties);
+
+            int logRetention = Math.Clamp(
+                configuration.GetValue("Operations:Retention:ApplicationLogs", 50000),
+                1000,
+                500000);
+
+            await store.MutateAsync<OperationsLogRecord>("application-logs", all =>
+            {
+                all.Add(logRecord);
+                return [.. all
+                    .OrderByDescending(x => x.TimestampUtc)
+                    .Take(logRetention)
+                    .OrderBy(x => x.TimestampUtc)];
             }, ct);
 
             logger.LogInformation(
