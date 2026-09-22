@@ -109,8 +109,8 @@ historyToggle.onclick=()=>{instanceHistory.hidden=!instanceHistory.hidden;histor
     private const string DeploymentsScript = """
 async function safeJson(url,fallback){try{const r=await fetch(url,{cache:'no-store'});return r.ok?await r.json():fallback}catch{return fallback}}
 async function load(){
- const [apps,sync,history]=await Promise.all([safeJson('/api/operations/applications',[]),safeJson('/api/operations/synchronization',[]),safeJson('/api/operations/history',[])]);
- const rows=apps||[],
+ const [registered,sync,history]=await Promise.all([safeJson('/api/operations/registered-applications',{applications:[]}),safeJson('/api/operations/synchronization',[]),safeJson('/api/operations/history',[])]);
+ const rows=Array.isArray(registered)?registered:(registered.applications||[]),
        registrationFresh=a=>String(a.registrationStatus||'').toLowerCase()==='registered'&&!a.stale&&!!a.registrationObservedAtUtc,
        effectiveState=a=>registrationFresh(a)&&String(a.state||'').toLowerCase()==='offline'?'Healthy':String(a.state||'Unknown'),
        isReady=a=>String(effectiveState(a)).toLowerCase()==='healthy'&&!a.stale&&(!a.configurationStatus||['configured','healthy','ready','published'].includes(String(a.configurationStatus).toLowerCase()));
