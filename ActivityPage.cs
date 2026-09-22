@@ -105,7 +105,7 @@ __CONTROL_PLANE_HEADER_CSS__
   </nav>
   <button class="lcars-back" type="button" onclick="if(history.length>1){history.back()}else{location.href='/'}">Back</button>
 
-  <main class="detail-scroll"><div class="aegis-busy-overlay" id="aegisBusyOverlay" aria-hidden="true"><div class="aegis-busy-scan" role="status" aria-live="polite"><div class="aegis-busy-grid"></div><div class="aegis-busy-wave"></div><div class="aegis-busy-sweep"></div><div class="aegis-busy-core"><i></i><i></i><i></i><i></i></div><div class="aegis-busy-copy"><b>Processing</b><span id="aegisBusyText">Analyzing system state</span></div></div>
+  <main class="detail-scroll"><div class="aegis-busy-overlay" id="aegisBusyOverlay" aria-hidden="true"><div class="aegis-busy-scan" role="status" aria-live="polite"><div class="aegis-busy-grid"></div><div class="aegis-busy-wave"></div><div class="aegis-busy-sweep"></div><div class="aegis-busy-core"><i></i><i></i><i></i><i></i></div><div class="aegis-busy-copy"><b>Processing</b><span id="aegisBusyText">Analyzing system state</span></div></div></div>
     <div class="filter-toggle-row">
       <div class="log-mode-tabs" role="tablist" aria-label="Log views">
         <button class="action active" id="navActivity" type="button" data-mode="log">Lifecycle Logs</button>
