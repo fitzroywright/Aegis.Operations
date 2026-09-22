@@ -281,7 +281,7 @@ small{color:#b3c9d8;font-size:13px;line-height:1.4}
 <main>
 <p><a href="/">← Operations</a></p>
 <h1>Application Registration</h1>
-<p>Install → Request → Pending → Approve → Claim → Registered. Pending applications have zero trust.</p>
+<p>Request → Approval → Claim → Authenticate → Publish → Registered. Registered applications then show their runtime state as Running or Stopped.</p>
 <section class="panel">
 <h2>Live Registration Flow</h2>
 <p class="muted">Real lifecycle telemetry from Configuration. The light moves as the selected registration advances; amber means slow, red means stalled or failed.</p>
@@ -296,7 +296,7 @@ small{color:#b3c9d8;font-size:13px;line-height:1.4}
       <div class="flow-node" data-stage="Claim"><i></i><b>Claim</b><small>one time</small></div>
       <div class="flow-node" data-stage="Authenticate"><i></i><b>Authenticate</b><small>durable ID</small></div>
       <div class="flow-node" data-stage="Publish"><i></i><b>Publish</b><small>contract</small></div>
-      <div class="flow-node" data-stage="Running"><i></i><b id="runtimeFlowParent">Registered</b><small id="runtimeFlowQualifier">(RUNNING)</small></div>
+      <div class="flow-node" data-stage="Registered"><i></i><b id="runtimeFlowParent">Registered</b><small id="runtimeFlowQualifier"></small></div>
     </div>
   </div>
   <div id="flowMeta" class="flow-meta"></div>
@@ -323,12 +323,13 @@ const reconciliation=document.getElementById('reconciliation');
 const rows=document.getElementById('rows');
 let flowSnapshot={journeys:[],events:[]};
 let selectedRegistrationId=null;
-const stageOrder=['Request','Approval','Claim','Authenticate','Publish','Running'];
+const stageOrder=['Request','Approval','Claim','Authenticate','Publish','Registered'];
 function stageIndex(stage){
  if(stage==='Recovery Approval'||stage==='Rejected')return 1;
  if(stage==='Recovery Claim')return 2;
  if(stage==='Identity Conflict')return 3;
  if(stage==='Revoked')return 5;
+ if(stage==='Running')return 5;
  const i=stageOrder.indexOf(stage);
  return i<0?0:i;
 }
@@ -372,7 +373,7 @@ function renderFlow(){
  const idx=stageIndex(x.currentStage);
  const registered=String(x.state||'').toLowerCase()==='registered';
  const parent=document.getElementById('runtimeFlowParent'),qualifier=document.getElementById('runtimeFlowQualifier');
- if(parent)parent.textContent=registered?'Registered':'Runtime';
+ if(parent)parent.textContent='Registered';
  if(qualifier)qualifier.textContent=registered?'('+runtimeQualifier(x)+')':'';
  const pct=(idx/(stageOrder.length-1))*100;
  flowLight.style.left=pct+'%';
