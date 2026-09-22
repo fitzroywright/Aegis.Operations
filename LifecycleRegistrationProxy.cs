@@ -192,6 +192,7 @@ internal static class LifecycleRegistrationProxy
         });
 
         app.MapGet("/registration-lifecycle", () => Results.Redirect("/registration/lifecycle", permanent: true));
+    }
 
     private sealed record LifecycleDecision(string? Reason);
 }
