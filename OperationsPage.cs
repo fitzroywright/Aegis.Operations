@@ -111,7 +111,7 @@ a{color:inherit;text-decoration:none}
 .workspace-nav a:last-child{border-bottom:0}.nav-icon{width:15px;height:15px;flex:0 0 15px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}.workspace-nav a.active .nav-icon{stroke-width:2}
 .workspace-nav a.active{font-size:12px;font-weight:800;background:var(--title-gold);color:#071018}.lcars-back{position:absolute;left:0;bottom:0;width:var(--rail-width);height:48px;z-index:7;border:0;border-top:3px solid #000;border-radius:0 0 0 28px;background:var(--alpha-blue);color:#071018;font:900 12px/1 "Arial Narrow","Roboto Condensed","Segoe UI",Arial,sans-serif;text-transform:uppercase;text-align:left;padding:0 0 0 11px;cursor:pointer}.lcars-back:hover,.lcars-back:focus-visible{background:var(--title-gold);outline:none}.lcars-back:active{background:var(--title-gold);filter:brightness(1.08)}
 .top-buttons a,.workspace-nav a{transition:background .12s ease,color .12s ease,filter .12s ease}
-.top-buttons a.nav-flash,.workspace-nav a.nav-flash{background:var(--title-gold)!important;color:#071018!important;filter:brightness(1.08)}
+.top-buttons a.nav-flash,.workspace-nav a.nav-flash{background:var(--title-gold)!important;color:#071018!important;filter:brightness(1.08)}.top-buttons a.module-active{box-shadow:0 0 0 2px var(--title-gold),0 0 14px 3px rgba(255,204,102,.72),inset 0 1px 0 rgba(255,255,255,.28)!important;filter:brightness(1.06)}.top-buttons a.nav-flash{animation:moduleFlash .18s ease-out}@keyframes moduleFlash{0%{filter:brightness(1);transform:scale(1)}45%{filter:brightness(1.38);transform:scale(1.035)}100%{filter:brightness(1.06);transform:scale(1)}}
 
 .detail-scroll{position:absolute;left:var(--rail-width);right:0;top:calc(var(--workspace-arm-height) + var(--scroll-arrow-space));bottom:var(--scroll-arrow-space);min-height:0;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;background:#000;padding:18px 22px 24px 24px;scrollbar-color:var(--salmon) #111}
 .detail-scroll::-webkit-scrollbar{width:10px}.detail-scroll::-webkit-scrollbar-track{background:#090909}.detail-scroll::-webkit-scrollbar-thumb{background:var(--salmon);border-radius:10px}
@@ -162,7 +162,7 @@ __CONTROL_PLANE_HEADER_CSS__
   </div></div>
 
   <div class="top-buttons">
-    <a class="blue" href="/">Operations</a>
+    <a class="blue module-active" href="/">Operations</a>
     <a class="gray" href="/registration">Registration</a>
     <a class="gold" href="__CONFIGURATION_URL__">Configuration</a>
     <a class="salmon" href="__DIAGNOSTICS_URL__">Diagnostics</a>
