@@ -611,28 +611,40 @@ internal static class OperationsEndpoints
                 string key = Key(registration.ApplicationId, registration.InstanceId);
                 telemetryByKey.TryGetValue(key, out ApplicationOperationalRecord? observed);
                 bool telemetryAvailable = observed is not null;
-                bool stale = telemetryAvailable &&
+                bool telemetryStale = telemetryAvailable &&
                     OperationsFreshness.IsStale(observed!.ObservedAtUtc, now, staleAfter);
-                bool aging = telemetryAvailable && !stale &&
+                bool registrationFresh =
+                    registration.State.Equals("Registered", StringComparison.OrdinalIgnoreCase) &&
+                    !OperationsFreshness.IsStale(registration.LastEventAtUtc, now, staleAfter);
+                bool stale = telemetryStale && !registrationFresh;
+                bool aging = telemetryAvailable && !stale && !registrationFresh &&
                     OperationsFreshness.IsAging(observed!.ObservedAtUtc, now, staleAfter);
-                string state = !telemetryAvailable
-                    ? OperationalState.Unknown.ToString()
-                    : stale
-                        ? OperationalState.Offline.ToString()
-                        : observed!.State.ToString();
+                OperationalState effectiveRuntimeState =
+                    telemetryAvailable && !telemetryStale
+                        ? observed!.State
+                        : registrationFresh
+                            ? OperationalState.Healthy
+                            : OperationalState.Unknown;
+                string state = stale
+                    ? OperationalState.Offline.ToString()
+                    : effectiveRuntimeState.ToString();
                 string registrationFlowLabel = RegistrationFlowStateFormatter.Format(
                     registration.State,
-                    observed?.State ?? OperationalState.Unknown,
-                    telemetryAvailable,
+                    effectiveRuntimeState,
+                    telemetryAvailable || registrationFresh,
                     aging,
                     stale,
                     authorityAvailable);
                 string registrationFlowTone = RegistrationFlowStateFormatter.Tone(registrationFlowLabel);
-                string reason = !telemetryAvailable
-                    ? "Registered in Configuration; no operational telemetry has been received."
-                    : stale
-                        ? "No recent heartbeat has been received."
-                        : observed!.Reason ?? string.Empty;
+                string reason = !telemetryAvailable && registrationFresh
+                    ? "Fresh registration authority observation confirms the application is active."
+                    : telemetryStale && registrationFresh
+                        ? "Operational heartbeat is stale, but the registration authority has a fresh successful observation."
+                        : !telemetryAvailable
+                            ? "Registered in Configuration; no operational telemetry has been received."
+                            : stale
+                                ? "No recent heartbeat or registration authority observation has been received."
+                                : observed!.Reason ?? string.Empty;
 
                 applications.Add(new
                 {
