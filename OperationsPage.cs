@@ -413,9 +413,9 @@ async function load(){
 async function refreshRecentLogs(){
   try{
     const r=await fetch('/api/operations/activity?take=5',{cache:'no-store'});if(!r.ok)return;
-    const x=await r.json(),events=x.events||[];
-    if(!events.length)return;
-    liveLog.innerHTML=events.slice(-5).map(e=>{
+    const x=await r.json(),events=[...(x.events||[])].sort((a,b)=>new Date(b.occurredAtUtc||b.atUtc||b.at||0)-new Date(a.occurredAtUtc||a.atUtc||a.at||0));
+    if(!events.length){liveLog.innerHTML='<div class="row"><span class="t">'+recentStamp()+'</span> <span class="inf">INF</span> <span class="src">[Operations]</span> No recent activity logs</div>';return;}
+    liveLog.innerHTML=events.slice(0,5).map(e=>{
       const outcome=String(e.outcome||e.level||'Information'),lower=outcome.toLowerCase(),level=(lower.includes('fail')||lower.includes('error')||lower.includes('critical'))?'ERR':(lower.includes('warn')?'WRN':'INF');
       return '<div class="row"><span class="t">'+fmtTime(e.occurredAtUtc||e.atUtc||e.at)+'</span> <span class="'+level.toLowerCase()+'">'+level+'</span> <span class="src">['+esc(e.applicationId||e.application||'Operations')+']</span> '+esc(e.detail||e.stage||e.flow||e.code||outcome)+'</div>'
     }).join('');
