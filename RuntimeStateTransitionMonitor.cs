@@ -38,7 +38,7 @@ internal sealed class RuntimeStateTransitionMonitor(
 
         DateTimeOffset now = DateTimeOffset.UtcNow;
         TimeSpan staleAfter = TimeSpan.FromSeconds(
-            configuration.GetValue("Operations:StaleAfterSeconds", 300));
+            configuration.GetValue("Operations:StaleAfterSeconds", 90));
 
         foreach (ApplicationOperationalRecord app in applications)
         {
