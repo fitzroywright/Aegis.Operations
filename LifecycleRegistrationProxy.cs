@@ -1,7 +1,11 @@
 using Common.Security;
+using System.Collections.Concurrent;
+using System.Net;
 
 internal static class LifecycleRegistrationProxy
 {
+    private sealed record CachedAuthorityResponse(string Content, string ContentType, int StatusCode, DateTimeOffset CapturedAtUtc);
+    private static readonly ConcurrentDictionary<string, CachedAuthorityResponse> LastKnown = new(StringComparer.OrdinalIgnoreCase);
     internal static void MapLifecycleRegistrationProxy(this WebApplication app, string configurationUrl)
     {
         app.MapGet("/api/lifecycle-registrations", async (
@@ -217,16 +221,61 @@ internal static class LifecycleRegistrationProxy
             "X-Aegis-Correlation-Id",
             Guid.NewGuid().ToString("N"));
 
-        using HttpResponseMessage response = await factory
-            .CreateClient("ops")
-            .SendAsync(request, ct);
+        bool cacheable = method == HttpMethod.Get;
+        string cacheKey = method.Method + " " + url;
 
-        string content = await response.Content.ReadAsStringAsync(ct);
+        try
+        {
+            using HttpResponseMessage response = await factory
+                .CreateClient("ops")
+                .SendAsync(request, ct);
 
-        return Results.Content(
-            content,
-            response.Content.Headers.ContentType?.ToString() ?? "application/json",
-            statusCode: (int)response.StatusCode);
+            string content = await response.Content.ReadAsStringAsync(ct);
+            string contentType = response.Content.Headers.ContentType?.ToString() ?? "application/json";
+
+            if (cacheable && response.IsSuccessStatusCode)
+            {
+                LastKnown[cacheKey] = new CachedAuthorityResponse(
+                    content,
+                    contentType,
+                    (int)response.StatusCode,
+                    DateTimeOffset.UtcNow);
+            }
+
+            return Results.Content(
+                content,
+                contentType,
+                statusCode: (int)response.StatusCode);
+        }
+        catch (Exception ex) when (
+            ex is HttpRequestException ||
+            ex is TaskCanceledException && !ct.IsCancellationRequested)
+        {
+            if (cacheable && LastKnown.TryGetValue(cacheKey, out CachedAuthorityResponse? cached))
+            {
+                source.Response.Headers["X-Aegis-Authority-Status"] = "Unavailable";
+                source.Response.Headers["X-Aegis-Data-Status"] = "Last-Known";
+                source.Response.Headers["X-Aegis-Last-Success-Utc"] = cached.CapturedAtUtc.ToString("O");
+
+                return Results.Content(
+                    cached.Content,
+                    cached.ContentType,
+                    statusCode: cached.StatusCode);
+            }
+
+            source.Response.Headers["X-Aegis-Authority-Status"] = "Unavailable";
+            source.Response.Headers["X-Aegis-Data-Status"] = "Unknown";
+
+            return Results.Json(
+                new
+                {
+                    error = "RegistrationAuthorityUnavailable",
+                    detail = "Configuration Registration authority is temporarily unavailable and no last-known snapshot is available.",
+                    authorityStatus = "Unavailable",
+                    dataStatus = "Unknown"
+                },
+                statusCode: StatusCodes.Status503ServiceUnavailable);
+        }
     }
 
     private static bool Has(HttpContext context, string permission)
