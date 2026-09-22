@@ -238,7 +238,7 @@ button.danger{background:#8d3838}
 button.warn{background:#9a6a14}
 .badge{display:inline-block;padding:4px 8px;border-radius:999px;background:#34495a;font-weight:700}
 .pending,.recoverypending{background:#72531b}
-.registered{background:#145b40}
+.registered{background:#145b40}.registered.bad{background:#7d2f2f;color:#fff}.registered.warn{background:#72531b;color:#fff}
 .identityconflict,.revoked,.rejected{background:#7d2f2f}
 small{color:#9fb7c8}
 .empty{padding:20px;color:#9fb7c8}
@@ -338,6 +338,12 @@ function lifecycleDisplayState(registration){
  const journey=(flowSnapshot.journeys||[]).find(j=>j.registrationId===registration.registrationId);
  return 'Registered ('+runtimeQualifier(journey)+')';
 }
+function lifecycleBadgeTone(registration){
+ const display=lifecycleDisplayState(registration).toLowerCase();
+ if(display.includes('stopped')||display.includes('unhealthy')||display.includes('failed')||display.includes('revoked')||display.includes('rejected')||display.includes('conflict')||display.includes('offline'))return 'bad';
+ if(display.includes('pending')||display.includes('unknown')||display.includes('stale')||display.includes('degraded'))return 'warn';
+ return '';
+}
 function renderFlow(){
  const js=flowSnapshot.journeys||[];
  if(!selectedRegistrationId||!js.some(x=>x.registrationId===selectedRegistrationId))
@@ -417,7 +423,7 @@ async function load(){
    return '<tr><td><b>'+e(x.applicationId)+'</b><br><small>'+e(x.registrationId)+'</small></td>'+
      '<td>'+e(x.instanceId)+'</td>'+
      '<td class="mono">'+e(x.installationId)+'</td>'+
-     '<td><span class="badge '+e(x.state.toLowerCase())+'">'+e(lifecycleDisplayState(x))+'</span></td>'+
+     '<td><span class="badge '+e(x.state.toLowerCase())+' '+e(lifecycleBadgeTone(x))+'">'+e(lifecycleDisplayState(x))+'</span></td>'+
      '<td>'+e(localTime(x.updatedAtUtc))+'</td>'+
      '<td>'+history+metadata+'</td>'+
      '<td>'+(actions||'—')+'</td></tr>';
