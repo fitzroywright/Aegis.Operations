@@ -50,8 +50,8 @@ __SCRIPT__
         return html
             .Replace("__TITLE__", HtmlEncoder.Default.Encode(title), StringComparison.Ordinal)
             .Replace("__USER__", HtmlEncoder.Default.Encode(userName ?? "SIGNED IN"), StringComparison.Ordinal)
-            .Replace("__DIAG__", HtmlEncoder.Default.Encode(diagnosticsUrl), StringComparison.Ordinal)
-            .Replace("__CFG__", HtmlEncoder.Default.Encode(configurationUrl), StringComparison.Ordinal)
+            .Replace("__DIAG__", "/handoff/diagnostics", StringComparison.Ordinal)
+            .Replace("__CFG__", "/handoff/configuration", StringComparison.Ordinal)
             .Replace("__OVERVIEW__", active == "overview" ? "active" : "", StringComparison.Ordinal)
             .Replace("__APPLICATIONS__", active == "applications" ? "active" : "", StringComparison.Ordinal)
             .Replace("__DEPLOYMENTS__", active == "deployments" ? "active" : "", StringComparison.Ordinal)
