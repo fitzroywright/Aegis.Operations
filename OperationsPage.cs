@@ -185,7 +185,7 @@ __CONTROL_PLANE_HEADER_CSS__
   </nav>
   <button class="lcars-back" type="button" onclick="if(history.length>1){history.back()}else{location.href='/'}">Back</button>
 
-  <main class="detail-scroll" id="detail"><div class="aegis-busy-overlay" id="aegisBusyOverlay" aria-hidden="true"><div class="aegis-busy-scan" role="status" aria-live="polite"><div class="aegis-busy-grid"></div><div class="aegis-busy-wave"></div><div class="aegis-busy-sweep"></div><div class="aegis-busy-core"><i></i><i></i><i></i><i></i></div><div class="aegis-busy-copy"><b>Processing</b><span id="aegisBusyText">Analyzing system state</span></div></div></div>
+  <main class="detail-scroll" id="detail"><div class="aegis-busy-overlay" id="aegisBusyOverlay" aria-hidden="true"><div class="aegis-busy-scan" role="status" aria-live="polite"><div class="aegis-busy-grid"></div><div class="aegis-busy-wave"></div><div class="aegis-busy-sweep"></div><div class="aegis-busy-core"><i></i><i></i><i></i><i></i></div><div class="aegis-busy-copy"><b>Processing</b><span id="aegisBusyText">Analyzing system state</span></div></div></div></div>
     <section class="page-head" id="overview"></section>
 
     <section class="suite-status" aria-label="Operations status">
