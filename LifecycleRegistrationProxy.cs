@@ -328,8 +328,15 @@ function formatLifecycleState(state){
 }
 function runtimeQualifier(x){
  const h=String(x?.health||'').toLowerCase();
- if(h==='failed'||h==='stalled'||h==='degraded'||h==='warning'||h==='slow')return 'DEGRADED';
- return 'RUNNING';
+ if(h==='healthy'||h==='running'||h==='ready')return 'RUNNING/HEALTHY';
+ if(h==='failed'||h==='stalled'||h==='degraded'||h==='warning'||h==='slow'||h==='unknown'||h==='offline'||!h)return 'STOPPED/UNHEALTHY';
+ return 'STOPPED/UNHEALTHY';
+}
+function lifecycleDisplayState(registration){
+ const state=String(registration?.state||'');
+ if(state!=='Registered')return formatLifecycleState(state);
+ const journey=(flowSnapshot.journeys||[]).find(j=>j.registrationId===registration.registrationId);
+ return 'Registered ('+runtimeQualifier(journey)+')';
 }
 function renderFlow(){
  const js=flowSnapshot.journeys||[];
@@ -362,6 +369,7 @@ async function loadFlow(){
   if(!r.ok)throw new Error('HTTP '+r.status);
   flowSnapshot=await r.json();
   renderFlow();
+  load();
  }catch(err){
   flowMeta.innerHTML='<div><small>FLOW TELEMETRY</small><b class="health failed">Unavailable</b></div>';
   flowEvents.innerHTML='<div class="empty">'+e(err.message)+'</div>';
@@ -409,7 +417,7 @@ async function load(){
    return '<tr><td><b>'+e(x.applicationId)+'</b><br><small>'+e(x.registrationId)+'</small></td>'+
      '<td>'+e(x.instanceId)+'</td>'+
      '<td class="mono">'+e(x.installationId)+'</td>'+
-     '<td><span class="badge '+e(x.state.toLowerCase())+'">'+e(formatLifecycleState(x.state))+'</span></td>'+
+     '<td><span class="badge '+e(x.state.toLowerCase())+'">'+e(lifecycleDisplayState(x))+'</span></td>'+
      '<td>'+e(localTime(x.updatedAtUtc))+'</td>'+
      '<td>'+history+metadata+'</td>'+
      '<td>'+(actions||'—')+'</td></tr>';
