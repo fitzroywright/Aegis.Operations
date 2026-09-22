@@ -386,6 +386,7 @@ internal static class OperationsEndpoints
                 app.Configuration.GetValue("Operations:StaleAfterSeconds", 300));
 
             var registrations = new List<RegisteredApplicationJourney>();
+            var lifecycleHistoryRecords = new List<RegisteredApplicationJourney>();
             bool authorityAvailable = false;
             string? authorityError = null;
 
@@ -466,6 +467,80 @@ internal static class OperationsEndpoints
                         }
 
                         authorityAvailable = true;
+
+                        try
+                        {
+                            using var historyRequest = new HttpRequestMessage(
+                                HttpMethod.Get,
+                                configurationUrl.TrimEnd('/') + "/api/registration/requests?includePurged=true");
+                            historyRequest.Headers.TryAddWithoutValidation(
+                                "X-Aegis-Suite-Handoff",
+                                suiteSecurity.CreateHandoff(identity, "Aegis.Configuration"));
+
+                            using HttpResponseMessage historyResponse = await client.SendAsync(historyRequest, ct);
+                            if (historyResponse.IsSuccessStatusCode)
+                            {
+                                using JsonDocument historyDocument =
+                                    JsonDocument.Parse(await historyResponse.Content.ReadAsStringAsync(ct));
+                                if (historyDocument.RootElement.ValueKind == JsonValueKind.Array)
+                                {
+                                    foreach (JsonElement record in historyDocument.RootElement.EnumerateArray())
+                                    {
+                                        string applicationId = record.TryGetProperty("applicationId", out JsonElement appValue)
+                                            ? appValue.GetString() ?? string.Empty
+                                            : string.Empty;
+                                        string instanceId = record.TryGetProperty("instanceId", out JsonElement instanceValue)
+                                            ? instanceValue.GetString() ?? string.Empty
+                                            : string.Empty;
+                                        if (string.IsNullOrWhiteSpace(applicationId) || string.IsNullOrWhiteSpace(instanceId))
+                                            continue;
+
+                                        DateTimeOffset? updatedAt = null;
+                                        if (record.TryGetProperty("updatedAtUtc", out JsonElement updatedValue) &&
+                                            updatedValue.ValueKind == JsonValueKind.String &&
+                                            DateTimeOffset.TryParse(updatedValue.GetString(), out DateTimeOffset parsedUpdated))
+                                        {
+                                            updatedAt = parsedUpdated;
+                                        }
+
+                                        string? iconUrl = null;
+                                        string? shortName = null;
+                                        string? accent = null;
+                                        if (record.TryGetProperty("metadata", out JsonElement metadata) &&
+                                            metadata.ValueKind == JsonValueKind.Object &&
+                                            metadata.TryGetProperty("presentation", out JsonElement presentation) &&
+                                            presentation.ValueKind == JsonValueKind.Object)
+                                        {
+                                            iconUrl = presentation.TryGetProperty("iconUrl", out JsonElement iconValue) ? iconValue.GetString() : null;
+                                            shortName = presentation.TryGetProperty("shortName", out JsonElement shortNameValue) ? shortNameValue.GetString() : null;
+                                            accent = presentation.TryGetProperty("accent", out JsonElement accentValue) ? accentValue.GetString() : null;
+                                        }
+
+                                        lifecycleHistoryRecords.Add(new RegisteredApplicationJourney(
+                                            record.TryGetProperty("registrationId", out JsonElement registrationIdValue)
+                                                ? registrationIdValue.GetString() ?? string.Empty
+                                                : string.Empty,
+                                            applicationId,
+                                            instanceId,
+                                            record.TryGetProperty("installationId", out JsonElement installationValue)
+                                                ? installationValue.GetString() ?? string.Empty
+                                                : string.Empty,
+                                            record.TryGetProperty("state", out JsonElement stateValue)
+                                                ? stateValue.GetString() ?? "Unknown"
+                                                : "Unknown",
+                                            "Historical",
+                                            updatedAt,
+                                            iconUrl,
+                                            shortName,
+                                            accent));
+                                    }
+                                }
+                            }
+                        }
+                        catch (Exception historyEx) when (historyEx is HttpRequestException or TaskCanceledException or JsonException)
+                        {
+                            registrationLogger.LogDebug(historyEx, "Unable to load complete registration history; current application inventory remains available.");
+                        }
                     }
                 }
                 catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException)
@@ -588,7 +663,16 @@ internal static class OperationsEndpoints
                 });
             }
 
-            foreach (RegisteredApplicationJourney registration in historicalRegistrations
+            HashSet<string> currentRegistrationIdsForHistory = currentRegistrations
+                .Select(x => x.RegistrationId)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            IEnumerable<RegisteredApplicationJourney> completeHistory = historicalRegistrations
+                .Concat(lifecycleHistoryRecords.Where(x => !currentRegistrationIdsForHistory.Contains(x.RegistrationId)))
+                .GroupBy(x => x.RegistrationId, StringComparer.OrdinalIgnoreCase)
+                .Select(x => x.OrderByDescending(y => y.LastEventAtUtc ?? DateTimeOffset.MinValue).First());
+
+            foreach (RegisteredApplicationJourney registration in completeHistory
                 .OrderBy(x => x.ApplicationId, StringComparer.OrdinalIgnoreCase)
                 .ThenByDescending(x => x.LastEventAtUtc))
             {
