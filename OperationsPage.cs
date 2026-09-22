@@ -92,7 +92,7 @@ a{color:inherit;text-decoration:none}
 
 .top-buttons{position:absolute;right:50px;top:18px;width:250px;height:72px;display:grid;grid-template-columns:1fr 1fr;gap:8px 10px;padding-left:12px}
 .top-buttons a,.top-buttons button{border:0;border-radius:8px;font-weight:900;text-transform:uppercase;color:#071018;cursor:pointer;font-size:12px;display:flex;align-items:center;justify-content:center;line-height:1;padding:0 8px;box-shadow:inset 0 1px 0 rgba(255,255,255,.28),0 1px 0 rgba(0,0,0,.55)}
-.top-buttons .gold{background:var(--gold)}.top-buttons .blue{background:var(--blue)}.top-buttons .salmon{background:var(--salmon)}.top-buttons .gray{background:var(--peach)}.top-buttons .logout{background:var(--sunset-red);color:#fff}
+.top-buttons .gold{background:var(--gold)}.top-buttons .blue{background:var(--blue)}.top-buttons .salmon{background:var(--salmon)}.top-buttons .gray{background:var(--peach)}.lcars-logout{position:absolute;right:0;top:126px;height:14px;min-width:92px;padding:0 12px;background:var(--sunset-red);color:#fff;border:0;border-radius:7px 9px 9px 7px;z-index:8;display:flex;align-items:center;justify-content:center;font:900 9px/14px Arial,sans-serif;letter-spacing:.08em;text-transform:uppercase;text-decoration:none;box-shadow:none}
 
 
 /* --- fixed mirrored workspace L --- */
@@ -165,7 +165,7 @@ __CONTROL_PLANE_HEADER_CSS__
     <a class="blue" href="/">Operations</a>
     <a class="salmon" href="__DIAGNOSTICS_URL__">Diagnostics</a>
     <a class="gold" href="__CONFIGURATION_URL__">Configuration</a>
-    <a class="logout" href="/auth/logout">Logout</a>
+    <a class="gray" href="/registration">Registration</a>
   </div>
 
 </header>
