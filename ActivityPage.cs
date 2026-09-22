@@ -77,7 +77,7 @@ body{position:relative}a{color:inherit;text-decoration:none}
 @media(max-width:900px){.filters{grid-template-columns:repeat(2,1fr)}.flow-overlay{right:12px;width:calc(100% - var(--rail-width) - 24px)}.telemetry-head,.telemetry-row{grid-template-columns:150px minmax(150px,1fr) 92px}.telemetry-head .flow,.telemetry-head .detail,.telemetry-row .flow,.telemetry-row .detail{display:none}.telemetry-row>.time,.telemetry-row>.app,.telemetry-row>.outcome{padding:6px 8px}}
  .sound-toggle{margin-left:10px;margin-right:14px;border:0;border-left:3px solid #000;background:#071018;color:var(--title-gold);width:34px;height:26px;padding:4px 7px;cursor:pointer;z-index:6;display:grid;place-items:center}.sound-toggle svg{width:18px;height:18px;fill:currentColor}.sound-toggle:hover{background:#111d2a;color:var(--starship-white)}.sound-toggle:hover{background:#111d2a;color:var(--starship-white)}
 __CONTROL_PLANE_HEADER_CSS__
-</style>
+.aegis-busy-overlay{position:absolute;inset:0;z-index:80;display:grid;place-items:center;background:rgba(0,5,12,.82);backdrop-filter:blur(2px);opacity:0;pointer-events:none;transition:opacity .16s ease}.aegis-busy-overlay.visible{opacity:1;pointer-events:auto}.aegis-busy-scan{position:relative;width:min(680px,72vw);height:220px;display:grid;place-items:center;overflow:hidden}.aegis-busy-grid{position:absolute;inset:0;background-image:linear-gradient(rgba(85,136,238,.10) 1px,transparent 1px),linear-gradient(90deg,rgba(85,136,238,.10) 1px,transparent 1px);background-size:24px 24px;mask-image:linear-gradient(90deg,transparent,#000 15%,#000 85%,transparent)}.aegis-busy-wave{position:absolute;left:4%;right:4%;top:50%;height:2px;background:#66ccff;box-shadow:0 0 8px #66ccff,0 0 22px #5588ee}.aegis-busy-wave:before,.aegis-busy-wave:after{content:"";position:absolute;left:50%;top:50%;width:38px;height:38px;border:1px solid rgba(102,204,255,.65);border-radius:50%;transform:translate(-50%,-50%);animation:subspacePulse 1.35s ease-out infinite}.aegis-busy-wave:after{animation-delay:.45s}.aegis-busy-sweep{position:absolute;top:14%;bottom:14%;width:9%;background:linear-gradient(90deg,transparent,rgba(102,204,255,.10),rgba(102,204,255,.85),rgba(255,204,102,.65),transparent);animation:subspaceSweep 1.55s linear infinite}.aegis-busy-core{position:relative;z-index:2;width:64px;height:72px;border:2px solid #66ccff;border-radius:7px;background:#071b29;box-shadow:0 0 18px rgba(102,204,255,.7);display:grid;align-content:center;gap:7px;padding:10px}.aegis-busy-core i{display:block;height:5px;border-radius:2px;background:#99ccff;box-shadow:0 0 5px rgba(153,204,255,.7)}.aegis-busy-copy{position:absolute;z-index:3;left:0;right:0;bottom:4px;text-align:center;text-transform:uppercase;font:900 13px/1.25 Arial,sans-serif;letter-spacing:.13em;color:#66ccff}.aegis-busy-copy b{display:block;color:#f3f3fc;font-size:18px;margin-bottom:6px}.aegis-busy-copy span{color:#ffcc66}@keyframes subspaceSweep{0%{left:2%;opacity:.15}15%{opacity:1}85%{opacity:1}100%{left:89%;opacity:.15}}@keyframes subspacePulse{0%{width:20px;height:20px;opacity:.9}100%{width:360px;height:150px;opacity:0}}@media(prefers-reduced-motion:reduce){.aegis-busy-sweep,.aegis-busy-wave:before,.aegis-busy-wave:after{animation:none}}</style>
 </head>
 <body>
 <header class="lcars-top">
@@ -105,7 +105,7 @@ __CONTROL_PLANE_HEADER_CSS__
   </nav>
   <button class="lcars-back" type="button" onclick="if(history.length>1){history.back()}else{location.href='/'}">Back</button>
 
-  <main class="detail-scroll">
+  <main class="detail-scroll"><div class="aegis-busy-overlay" id="aegisBusyOverlay" aria-hidden="true"><div class="aegis-busy-scan" role="status" aria-live="polite"><div class="aegis-busy-grid"></div><div class="aegis-busy-wave"></div><div class="aegis-busy-sweep"></div><div class="aegis-busy-core"><i></i><i></i><i></i><i></i></div><div class="aegis-busy-copy"><b>Processing</b><span id="aegisBusyText">Analyzing system state</span></div></div>
     <div class="filter-toggle-row">
       <div class="log-mode-tabs" role="tablist" aria-label="Log views">
         <button class="action active" id="navActivity" type="button" data-mode="log">Lifecycle Logs</button>
@@ -313,7 +313,7 @@ function installAegisConsoleAudio(){
   document.querySelectorAll('.top-buttons a,.workspace-nav a,.lcars-back').forEach(x=>x.addEventListener('pointerdown',()=>cues.navigation()));
 }
 installAegisConsoleAudio();
-</script>
+(()=>{const overlay=document.getElementById('aegisBusyOverlay'),label=document.getElementById('aegisBusyText');if(!overlay)return;let pending=0,timer=0;const show=(text='Analyzing system state')=>{pending++;if(label)label.textContent=text;clearTimeout(timer);timer=setTimeout(()=>{if(pending>0){overlay.classList.add('visible');overlay.setAttribute('aria-hidden','false')}},300)};const hide=()=>{pending=Math.max(0,pending-1);if(!pending){clearTimeout(timer);overlay.classList.remove('visible');overlay.setAttribute('aria-hidden','true')}};window.AegisBusy={show,hide,run:async(p,text)=>{show(text);try{return await p}finally{hide()}}};document.querySelectorAll('.top-buttons a,.workspace-nav a,.lcars-back').forEach(a=>a.addEventListener('click',()=>show('Routing control plane')));})();</script>
 </body>
 </html>
 """.Replace("__CONTROL_PLANE_HEADER_CSS__", ControlPlaneHeader.Css, StringComparison.Ordinal);
