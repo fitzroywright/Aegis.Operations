@@ -59,6 +59,11 @@ internal static class OperationsEndpoints
             AegisControlPlaneService.Operations,
             registrationLogger,
             configurationKey: "Operations:LocalUrl");
+        string operationsPublicUrl = AegisControlPlaneEndpoints.ResolvePublic(
+            app.Configuration,
+            AegisControlPlaneService.Operations,
+            registrationLogger,
+            configurationKey: "Aegis:PublicUrl");
         string operationsCredentialFile = app.Configuration["Operations:RegistrationCredentialFile"]?.Trim()
             ?? Path.Combine(registrationDirectory, "operations.key");
 
@@ -78,6 +83,7 @@ internal static class OperationsEndpoints
                             operationsInstanceId,
                             site,
                             environment,
+                            operationsPublicUrl,
                             app.Configuration);
 
                         using HttpClient registrationHttp = factory.CreateClient("ops");
@@ -662,6 +668,7 @@ internal static class OperationsEndpoints
         string instanceId,
         string site,
         string environment,
+        string operationsPublicUrl,
         IConfiguration configuration)
     {
         return new JsonObject
@@ -677,7 +684,32 @@ internal static class OperationsEndpoints
             },
             ["siteId"] = site == "—" ? null : site,
             ["instanceId"] = instanceId,
+            ["diagnostics"] = new JsonObject
+            {
+                ["baseUrl"] = operationsPublicUrl,
+                ["healthPath"] = "/health",
+                ["supportsRemoteDiagnostics"] = false,
+                ["supportsOperationalTelemetry"] = true,
+                ["authenticationScheme"] = "None",
+                ["supportedLevels"] = new JsonArray()
+            },
             ["requirements"] = new JsonArray
+            {
+                new JsonObject
+                {
+                    ["id"] = "public-url",
+                    ["displayName"] = "Public URL",
+                    ["kind"] = 0,
+                    ["required"] = true,
+                    ["purpose"] = "Canonical externally reachable Operations endpoint used by Control Plane health monitoring.",
+                    ["configurationKey"] = "Aegis:PublicUrl",
+                    ["sensitive"] = false,
+                    ["isConfigured"] = !string.IsNullOrWhiteSpace(operationsPublicUrl),
+                    ["effectiveValueAvailable"] = !string.IsNullOrWhiteSpace(operationsPublicUrl),
+                    ["configurationState"] = !string.IsNullOrWhiteSpace(operationsPublicUrl) ? "Configured" : "Unresolved",
+                    ["effectiveSource"] = "Resolved Control Plane endpoint",
+                    ["displayValue"] = operationsPublicUrl
+                },
             {
                 new JsonObject
                 {
