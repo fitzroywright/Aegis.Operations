@@ -568,6 +568,33 @@ internal static class OperationsEndpoints
                 }
             }
 
+            if (lifecycleHistoryRecords.Count > 0)
+            {
+                Dictionary<string, RegisteredApplicationJourney> authorityByRegistration =
+                    lifecycleHistoryRecords
+                        .Where(x => !string.IsNullOrWhiteSpace(x.RegistrationId))
+                        .GroupBy(x => x.RegistrationId, StringComparer.OrdinalIgnoreCase)
+                        .ToDictionary(
+                            g => g.Key,
+                            g => g.OrderByDescending(x => x.LastAuthenticatedAtUtc ?? x.LastEventAtUtc ?? DateTimeOffset.MinValue).First(),
+                            StringComparer.OrdinalIgnoreCase);
+
+                for (int i = 0; i < registrations.Count; i++)
+                {
+                    RegisteredApplicationJourney current = registrations[i];
+                    if (!authorityByRegistration.TryGetValue(current.RegistrationId, out RegisteredApplicationJourney? authoritative))
+                        continue;
+
+                    registrations[i] = current with
+                    {
+                        LastAuthenticatedAtUtc = authoritative.LastAuthenticatedAtUtc ?? current.LastAuthenticatedAtUtc,
+                        IconUrl = current.IconUrl ?? authoritative.IconUrl,
+                        ShortName = current.ShortName ?? authoritative.ShortName,
+                        Accent = current.Accent ?? authoritative.Accent
+                    };
+                }
+            }
+
             static string Key(string applicationId, string instanceId) =>
                 applicationId.Trim() + "\u001f" + instanceId.Trim();
 
