@@ -63,15 +63,16 @@ __SCRIPT__
 
     private const string ApplicationsBody = """
 <section class="metrics"><div class="metric"><b id="appTotal">—</b><small>Applications</small></div><div class="metric"><b id="instanceTotal">—</b><small>Instances</small></div><div class="metric"><b id="healthyTotal">—</b><small>Healthy</small></div><div class="metric"><b id="attentionTotal">—</b><small>Attention</small></div><div class="metric"><b id="environmentTotal">—</b><small>Environments</small></div></section>
-<section class="panel"><h2>Application Inventory</h2><div class="muted" id="authority">Loading authoritative registration and operational telemetry…</div><div class="table-scroll"><table><thead><tr><th>Application</th><th>Instance</th><th>Environment</th><th>Version / Build</th><th>Registration</th><th>State</th><th>Configuration</th><th>Observed</th></tr></thead><tbody id="appsBody"><tr><td colspan="8">Loading…</td></tr></tbody></table></div></section>
-<section class="two"><section class="panel"><h2>Application Attention</h2><div class="muted">Only applications with unhealthy, stale, or registration-attention conditions appear here.</div><div id="attentionList" class="attention-list">Loading…</div></section><section class="panel"><h2>Dependencies</h2><div id="dependencyList">Loading…</div></section></section>
+<section class="panel"><h2>Current Applications</h2><div class="muted" id="authority">Loading authoritative registration and operational telemetry…</div><div class="table-scroll"><table><thead><tr><th>Application</th><th>Instance</th><th>Environment</th><th>Version / Build</th><th>Registration</th><th>State</th><th>Configuration</th><th>Observed</th></tr></thead><tbody id="appsBody"><tr><td colspan="8">Loading…</td></tr></tbody></table></div></section>
+<section class="two"><section class="panel"><h2>Application Attention</h2><div class="muted">Only current applications with unhealthy, stale, or registration-attention conditions appear here.</div><div id="attentionList" class="attention-list">Loading…</div></section><section class="panel"><h2>Dependencies</h2><div id="dependencyList">Loading…</div></section></section>
+<section class="panel"><div style="display:flex;align-items:center;justify-content:space-between;gap:12px"><div><h2 style="margin-bottom:4px">Instance History</h2><div class="muted">Older registrations are retained for audit and troubleshooting but do not appear as current application instances.</div></div><button id="historyToggle" type="button">Show History</button></div><div id="instanceHistory" hidden><div class="table-scroll" style="margin-top:12px"><table><thead><tr><th>Application</th><th>Instance</th><th>Environment</th><th>Version</th><th>Registration</th><th>Last Seen</th><th>Registration ID</th></tr></thead><tbody id="historyBody"><tr><td colspan="7">Loading…</td></tr></tbody></table></div></div></section>
 """;
 
     private const string ApplicationsScript = """
 async function load(){
  try{
   const [registered,telemetry]=await Promise.all([fetch('/api/operations/registered-applications',{cache:'no-store'}).then(r=>r.json()),fetch('/api/operations/applications',{cache:'no-store'}).then(r=>r.json())]);
-  const apps=registered.applications||[], raw=telemetry||[], byKey=new Map(raw.map(x=>[(x.applicationId+'|'+x.instanceId).toLowerCase(),x]));
+  const apps=registered.applications||[], history=registered.history||[], raw=telemetry||[], byKey=new Map(raw.map(x=>[(x.applicationId+'|'+x.instanceId).toLowerCase(),x]));
   const uniqueApps=new Set(apps.map(x=>x.applicationId)), envs=new Set(apps.map(x=>x.environment).filter(x=>x&&x!=='—'));
   const healthy=apps.filter(x=>String(x.state).toLowerCase()==='healthy'&&!x.stale).length, attention=apps.length-healthy;
   appTotal.textContent=uniqueApps.size;instanceTotal.textContent=apps.length;healthyTotal.textContent=healthy;attentionTotal.textContent=attention;environmentTotal.textContent=envs.size;
@@ -81,10 +82,13 @@ async function load(){
   attentionList.innerHTML=issues.length?issues.map(a=>'<div class="activity-row"><b>'+esc(a.applicationId)+'</b><span class="state '+esc(a.state)+'">'+esc(a.stale?'Offline':a.state)+'</span><span>'+esc(a.reason||a.registrationHealth||'Attention required')+'</span></div>').join(''):'<div class="muted">No application conditions require attention.</div>';
   const depRows=raw.filter(x=>(x.dependencies||[]).length).map(x=>'<div class="activity-row"><b>'+esc(x.applicationId)+'</b><span>'+esc(x.instanceId)+'</span><span class="chips">'+x.dependencies.map(d=>'<span class="chip">'+esc(d)+'</span>').join('')+'</span></div>');
   dependencyList.innerHTML=depRows.length?depRows.join(''):'<div class="muted">No dependency telemetry has been published.</div>';
+  window.__historyCount=history.length;
+  historyBody.innerHTML=history.length?history.map(a=>'<tr><td><b>'+esc(a.displayName||a.applicationId)+'</b><small>'+esc(a.applicationId)+'</small></td><td>'+esc(a.instanceId||'—')+'</td><td>'+esc(a.environment||'—')+'</td><td>'+esc(a.version||'—')+'</td><td><span class="state">'+esc(a.registrationStatus||'Historical')+'</span><small>'+esc(a.registrationHealth||'')+'</small></td><td>'+fmt(a.lastSeenAtUtc)+'</td><td><code>'+esc(a.registrationId||'—')+'</code></td></tr>').join(''):'<tr><td colspan="7">No historical instances have been retained.</td></tr>';
+  historyToggle.textContent=instanceHistory.hidden?(history.length?'Show History ('+history.length+')':'Show History'):'Hide History';
   lastScan.textContent='Last Scan: '+fmt(new Date());
  }catch(e){appsBody.innerHTML='<tr><td colspan="8">Application inventory unavailable · '+esc(e.message)+'</td></tr>';lastScan.textContent='Last Scan: UNAVAILABLE'}
 }
-load();setInterval(load,15000);
+historyToggle.onclick=()=>{instanceHistory.hidden=!instanceHistory.hidden;historyToggle.textContent=instanceHistory.hidden?(window.__historyCount?'Show History ('+window.__historyCount+')':'Show History'):'Hide History'};load();setInterval(load,15000);
 """;
 
     private const string DeploymentsBody = """
