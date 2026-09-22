@@ -88,10 +88,10 @@ __CONTROL_PLANE_HEADER_CSS__
     <a class="blue" href="/">Operations</a>
     <a class="salmon" href="/handoff/diagnostics">Diagnostics</a>
     <a class="gold" href="/handoff/configuration">Configuration</a>
-    <a class="gray" href="/handoff/registration">Registration</a>
+    <a class="logout" href="/auth/logout">Logout</a>
   </div>
 
-  <a class="lcars-logout" href="/auth/logout">Logout</a></header>
+</header>
 
 <section class="workspace-shell">
   <div class="workspace-arm"><div class="workspace-title">Logs</div><div class="last-scan" id="lastScan">Last Scan: SCANNING</div></div>
