@@ -205,10 +205,10 @@ migrate_common_secrets_env() {
     # ProviderOrder now references instance names rather than provider types.
     sed -i -E 's/^(CommonSecrets__ProviderOrder__[0-9]+)=OpenBao$/\1=PrimarySecrets/' "$env_file"
 
-    # An env file may only have overridden ProviderOrder while provider details lived
-    # in appsettings. In that case the renamed order still needs a matching named
-    # instance so environment configuration cannot reference an unknown provider.
-    if grep -q '^CommonSecrets__ProviderOrder__[0-9]\+=PrimarySecrets
+    # Some env files only override ProviderOrder while provider details remain in
+    # appsettings. Once the order names PrimarySecrets, ensure the matching provider
+    # instance exists in the environment overlay as well.
+    if grep -Eq '^CommonSecrets__ProviderOrder__[0-9]+=PrimarySecrets
   done
 }
 
@@ -242,6 +242,10 @@ health_check() {
     sleep "$HEALTH_DELAY"
   done
   echo "FAIL: $app health $url" >&2
+  echo "--- systemctl status: ${SERVICE[$app]} ---" >&2
+  systemctl --no-pager --full status "${SERVICE[$app]}" >&2 || true
+  echo "--- recent journal: ${SERVICE[$app]} ---" >&2
+  journalctl -u "${SERVICE[$app]}" -n 120 --no-pager >&2 || true
   return 1
 }
 
@@ -313,11 +317,11 @@ fi
 log "Backing up current deployment to $BACKUP_DIR"
 backup_current
 
-# Enable rollback before mutating persistent environment files.
-trap 'rc=$?; if [[ $rc -ne 0 ]]; then rollback; fi; exit $rc' EXIT
-
 migrate_common_secrets_env
 cleanup_legacy_registration
+
+# Only enable automatic rollback after the backup has completed successfully.
+trap 'rc=$?; if [[ $rc -ne 0 ]]; then rollback; fi; exit $rc' EXIT
 
 log "Stopping selected services"
 stop_selected
