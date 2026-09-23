@@ -240,7 +240,7 @@ internal sealed class OperationsStoreConsistencyDiagnosticLevelTest(OperationsV1
             invalid.Add("flows");
         if (alerts.Any(x => string.IsNullOrWhiteSpace(x.AlertId) || string.IsNullOrWhiteSpace(x.ApplicationId)))
             invalid.Add("alerts");
-        if (activity.Any(x => string.IsNullOrWhiteSpace(x.EventId) || string.IsNullOrWhiteSpace(x.CorrelationId)))
+        if (activity.Any(x => x.EventId == Guid.Empty || string.IsNullOrWhiteSpace(x.CorrelationId)))
             invalid.Add("activity-events");
 
         string evidence = $"Applications={applications.Count}; Flows={flows.Count}; Alerts={alerts.Count}; ActivityEvents={activity.Count}";
