@@ -317,11 +317,12 @@ fi
 log "Backing up current deployment to $BACKUP_DIR"
 backup_current
 
+# The backup is complete. Arm rollback before mutating persistent environment
+# or registration state so a migration failure cannot leave a partial deployment.
+trap 'rc=$?; if [[ $rc -ne 0 ]]; then rollback; fi; exit $rc' EXIT
+
 migrate_common_secrets_env
 cleanup_legacy_registration
-
-# Only enable automatic rollback after the backup has completed successfully.
-trap 'rc=$?; if [[ $rc -ne 0 ]]; then rollback; fi; exit $rc' EXIT
 
 log "Stopping selected services"
 stop_selected
