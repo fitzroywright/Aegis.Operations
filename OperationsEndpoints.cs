@@ -391,21 +391,53 @@ internal static class OperationsEndpoints
             bool authorityAvailable = false;
             string? authorityError = null;
 
-            if (!context.Items.TryGetValue("SuiteIdentity", out object? identityValue) ||
-                identityValue is not SuiteIdentity identity)
+            context.Items.TryGetValue("SuiteIdentity", out object? identityValue);
+            SuiteIdentity? identity = identityValue as SuiteIdentity;
+
+            string machineApplicationId = context.Request.Headers["X-Aegis-Application-Id"].ToString().Trim();
+            string machineInstanceId = context.Request.Headers["X-Aegis-Instance-Id"].ToString().Trim();
+            string machineCredential = Bearer(context.Request.Headers.Authorization.ToString());
+            bool machineAuthorized = false;
+
+            if (identity is null)
             {
-                authorityError = "No authenticated Operations identity is available for the Configuration handoff.";
+                if (!machineApplicationId.Equals("Aegis.Diagnostics", StringComparison.OrdinalIgnoreCase) ||
+                    string.IsNullOrWhiteSpace(machineInstanceId) ||
+                    string.IsNullOrWhiteSpace(machineCredential))
+                    return Results.Unauthorized();
+
+                RegistrationValidation machineValidation = await registrationStore.ValidateAsync(
+                    machineApplicationId,
+                    machineInstanceId,
+                    machineCredential,
+                    ct);
+
+                if (machineValidation == RegistrationValidation.Revoked)
+                    return Results.StatusCode(StatusCodes.Status410Gone);
+                if (machineValidation != RegistrationValidation.Valid)
+                    return Results.Unauthorized();
+
+                machineAuthorized = true;
             }
-            else
+
+            try
             {
-                try
+                using var request = new HttpRequestMessage(
+                    HttpMethod.Get,
+                    configurationUrl.TrimEnd('/') + "/api/registration/flow?limit=500");
+
+                if (identity is not null)
                 {
-                    using var request = new HttpRequestMessage(
-                        HttpMethod.Get,
-                        configurationUrl.TrimEnd('/') + "/api/registration/flow?limit=500");
                     request.Headers.TryAddWithoutValidation(
                         "X-Aegis-Suite-Handoff",
                         suiteSecurity.CreateHandoff(identity, "Aegis.Configuration"));
+                }
+                else if (machineAuthorized)
+                {
+                    request.Headers.TryAddWithoutValidation("X-Aegis-Registration-Key", machineCredential);
+                    request.Headers.TryAddWithoutValidation("X-Aegis-Application-Id", machineApplicationId);
+                    request.Headers.TryAddWithoutValidation("X-Aegis-Instance-Id", machineInstanceId);
+                }
 
                     HttpClient client = factory.CreateClient("ops");
                     using HttpResponseMessage response = await client.SendAsync(request, ct);
@@ -478,16 +510,18 @@ internal static class OperationsEndpoints
 
                         authorityAvailable = true;
 
-                        try
+                        if (identity is not null)
                         {
-                            using var historyRequest = new HttpRequestMessage(
-                                HttpMethod.Get,
-                                configurationUrl.TrimEnd('/') + "/api/registration/requests?includePurged=true");
-                            historyRequest.Headers.TryAddWithoutValidation(
-                                "X-Aegis-Suite-Handoff",
-                                suiteSecurity.CreateHandoff(identity, "Aegis.Configuration"));
+                            try
+                            {
+                                using var historyRequest = new HttpRequestMessage(
+                                    HttpMethod.Get,
+                                    configurationUrl.TrimEnd('/') + "/api/registration/requests?includePurged=true");
+                                historyRequest.Headers.TryAddWithoutValidation(
+                                    "X-Aegis-Suite-Handoff",
+                                    suiteSecurity.CreateHandoff(identity, "Aegis.Configuration"));
 
-                            using HttpResponseMessage historyResponse = await client.SendAsync(historyRequest, ct);
+                                using HttpResponseMessage historyResponse = await client.SendAsync(historyRequest, ct);
                             if (historyResponse.IsSuccessStatusCode)
                             {
                                 using JsonDocument historyDocument =
@@ -556,16 +590,17 @@ internal static class OperationsEndpoints
                                 }
                             }
                         }
-                        catch (Exception historyEx) when (historyEx is HttpRequestException or TaskCanceledException or JsonException)
-                        {
-                            registrationLogger.LogDebug(historyEx, "Unable to load complete registration history; current application inventory remains available.");
+                            catch (Exception historyEx) when (historyEx is HttpRequestException or TaskCanceledException or JsonException)
+                            {
+                                registrationLogger.LogDebug(historyEx, "Unable to load complete registration history; current application inventory remains available.");
+                            }
                         }
                     }
                 }
-                catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException)
-                {
-                    authorityError = ex.Message;
-                }
+            }
+            catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException)
+            {
+                authorityError = ex.Message;
             }
 
             if (lifecycleHistoryRecords.Count > 0)
