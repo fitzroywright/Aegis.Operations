@@ -27,7 +27,9 @@ internal static class OperationsLogEndpoints
                 return Results.BadRequest(new { error = "All events in a batch must belong to the same application." });
 
             if (!await authenticator.IsAuthorizedAsync(context, applicationId, ct))
-                return Results.Forbid();
+                return Results.Json(
+                    new { error = "Forbidden", detail = "The authenticated identity is not authorized to publish application logs." },
+                    statusCode: StatusCodes.Status403Forbidden);
 
             DateTimeOffset now = DateTimeOffset.UtcNow;
             OperationsLogRecord[] safe = batch.Events
