@@ -589,7 +589,6 @@ internal static class OperationsEndpoints
                                     }
                                 }
                             }
-                        }
                             catch (Exception historyEx) when (historyEx is HttpRequestException or TaskCanceledException or JsonException)
                             {
                                 registrationLogger.LogDebug(historyEx, "Unable to load complete registration history; current application inventory remains available.");
