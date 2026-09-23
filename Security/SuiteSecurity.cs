@@ -97,7 +97,8 @@ internal static class SuiteSecurityExtensions
              ctx.Request.Path.Equals("/api/operations/activity/filters", StringComparison.OrdinalIgnoreCase) ||
              ctx.Request.Path.Equals("/api/operations/activity/flows", StringComparison.OrdinalIgnoreCase) ||
              ctx.Request.Path.Equals("/api/operations/logs", StringComparison.OrdinalIgnoreCase) ||
-             ctx.Request.Path.Equals("/api/operations/logs/filters", StringComparison.OrdinalIgnoreCase));
+             ctx.Request.Path.Equals("/api/operations/logs/filters", StringComparison.OrdinalIgnoreCase) ||
+             ctx.Request.Path.Equals("/api/operations/registered-applications", StringComparison.OrdinalIgnoreCase));
 
         if(ctx.Request.Path.StartsWithSegments("/health")||
            ctx.Request.Path.StartsWithSegments("/login")||

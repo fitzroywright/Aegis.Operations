@@ -59,7 +59,6 @@ internal sealed class OperationsTelemetryAuthenticator
         if (string.IsNullOrWhiteSpace(applicationId) ||
             string.IsNullOrWhiteSpace(suppliedApplicationId) ||
             string.IsNullOrWhiteSpace(instanceId) ||
-            string.IsNullOrWhiteSpace(runtimeSessionId) ||
             !AuthenticationHeaderValue.TryParse(authorization, out AuthenticationHeaderValue? parsed) ||
             !parsed.Scheme.Equals("Bearer", StringComparison.OrdinalIgnoreCase) ||
             string.IsNullOrWhiteSpace(parsed.Parameter))
@@ -101,7 +100,8 @@ internal sealed class OperationsTelemetryAuthenticator
             }
         }
 
-        if (string.IsNullOrWhiteSpace(installationId))
+        if (string.IsNullOrWhiteSpace(installationId) ||
+            string.IsNullOrWhiteSpace(runtimeSessionId))
             return false;
 
         using var request = new HttpRequestMessage(
