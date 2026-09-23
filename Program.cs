@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.HttpOverrides;
 using Common.Registration;
+using Common.Diagnostics;
+using Common.Secrets;
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 string operationsLogInstanceId = builder.Configuration["Operations:InstanceId"]?.Trim() ?? Environment.MachineName;
 string operationsRegistrationDirectory = builder.Configuration["Operations:RegistrationDirectory"]?.Trim()
@@ -7,6 +9,27 @@ string operationsRegistrationDirectory = builder.Configuration["Operations:Regis
 string operationsLogCredentialFile = builder.Configuration["Operations:RegistrationCredentialFile"]?.Trim()
     ?? Path.Combine(operationsRegistrationDirectory, "operations.key");
 builder.Services.AddAegisControlPlaneOperationsLogging(builder.Configuration, "Aegis.Operations", operationsLogInstanceId, operationsLogCredentialFile, builder.Environment.EnvironmentName);
+string diagnosticLevelStorePath = builder.Configuration["Aegis:Diagnostics:StorePath"]?.Trim()
+    ?? Path.Combine(builder.Environment.ContentRootPath, "data", "diagnostic-level", "operations.db");
+builder.Services.AddCommonDiagnostics();
+builder.Services.AddCommonSecrets(builder.Configuration);
+builder.Services.AddCommonSecretsDiagnostics();
+builder.Services.AddSingleton(new DiagnosticLevelExecutionOptions
+{
+    Application = "Aegis.Operations",
+    Component = "Web",
+    InstanceId = operationsLogInstanceId,
+    CatalogVersion = "1"
+});
+builder.Services.AddSingleton(new DiagnosticLevelStoreOptions { Path = diagnosticLevelStorePath });
+builder.Services.AddSingleton<IDiagnosticLevelLocalTest, Aegis.Operations.OperationsControlPlaneEndpointsDiagnosticLevelTest>();
+builder.Services.AddSingleton<IDiagnosticLevelLocalTest, Aegis.Operations.OperationsDataDirectoryConfigurationDiagnosticLevelTest>();
+builder.Services.AddSingleton<IDiagnosticLevelLocalTest, Aegis.Operations.OperationsDataDirectoryReadableDiagnosticLevelTest>();
+builder.Services.AddSingleton<IDiagnosticLevelLocalTest, Aegis.Operations.OperationsRetentionConfigurationDiagnosticLevelTest>();
+builder.Services.AddSingleton<IDiagnosticLevelLocalTest, Aegis.Operations.OperationsRuntimeResourcesDiagnosticLevelTest>();
+builder.Services.AddSingleton<IDiagnosticLevelLocalTest, Aegis.Operations.OperationsDataDirectoryRoundTripDiagnosticLevelTest>();
+builder.Services.AddSingleton<IDiagnosticLevelLocalTest, Aegis.Operations.OperationsControlPlaneDnsDiagnosticLevelTest>();
+builder.Services.AddSingleton<IDiagnosticLevelLocalTest, Aegis.Operations.OperationsStoreConsistencyDiagnosticLevelTest>();
 
 builder.Services.ConfigureHttpJsonOptions(options => options.SerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter()));
 builder.Services.AddHttpClient("ops", client =>
@@ -29,6 +52,7 @@ builder.Services.AddSingleton(sp => new OperationsTelemetryAuthenticator(
 builder.Services.AddHostedService<RuntimeStateTransitionMonitor>();
 
 WebApplication app = builder.Build();
+app.MapDiagnosticLevelRuntime();
 app.UseForwardedHeaders(new ForwardedHeadersOptions
 {
     ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
