@@ -170,3 +170,82 @@ internal sealed class OperationsDataDirectoryRoundTripDiagnosticLevelTest(IConfi
         }
     }
 }
+
+
+internal sealed class OperationsControlPlaneDnsDiagnosticLevelTest(IConfiguration configuration) : IDiagnosticLevelLocalTest
+{
+    public string TestId => "AEGIS.OPERATIONS.L2.NETWORK.CONTROL_PLANE_DNS";
+    public string Name => "Control Plane endpoint DNS resolves";
+    public string Owner => "Aegis.Operations";
+    public EngineeringDiagnosticLevel Level => EngineeringDiagnosticLevel.Level2Repair;
+    public bool IsDestructive => false;
+
+    public async Task<EngineeringDiagnosticCheckResult> RunAsync(CancellationToken cancellationToken)
+    {
+        string[] keys = ["Aegis:Configuration:Url", "Aegis:Diagnostics:Url"];
+        List<string> failures = [];
+        List<string> evidence = [];
+        foreach (string key in keys)
+        {
+            string? value = configuration[key]?.Trim();
+            if (!Uri.TryCreate(value, UriKind.Absolute, out Uri? uri))
+            {
+                failures.Add(key);
+                continue;
+            }
+
+            if (uri.IsLoopback)
+            {
+                evidence.Add($"{key}=loopback");
+                continue;
+            }
+
+            try
+            {
+                System.Net.IPAddress[] addresses = await System.Net.Dns.GetHostAddressesAsync(uri.Host, cancellationToken).ConfigureAwait(false);
+                if (addresses.Length == 0) failures.Add(key);
+                else evidence.Add($"{key}={addresses.Length} address(es)");
+            }
+            catch (System.Net.Sockets.SocketException)
+            {
+                failures.Add(key);
+            }
+        }
+
+        return failures.Count == 0
+            ? EngineeringDiagnosticPolicy.Passed(TestId, Name, "Control Plane endpoint DNS resolution succeeded.", string.Join("; ", evidence))
+            : EngineeringDiagnosticPolicy.Failed(TestId, Name, "One or more Control Plane endpoints failed DNS resolution.", $"Failed={string.Join(",", failures)}");
+    }
+}
+
+internal sealed class OperationsStoreConsistencyDiagnosticLevelTest(OperationsV1Store store) : IDiagnosticLevelLocalTest
+{
+    public string TestId => "AEGIS.OPERATIONS.L1.STORE.CONSISTENCY";
+    public string Name => "Operations persisted state internally consistent";
+    public string Owner => "Aegis.Operations";
+    public EngineeringDiagnosticLevel Level => EngineeringDiagnosticLevel.Level1CriticalIntervention;
+    public bool IsDestructive => false;
+
+    public async Task<EngineeringDiagnosticCheckResult> RunAsync(CancellationToken cancellationToken)
+    {
+        IReadOnlyList<ApplicationOperationalRecord> applications = await store.LoadAsync<ApplicationOperationalRecord>("applications", cancellationToken).ConfigureAwait(false);
+        IReadOnlyList<FlowRecord> flows = await store.LoadAsync<FlowRecord>("flows", cancellationToken).ConfigureAwait(false);
+        IReadOnlyList<AlertRecord> alerts = await store.LoadAsync<AlertRecord>("alerts", cancellationToken).ConfigureAwait(false);
+        IReadOnlyList<LifecycleEvent> activity = await store.LoadAsync<LifecycleEvent>("activity-events", cancellationToken).ConfigureAwait(false);
+
+        List<string> invalid = [];
+        if (applications.Any(x => string.IsNullOrWhiteSpace(x.ApplicationId) || string.IsNullOrWhiteSpace(x.InstanceId)))
+            invalid.Add("applications");
+        if (flows.Any(x => string.IsNullOrWhiteSpace(x.CorrelationId) || string.IsNullOrWhiteSpace(x.ApplicationId)))
+            invalid.Add("flows");
+        if (alerts.Any(x => string.IsNullOrWhiteSpace(x.AlertId) || string.IsNullOrWhiteSpace(x.ApplicationId)))
+            invalid.Add("alerts");
+        if (activity.Any(x => string.IsNullOrWhiteSpace(x.EventId) || string.IsNullOrWhiteSpace(x.CorrelationId)))
+            invalid.Add("activity-events");
+
+        string evidence = $"Applications={applications.Count}; Flows={flows.Count}; Alerts={alerts.Count}; ActivityEvents={activity.Count}";
+        return invalid.Count == 0
+            ? EngineeringDiagnosticPolicy.Passed(TestId, Name, "Operations persisted state passed structural consistency checks.", evidence)
+            : EngineeringDiagnosticPolicy.Failed(TestId, Name, "Operations persisted state contains structurally invalid records.", $"{evidence}; Invalid={string.Join(",", invalid)}");
+    }
+}
