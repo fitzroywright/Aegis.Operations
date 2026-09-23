@@ -208,7 +208,13 @@ migrate_common_secrets_env() {
     # Some env files only override ProviderOrder while provider details remain in
     # appsettings. Once the order names PrimarySecrets, ensure the matching provider
     # instance exists in the environment overlay as well.
-    if grep -Eq '^CommonSecrets__ProviderOrder__[0-9]+=PrimarySecrets
+    if grep -Eq '^CommonSecrets__ProviderOrder__[0-9]+=PrimarySecrets' "$env_file"; then
+      if ! grep -q '^CommonSecrets__Providers__PrimarySecrets__Type=' "$env_file"; then
+        printf '\nCommonSecrets__Providers__PrimarySecrets__Type=OpenBao\n' >> "$env_file"
+      fi
+    fi
+
+    chmod 600 "$env_file"
   done
 }
 
@@ -323,153 +329,6 @@ trap 'rc=$?; if [[ $rc -ne 0 ]]; then rollback; fi; exit $rc' EXIT
 
 migrate_common_secrets_env
 cleanup_legacy_registration
-
-log "Stopping selected services"
-stop_selected
-
-log "Promoting staged publish outputs"
-deploy_payload
-
-log "Starting selected services"
-start_selected
-
-log "Validating services"
-for app in "${SELECTED[@]}"; do
-  service="${SERVICE[$app]}"
-  if ! systemctl is-active --quiet "$service"; then
-    echo "FAIL: $app service $service is not active" >&2
-    systemctl --no-pager --full status "$service" >&2 || true
-    journalctl -u "$service" -n 80 --no-pager >&2 || true
-    false
-  fi
-
-  health_check "$app"
-done
-
-trap - EXIT
-
-log "Deployment succeeded"
-echo "Backup: $BACKUP_DIR"
-echo "Preserved: /etc/aegis/*.env and /etc/aegis/secrets"
-for app in "${SELECTED[@]}"; do
-  echo "  ${SERVICE[$app]} -> ${HEALTH[$app]}"
-done
- "$env_file"; then
-      if ! grep -q '^CommonSecrets__Providers__PrimarySecrets__Type=' "$env_file"; then
-        printf '\nCommonSecrets__Providers__PrimarySecrets__Type=OpenBao\n' >> "$env_file"
-      fi
-    fi
-
-    chmod 600 "$env_file"
-  done
-}
-
-deploy_payload() {
-  for app in "${SELECTED[@]}"; do
-    target="${TARGET[$app]}"
-    log "Deploying $app to $target"
-    rm -rf "$target"
-    mkdir -p "$target"
-    cp -a "$SOURCE_ROOT/$app/." "$target/"
-    if [[ "$app" == "configuration" ]]; then
-      # Runtime configuration contracts are persistent state, never deployment content.
-      rm -rf "$target/contracts"
-    fi
-    chown -R "$OWNER" "$target"
-    if [[ -d "$target/scripts" ]]; then
-      find "$target/scripts" -maxdepth 1 -type f \( -name '*.sh' -o -name 'aegis-hello' \) -exec chmod 0755 {} +
-    fi
-  done
-}
-
-health_check() {
-  local app="$1"
-  local url="${HEALTH[$app]}"
-  local attempt
-  for ((attempt=1; attempt<=HEALTH_RETRIES; attempt++)); do
-    if curl --fail --silent --show-error --max-time 5 "$url" >/dev/null; then
-      echo "PASS: $app health $url"
-      return 0
-    fi
-    sleep "$HEALTH_DELAY"
-  done
-  echo "FAIL: $app health $url" >&2
-  return 1
-}
-
-rollback() {
-  echo >&2
-  echo "DEPLOYMENT FAILED - ROLLING BACK TO $BACKUP_DIR" >&2
-  stop_selected
-  for app in "${SELECTED[@]}"; do
-    target="${TARGET[$app]}"
-    rm -rf "$target"
-    if [[ ! -f "$BACKUP_DIR/$app.__absent__" ]]; then
-      mkdir -p "$target"
-      cp -a "$BACKUP_DIR/$app/." "$target/"
-      chown -R "$OWNER" "$target"
-    fi
-
-    env_file="/etc/aegis/$app.env"
-    backup_env="$BACKUP_DIR/etc-aegis/$app.env"
-    if [[ -f "$backup_env" ]]; then
-      cp -a "$backup_env" "$env_file"
-      chmod 600 "$env_file"
-    fi
-  done
-  start_selected || true
-  echo "Rollback attempted. Inspect systemctl/journalctl before retrying." >&2
-}
-
-log "Ensuring persistent control-plane state storage"
-mkdir -p /var/lib/aegis/operations/registration
-mkdir -p /var/lib/aegis/configuration/contracts/retired
-mkdir -p /var/lib/aegis/diagnostics
-mkdir -p /var/lib/aegis/hello
-chown -R "$OWNER" /var/lib/aegis/operations /var/lib/aegis/configuration /var/lib/aegis/diagnostics /var/lib/aegis/hello
-chmod 700 /var/lib/aegis/operations/registration /var/lib/aegis/configuration /var/lib/aegis/diagnostics /var/lib/aegis/hello
-
-if is_selected hello; then
-  log "Ensuring Aegis.Hello systemd service"
-  mkdir -p /etc/aegis
-  touch /etc/aegis/hello.env
-  chmod 600 /etc/aegis/hello.env
-  if [[ ! -f /etc/systemd/system/aegis-hello.service ]]; then
-    cat >/etc/systemd/system/aegis-hello.service <<'EOF'
-[Unit]
-Description=Aegis Hello
-After=network-online.target
-Wants=network-online.target
-
-[Service]
-Type=simple
-User=aegis
-Group=aegis
-WorkingDirectory=/opt/aegis/hello
-ExecStart=/usr/bin/dotnet /opt/aegis/hello/Aegis.Hello.dll
-Environment=ASPNETCORE_ENVIRONMENT=Production
-Environment=ASPNETCORE_URLS=http://127.0.0.1:5400
-EnvironmentFile=/etc/aegis/hello.env
-Restart=always
-RestartSec=5
-SyslogIdentifier=aegis-hello
-
-[Install]
-WantedBy=multi-user.target
-EOF
-    systemctl daemon-reload
-    systemctl enable aegis-hello.service
-  fi
-fi
-
-log "Backing up current deployment to $BACKUP_DIR"
-backup_current
-
-migrate_common_secrets_env
-cleanup_legacy_registration
-
-# Only enable automatic rollback after the backup has completed successfully.
-trap 'rc=$?; if [[ $rc -ne 0 ]]; then rollback; fi; exit $rc' EXIT
 
 log "Stopping selected services"
 stop_selected
