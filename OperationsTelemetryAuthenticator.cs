@@ -53,11 +53,13 @@ internal sealed class OperationsTelemetryAuthenticator
         string suppliedApplicationId = context.Request.Headers["X-Aegis-Application-Id"].ToString().Trim();
         string instanceId = context.Request.Headers["X-Aegis-Instance-Id"].ToString().Trim();
         string installationId = context.Request.Headers["X-Aegis-Installation-Id"].ToString().Trim();
+        string runtimeSessionId = context.Request.Headers["X-Aegis-Runtime-Session-Id"].ToString().Trim();
         string authorization = context.Request.Headers.Authorization.ToString();
 
         if (string.IsNullOrWhiteSpace(applicationId) ||
             string.IsNullOrWhiteSpace(suppliedApplicationId) ||
             string.IsNullOrWhiteSpace(instanceId) ||
+            string.IsNullOrWhiteSpace(runtimeSessionId) ||
             !AuthenticationHeaderValue.TryParse(authorization, out AuthenticationHeaderValue? parsed) ||
             !parsed.Scheme.Equals("Bearer", StringComparison.OrdinalIgnoreCase) ||
             string.IsNullOrWhiteSpace(parsed.Parameter))
@@ -108,12 +110,13 @@ internal sealed class OperationsTelemetryAuthenticator
         request.Headers.TryAddWithoutValidation("X-Aegis-Application-Id", suppliedApplicationId);
         request.Headers.TryAddWithoutValidation("X-Aegis-Instance-Id", instanceId);
         request.Headers.TryAddWithoutValidation("X-Aegis-Installation-Id", installationId);
+        request.Headers.TryAddWithoutValidation("X-Aegis-Runtime-Session-Id", runtimeSessionId);
         request.Headers.TryAddWithoutValidation("Authorization", authorization);
         string correlation = context.Request.Headers["X-Aegis-Correlation-Id"].ToString().Trim();
         if (!string.IsNullOrWhiteSpace(correlation))
             request.Headers.TryAddWithoutValidation("X-Aegis-Correlation-Id", correlation);
 
-        string cacheKey = suppliedApplicationId + "|" + instanceId + "|" + installationId;
+        string cacheKey = suppliedApplicationId + "|" + instanceId + "|" + installationId + "|" + runtimeSessionId;
 
         if (_lastValidated.TryGetValue(cacheKey, out DateTimeOffset cachedAt) &&
             DateTimeOffset.UtcNow - cachedAt <= _validationCache)
