@@ -14,7 +14,7 @@ internal static class LifecycleRegistrationProxy
             IHttpClientFactory factory,
             CancellationToken ct) =>
         {
-            if (!Has(context, "Configuration.Manage")) return Results.Json(new { error = "Forbidden", detail = "The authenticated identity is not authorized for this operation." }, statusCode: StatusCodes.Status403Forbidden);
+            if (!Has(context, "Configuration.View")) return Results.Json(new { error = "Forbidden", detail = "The authenticated identity is not authorized for this operation." }, statusCode: StatusCodes.Status403Forbidden);
             return await ForwardAsync(
                 context,
                 suiteSecurity,
