@@ -345,6 +345,9 @@ deploy_payload
 log "Starting selected services"
 start_selected
 
+log "Waiting 5 seconds for services to initialize before validation"
+sleep 5
+
 log "Validating services"
 for app in "${SELECTED[@]}"; do
   service="${SERVICE[$app]}"
