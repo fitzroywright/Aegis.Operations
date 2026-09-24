@@ -240,8 +240,14 @@ health_check() {
   local app="$1"
   local url="${HEALTH[$app]}"
   local attempt
+  local -a curl_args=(--fail --silent --show-error --max-time 5)
+
+  if [[ "$app" == "requestportal" ]]; then
+    curl_args+=(-H "Host: requestportal.ffpja.org")
+  fi
+
   for ((attempt=1; attempt<=HEALTH_RETRIES; attempt++)); do
-    if curl --fail --silent --show-error --max-time 5 "$url" >/dev/null; then
+    if curl "${curl_args[@]}" "$url" >/dev/null; then
       echo "PASS: $app health $url"
       return 0
     fi
