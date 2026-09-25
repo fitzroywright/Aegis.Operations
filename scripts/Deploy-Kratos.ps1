@@ -19,6 +19,14 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
+$testEnvironmentScript = Join-Path $PSScriptRoot "Set-CommonMessagingPostgres.ps1"
+if (-not (Test-Path $testEnvironmentScript)) {
+    throw "Missing test environment setup script: $testEnvironmentScript"
+}
+
+Write-Host "Loading shared Aegis test environment..." -ForegroundColor DarkCyan
+& $testEnvironmentScript
+
 function Invoke-Native {
     param(
         [Parameter(Mandatory)][string]$FilePath,
