@@ -1,7 +1,7 @@
 $variables = @{
     "COMMON_MESSAGING_POSTGRES" = "Host=axios;Port=5432;Database=common_messaging_tests;Username=sa;Password=sql_mis_sql"
     "REQUESTPORTAL_POSTGRES"    = "Host=axios;Port=5432;Database=requestportal_tests;Username=sa;Password=sql_mis_sql"
-    "FFPMANAGER_TEST"           = "Integrated Security=SSPI;Pooling=false;Data Source=JMDB01;Initial Catalog=FFP"
+    "FFPMANAGER_TEST"           = "Integrated Security=SSPI;Pooling=false;Data Source=JMDB01;Initial Catalog=FFP;Encrypt=True;TrustServerCertificate=True"
 }
 
 try {
