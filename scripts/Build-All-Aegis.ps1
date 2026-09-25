@@ -5,6 +5,20 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+$testEnvironmentScript = Join-Path $PSScriptRoot "Set-CommonMessagingPostgres.ps1"
+if (-not (Test-Path $testEnvironmentScript)) {
+    throw "Missing test environment setup script: $testEnvironmentScript"
+}
+
+Write-Host "Loading shared Aegis test environment..." -ForegroundColor DarkCyan
+& $testEnvironmentScript
+
+# Parameter defaults are evaluated before the setup script runs. Preserve an
+# explicitly supplied value, otherwise refresh from the environment we just set.
+if ([string]::IsNullOrWhiteSpace($CommonMessagingPostgres)) {
+    $CommonMessagingPostgres = $env:COMMON_MESSAGING_POSTGRES
+}
+
 function Invoke-Native {
     param(
         [Parameter(Mandatory = $true)][string]$FilePath,
