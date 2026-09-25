@@ -207,7 +207,7 @@ $projects = @(
     @{ Name = "Aegis.Cafeteria";     Path = "$Root\Aegis.Cafeteria";            Build = ".\Aegis.Cafeteria.slnx";      Test = ".\Aegis.Cafeteria.slnx" },
     @{ Name = "Aegis.Studio";        Path = "$Root\Aegis.Studio";               Build = ".\Aegis.Studio.slnx";         Test = ".\Aegis.Studio.slnx" },
     @{ Name = "RequestPortal";       Path = "$Root\RequestPortal";              Build = ".\RequestPortal.slnx";        Test = ".\RequestPortal.slnx" },
-    @{ Name = "Aegis.SensorNetwork"; Path = "$Root\Aegis.SensorNetwork";        Build = ".\Aegis.SensorNetwork.slnx";  Test = ".\Aegis.SensorNetwork.slnx" },
+    @{ Name = "Aegis.SensorNetwork"; Path = "$Root\Aegis.SensorNetwork";        Build = ".\Aegis.SensorNetwork.slnx";  Test = ".\Aegis.SensorNetwork.slnx"; UsesFfpManagerTest = $true },
     @{ Name = "Ebolito";             Path = "$Root\Ebolito";                    Build = ".\Ebolito.slnx";              Test = ".\Ebolito.slnx" }
 )
 
@@ -228,6 +228,15 @@ try {
         }
     }
 
+    $ffpManagerProvisioning = Join-Path $PSScriptRoot "Initialize-FfpManagerTestIntegration.ps1"
+    if (-not (Test-Path $ffpManagerProvisioning)) {
+        throw "Missing FFP Manager test integration provisioning script: $ffpManagerProvisioning"
+    }
+
+    Write-Host ""
+    Write-Host "Provisioning shared FFPMANAGER_TEST integration schema..." -ForegroundColor DarkCyan
+    & $ffpManagerProvisioning -ProjectsRoot $Root
+
     foreach ($project in $projects) {
         $testEnvironment = $null
         if ($project.ContainsKey("RequiresCommonMessagingPostgres") -and [bool]$project["RequiresCommonMessagingPostgres"]) {
@@ -237,6 +246,16 @@ try {
 
             $testEnvironment = @{ COMMON_MESSAGING_POSTGRES = $CommonMessagingPostgres }
             Write-Host "Common.Messaging PostgreSQL integration environment configured (value redacted)." -ForegroundColor DarkCyan
+        }
+
+        if ($project.ContainsKey("UsesFfpManagerTest") -and [bool]$project["UsesFfpManagerTest"]) {
+            if ($null -eq $testEnvironment) {
+                $testEnvironment = @{}
+            }
+
+            $testEnvironment["FFPMANAGER_TEST"] = $env:FFPMANAGER_TEST
+            $testEnvironment["SENSORNETWORK_RUN_PROVIDER_DB_TESTS"] = "1"
+            Write-Host "FFP Manager provider integration tests enabled against FFPMANAGER_TEST." -ForegroundColor DarkCyan
         }
 
         Build-Project -Name $project.Name -Path $project.Path -BuildTarget $project.Build -TestTarget $project.Test -TestEnvironment $testEnvironment
