@@ -3,7 +3,9 @@ using System.Text;
 using System.Text.Encodings.Web;
 using System.Text.Json;
 using Common.Security.Abstractions;
+using Common.Security.Authenticators;
 using Common.Security.Models;
+using Common.Security.Options;
 internal sealed record SuiteIdentity(string UserName,string DisplayName,string Title,string[] Permissions);
 internal sealed record SuiteTicket(string Sub,string Name,string Title,string[] Permissions,string Audience,long Expires,string Nonce);
 internal sealed class SuiteSecurity(IConfiguration config,IHostEnvironment environment,IServiceProvider services)
