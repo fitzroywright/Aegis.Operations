@@ -1,8 +1,19 @@
+using Common.Security.Integration;
 using Microsoft.AspNetCore.HttpOverrides;
 using Common.Registration;
 using Common.Diagnostics;
 using Common.Secrets;
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
+if (string.Equals(
+        builder.Configuration["SuiteSecurity:Mode"],
+        "ActiveDirectory",
+        StringComparison.OrdinalIgnoreCase))
+{
+    AuthenticationPluginLoader.Register(
+        builder.Services,
+        builder.Configuration,
+        builder.Environment.ContentRootPath);
+}
 string operationsLogInstanceId = builder.Configuration["Operations:InstanceId"]?.Trim() ?? Environment.MachineName;
 string operationsRegistrationDirectory = builder.Configuration["Operations:RegistrationDirectory"]?.Trim()
     ?? "/var/lib/aegis/operations/registration";
