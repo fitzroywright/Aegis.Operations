@@ -138,7 +138,26 @@ internal static class SuiteSecurityExtensions
     public static void MapSuiteSecurity(this WebApplication app,string configurationPublicUrl,string diagnosticsPublicUrl)
     {
         app.MapGet("/login",(SuiteSecurity s,string? returnUrl,string? username,string? error)=>Results.Content(LoginPage.Render(s.Mode,returnUrl,username,!string.IsNullOrWhiteSpace(error)),"text/html; charset=utf-8"));
-        app.MapPost("/auth/login",async(HttpContext c,SuiteSecurity s)=>{var f=await c.Request.ReadFormAsync();string user=f["username"].ToString();string password=f["password"].ToString();string r=f["returnUrl"].ToString();var id=s.Authenticate(user,password);if(id is null)return Results.Redirect("/login?error=1&username="+Uri.EscapeDataString(user)+"&returnUrl="+Uri.EscapeDataString(SafeLocal(r)?r:"/"));s.SetSession(c.Response,id);return Results.Redirect(SafeLocal(r)?r:"/");});
+        app.MapPost("/auth/login",async(HttpContext c,SuiteSecurity s,ILogger<SuiteSecurity> logger)=>
+        {
+            var f=await c.Request.ReadFormAsync();
+            string user=f["username"].ToString();
+            string password=f["password"].ToString();
+            string r=f["returnUrl"].ToString();
+            try
+            {
+                var id=s.Authenticate(user,password);
+                if(id is null)
+                    return Results.Redirect("/login?error=1&username="+Uri.EscapeDataString(user)+"&returnUrl="+Uri.EscapeDataString(SafeLocal(r)?r:"/"));
+                s.SetSession(c.Response,id);
+                return Results.Redirect(SafeLocal(r)?r:"/");
+            }
+            catch(Exception ex)
+            {
+                logger.LogError(ex,"Operations authentication backend failed for user {UserName}.",user);
+                return Results.Redirect("/login?error=backend&username="+Uri.EscapeDataString(user)+"&returnUrl="+Uri.EscapeDataString(SafeLocal(r)?r:"/"));
+            }
+        });
         app.MapPost("/auth/handoff",async(HttpContext c,SuiteSecurity s)=>{var f=await c.Request.ReadFormAsync();var id=s.AcceptHandoff(f["token"].ToString());if(id is null)return Results.Redirect("/login?error=handoff");s.SetSession(c.Response,id);c.Response.Headers.CacheControl="no-store";string r=f["returnUrl"].ToString();return Results.Redirect(SafeLocal(r)?r:"/");});
         app.MapGet("/auth/me",(HttpContext c,SuiteSecurity s)=>{var id=s.ReadSession(c.Request);if(id is null)return Results.Unauthorized();s.SetSession(c.Response,id);return Results.Ok(new { id.UserName, id.DisplayName, id.Title, id.Permissions, clientIp=c.Connection.RemoteIpAddress?.ToString() ?? "unknown", idleTimeoutMinutes=s.IdleTimeoutMinutes });});
         app.MapGet("/auth/logout",(HttpContext c,SuiteSecurity s)=>{s.Clear(c.Response);return Results.Redirect("/login");});
