@@ -2,13 +2,11 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Encodings.Web;
 using System.Text.Json;
-using Common.Security.Authenticators;
+using Common.Security.Abstractions;
 using Common.Security.Models;
-using Common.Security.Options;
-
 internal sealed record SuiteIdentity(string UserName,string DisplayName,string Title,string[] Permissions);
 internal sealed record SuiteTicket(string Sub,string Name,string Title,string[] Permissions,string Audience,long Expires,string Nonce);
-internal sealed class SuiteSecurity(IConfiguration config,IHostEnvironment environment)
+internal sealed class SuiteSecurity(IConfiguration config,IHostEnvironment environment,IServiceProvider services)
 {
     const string Cookie="Aegis.Operations.Session";
     const string DevelopmentSigningKey="Aegis-Suite-Development-Handoff-Key-v1-Operations-Configuration-Diagnostics";
@@ -17,7 +15,7 @@ internal sealed class SuiteSecurity(IConfiguration config,IHostEnvironment envir
     public string Mode=>config["SuiteSecurity:Mode"]??"Mock";
     public int IdleTimeoutMinutes=>Math.Clamp(config.GetValue("SuiteSecurity:IdleTimeoutMinutes",30),5,60);
     public SuiteIdentity? Authenticate(string user,string password){if(Mode.Equals("ActiveDirectory",StringComparison.OrdinalIgnoreCase))return AuthenticateAd(user,password);if(Mode.Equals("Internal",StringComparison.OrdinalIgnoreCase))return AuthenticateInternal(user,password);if(Mode.Equals("Mock",StringComparison.OrdinalIgnoreCase))return AuthenticateMock(user,password);return null;}
-    SuiteIdentity? AuthenticateAd(string user,string password){var o=new ActiveDirectoryAuthenticationOptions{Domain=config["SuiteSecurity:ActiveDirectory:Domain"]??"",SearchBase=config["SuiteSecurity:ActiveDirectory:SearchBase"]??"",Servers=config.GetSection("SuiteSecurity:ActiveDirectory:Servers").Get<string[]>()??[]};AuthenticationResult r=new ActiveDirectory(o).Authenticate(user,password);return r.IsAuthenticated?FromResult(user,r):null;}
+    SuiteIdentity? AuthenticateAd(string user,string password){IAuthenticator? authenticator=services.GetService<IAuthenticator>();if(authenticator is null)throw new InvalidOperationException("SuiteSecurity ActiveDirectory mode requires a configured authentication plugin.");AuthenticationResult r=authenticator.Authenticate(user,password);return r.IsAuthenticated?FromResult(user,r):null;}
     SuiteIdentity? AuthenticateMock(string user,string password)
     {
         if(!config.GetValue("SuiteSecurity:Mock:Enabled",false)||string.IsNullOrWhiteSpace(user))return null;
