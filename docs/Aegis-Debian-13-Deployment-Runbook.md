@@ -62,11 +62,11 @@ Create `/etc/aegis/operations.env`, `/etc/aegis/configuration.env`, and `/etc/ae
 ```text
 SuiteSecurity__SigningKey=<SAME-PERSISTENT-SECRET-ON-ALL-THREE>
 SuiteSecurity__Mode=ActiveDirectory
-SuiteSecurity__ActiveDirectory__Domain=fftpj.local
-SuiteSecurity__ActiveDirectory__SearchBase=DC=fftpj,DC=local
-SuiteSecurity__ActiveDirectory__Servers__0=JMAD01.fftpj.local
-SuiteSecurity__ActiveDirectory__Servers__1=JMAD02.fftpj.local
-SuiteSecurity__ActiveDirectory__Port=636
+AuthenticationPlugin__Settings__Domain=fftpj.local
+AuthenticationPlugin__Settings__SearchBase=DC=fftpj,DC=local
+AuthenticationPlugin__Settings__Servers__0=JMAD01.fftpj.local
+AuthenticationPlugin__Settings__Servers__1=JMAD02.fftpj.local
+AuthenticationPlugin__Settings__Port=636
 ```
 
 Operations additionally requires:
