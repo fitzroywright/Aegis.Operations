@@ -204,12 +204,22 @@ migrate_common_secrets_env() {
 
     # ProviderOrder now references instance names rather than provider types.
     sed -i -E 's/^(CommonSecrets__ProviderOrder__[0-9]+)=OpenBao$/\1=PrimarySecrets/' "$env_file"
+
     # Common.Security Active Directory moved behind AuthenticationPlugin.
     # Preserve existing production values by migrating the legacy SuiteSecurity path.
     if grep -q '^SuiteSecurity__ActiveDirectory__' "$env_file"; then
       sed -i 's/^SuiteSecurity__ActiveDirectory__/AuthenticationPlugin__Settings__/' "$env_file"
     fi
-    if grep -q '^SuiteSecurity__Mode=ActiveDirectory
+
+    if grep -q '^SuiteSecurity__Mode=ActiveDirectory$' "$env_file"; then
+      if ! grep -q '^AuthenticationPlugin__Enabled=' "$env_file"; then
+        printf '\nAuthenticationPlugin__Enabled=true\n' >> "$env_file"
+      fi
+      if ! grep -q '^AuthenticationPlugin__AssemblyPath=' "$env_file"; then
+        printf 'AuthenticationPlugin__AssemblyPath=plugins/Common.Security.Plugin.ActiveDirectory.dll\n' >> "$env_file"
+      fi
+    fi
+
     # Some env files only override ProviderOrder while provider details remain in
     # appsettings. Once the order names PrimarySecrets, ensure the matching provider
     # instance exists in the environment overlay as well.
@@ -222,7 +232,6 @@ migrate_common_secrets_env() {
     chmod 600 "$env_file"
   done
 }
-
 deploy_payload() {
   for app in "${SELECTED[@]}"; do
     target="${TARGET[$app]}"
