@@ -339,7 +339,10 @@ function renderLandscape(apps,summary,self){
     return '<a class="authority-mini" href="'+href+'" title="'+esc(reason)+'"><div class="landscape-top"><b>'+esc(name)+'</b><span class="landscape-state '+cls+'">'+esc(state.toUpperCase())+'</span></div><small class="authority-role">'+esc(role)+'</small></a>';
   };
   const runtimeState=String(self?.state??'Unknown'),runtimeLower=runtimeState.toLowerCase(),runtimeCls=runtimeLower==='healthy'||runtimeLower==='running'?'good':(['unhealthy','failed','critical'].includes(runtimeLower)?'bad':'warn');
-  const runtime='<div class="runtime-mini" title="Operations Runtime"><div class="landscape-top"><b>Operations Runtime</b><span class="landscape-state '+runtimeCls+'">'+esc(runtimeState.toUpperCase())+'</span></div><small class="runtime-meta">'+esc(String(self?.storage??'Unknown').toUpperCase())+' · __VERSION__ · '+esc(location.hostname)+'</small></div>';
+  const fmtBytes=v=>{const n=Number(v);if(!Number.isFinite(n)||n<0)return'—';const u=['B','KB','MB','GB','TB'];let x=n,i=0;while(x>=1024&&i<u.length-1){x/=1024;i++}return (i>=3?x.toFixed(1):Math.round(x))+' '+u[i]};
+  const memoryLine='RAM '+fmtBytes(self?.memoryFreeBytes)+' free / '+fmtBytes(self?.memoryTotalBytes)+' total';
+  const diskLine='Disk '+fmtBytes(self?.diskFreeBytes)+' free / '+fmtBytes(self?.diskTotalBytes)+' total';
+  const runtime='<div class="runtime-mini" title="Operations Runtime"><div class="landscape-top"><b>Operations Runtime</b><span class="landscape-state '+runtimeCls+'">'+esc(runtimeState.toUpperCase())+'</span></div><small class="runtime-meta">'+esc(String(self?.storage??'Unknown').toUpperCase())+' · __VERSION__ · '+esc(location.hostname)+'</small><small class="runtime-meta">'+esc(memoryLine)+'</small><small class="runtime-meta">'+esc(diskLine)+'</small></div>';
   const infrastructure=
     authorityTile('Configuration','Configuration Authority',summary?.configuration,'/handoff/configuration')+
     authorityTile('Diagnostics','Health Authority',summary?.diagnostics,'/handoff/diagnostics')+
