@@ -4,8 +4,12 @@ using Common.Registration;
 using Common.Diagnostics;
 using Common.Secrets;
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
+string suiteSecurityMode =
+    builder.Configuration["SuiteSecurity:Mode"]?.Trim()
+    ?? (builder.Environment.IsDevelopment() ? "Mock" : "ActiveDirectory");
+
 if (string.Equals(
-        builder.Configuration["SuiteSecurity:Mode"],
+        suiteSecurityMode,
         "ActiveDirectory",
         StringComparison.OrdinalIgnoreCase))
 {
