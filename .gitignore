@@ -7,3 +7,6 @@
 *.suo
 *.user
 *.slnLaunch.user
+
+# Studio runtime version/media store
+Aegis.Studio.Web/VersionStore/
