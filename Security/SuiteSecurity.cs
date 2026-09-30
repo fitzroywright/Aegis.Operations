@@ -14,7 +14,7 @@ internal sealed class SuiteSecurity(IConfiguration config,IHostEnvironment envir
     const string DevelopmentSigningKey="Aegis-Suite-Development-Handoff-Key-v1-Operations-Configuration-Diagnostics";
     readonly byte[] key=Encoding.UTF8.GetBytes(GetSigningKey(config,environment));
     static string GetSigningKey(IConfiguration config,IHostEnvironment environment){string? configured=config["SuiteSecurity:SigningKey"];if(!string.IsNullOrWhiteSpace(configured))return configured;if(environment.IsDevelopment())return DevelopmentSigningKey;throw new InvalidOperationException("SuiteSecurity:SigningKey is required outside Development. Supply it through protected deployment configuration/OpenBao.");}
-    public string Mode=>config["SuiteSecurity:Mode"]??"Mock";
+    public string Mode=>config["SuiteSecurity:Mode"]??(environment.IsDevelopment()?"Mock":"ActiveDirectory");
     public int IdleTimeoutMinutes=>Math.Clamp(config.GetValue("SuiteSecurity:IdleTimeoutMinutes",30),5,60);
     public SuiteIdentity? Authenticate(string user,string password){if(Mode.Equals("ActiveDirectory",StringComparison.OrdinalIgnoreCase))return AuthenticateAd(user,password);if(Mode.Equals("Internal",StringComparison.OrdinalIgnoreCase))return AuthenticateInternal(user,password);if(Mode.Equals("Mock",StringComparison.OrdinalIgnoreCase))return AuthenticateMock(user,password);return null;}
     SuiteIdentity? AuthenticateAd(string user,string password){IAuthenticator? authenticator=services.GetService<IAuthenticator>();if(authenticator is null)throw new InvalidOperationException("SuiteSecurity ActiveDirectory mode requires a configured authentication plugin.");AuthenticationResult r=authenticator.Authenticate(user,password);return r.IsAuthenticated?FromResult(user,r):null;}
