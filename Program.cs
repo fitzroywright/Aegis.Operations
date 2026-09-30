@@ -37,14 +37,14 @@ builder.Services.AddSingleton(new DiagnosticLevelExecutionOptions
     CatalogVersion = "1"
 });
 builder.Services.AddSingleton(new DiagnosticLevelStoreOptions { Path = diagnosticLevelStorePath });
-builder.Services.AddSingleton<IDiagnosticLevelLocalTest, Aegis.Operations.OperationsControlPlaneEndpointsDiagnosticLevelTest>();
-builder.Services.AddSingleton<IDiagnosticLevelLocalTest, Aegis.Operations.OperationsDataDirectoryConfigurationDiagnosticLevelTest>();
-builder.Services.AddSingleton<IDiagnosticLevelLocalTest, Aegis.Operations.OperationsDataDirectoryReadableDiagnosticLevelTest>();
-builder.Services.AddSingleton<IDiagnosticLevelLocalTest, Aegis.Operations.OperationsRetentionConfigurationDiagnosticLevelTest>();
-builder.Services.AddSingleton<IDiagnosticLevelLocalTest, Aegis.Operations.OperationsRuntimeResourcesDiagnosticLevelTest>();
-builder.Services.AddSingleton<IDiagnosticLevelLocalTest, Aegis.Operations.OperationsDataDirectoryRoundTripDiagnosticLevelTest>();
-builder.Services.AddSingleton<IDiagnosticLevelLocalTest, Aegis.Operations.OperationsControlPlaneDnsDiagnosticLevelTest>();
-builder.Services.AddSingleton<IDiagnosticLevelLocalTest, Aegis.Operations.OperationsStoreConsistencyDiagnosticLevelTest>();
+builder.Services.AddDiagnosticLevelTest<Aegis.Operations.OperationsControlPlaneEndpointsDiagnosticLevelTest>();
+builder.Services.AddDiagnosticLevelTest<Aegis.Operations.OperationsDataDirectoryConfigurationDiagnosticLevelTest>();
+builder.Services.AddDiagnosticLevelTest<Aegis.Operations.OperationsDataDirectoryReadableDiagnosticLevelTest>();
+builder.Services.AddDiagnosticLevelTest<Aegis.Operations.OperationsRetentionConfigurationDiagnosticLevelTest>();
+builder.Services.AddDiagnosticLevelTest<Aegis.Operations.OperationsRuntimeResourcesDiagnosticLevelTest>();
+builder.Services.AddDiagnosticLevelTest<Aegis.Operations.OperationsDataDirectoryRoundTripDiagnosticLevelTest>();
+builder.Services.AddDiagnosticLevelTest<Aegis.Operations.OperationsControlPlaneDnsDiagnosticLevelTest>();
+builder.Services.AddDiagnosticLevelTest<Aegis.Operations.OperationsStoreConsistencyDiagnosticLevelTest>();
 
 builder.Services.ConfigureHttpJsonOptions(options => options.SerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter()));
 builder.Services.AddHttpClient("ops", client =>
