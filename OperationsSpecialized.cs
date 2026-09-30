@@ -348,11 +348,18 @@ internal static class OperationsSpecializedEndpoints
             try
             {
                 _ = await store.LoadAsync<ApplicationOperationalRecord>("applications", ct);
+                (long? memoryTotalBytes, long? memoryFreeBytes) = ReadMemoryCapacity();
+                (long? diskTotalBytes, long? diskFreeBytes) = ReadDiskCapacity();
+
                 return Results.Ok(new
                 {
                     state = OperationalState.Healthy.ToString(),
                     observedAtUtc = DateTimeOffset.UtcNow,
                     storage = "Healthy",
+                    memoryTotalBytes,
+                    memoryFreeBytes,
+                    diskTotalBytes,
+                    diskFreeBytes,
                     advisor = "Not Supported",
                     audioTranscription = "Not Supported"
                 });
@@ -368,6 +375,60 @@ internal static class OperationsSpecializedEndpoints
                 });
             }
         });
+    }
+
+    private static (long? TotalBytes, long? FreeBytes) ReadMemoryCapacity()
+    {
+        try
+        {
+            if (OperatingSystem.IsLinux() && File.Exists("/proc/meminfo"))
+            {
+                long? totalKb = null;
+                long? availableKb = null;
+                foreach (string line in File.ReadLines("/proc/meminfo"))
+                {
+                    if (line.StartsWith("MemTotal:", StringComparison.Ordinal))
+                        totalKb = ParseMemInfoKb(line);
+                    else if (line.StartsWith("MemAvailable:", StringComparison.Ordinal))
+                        availableKb = ParseMemInfoKb(line);
+
+                    if (totalKb.HasValue && availableKb.HasValue)
+                        break;
+                }
+
+                return (
+                    totalKb.HasValue ? totalKb.Value * 1024L : null,
+                    availableKb.HasValue ? availableKb.Value * 1024L : null);
+            }
+
+            GCMemoryInfo memoryInfo = GC.GetGCMemoryInfo();
+            long total = memoryInfo.TotalAvailableMemoryBytes;
+            return (total > 0 ? total : null, null);
+        }
+        catch
+        {
+            return (null, null);
+        }
+    }
+
+    private static long? ParseMemInfoKb(string line)
+    {
+        string[] parts = line.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        return parts.Length >= 2 && long.TryParse(parts[1], out long kb) ? kb : null;
+    }
+
+    private static (long? TotalBytes, long? FreeBytes) ReadDiskCapacity()
+    {
+        try
+        {
+            string root = Path.GetPathRoot(AppContext.BaseDirectory) ?? "/";
+            DriveInfo drive = new(root);
+            return (drive.TotalSize, drive.AvailableFreeSpace);
+        }
+        catch
+        {
+            return (null, null);
+        }
     }
 
     internal static async Task AuditAsync(
