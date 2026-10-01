@@ -47,7 +47,8 @@ function Get-SafeRestoreArguments {
         "-m:1",
         "/nodeReuse:false",
         "-p:RestoreDisableParallel=true",
-        "/p:UseSharedCompilation=false"
+        "/p:UseSharedCompilation=false",
+        "--tl:off"
     )
 }
 
@@ -59,7 +60,8 @@ function Get-SafeBuildArguments {
         "--configuration", "Release",
         "-m:1",
         "/nodeReuse:false",
-        "/p:UseSharedCompilation=false"
+        "/p:UseSharedCompilation=false",
+        "--tl:off"
     )
 }
 
@@ -71,7 +73,8 @@ function Get-SafeTestArguments {
         "--configuration", "Release",
         "-m:1",
         "/nodeReuse:false",
-        "/p:UseSharedCompilation=false"
+        "/p:UseSharedCompilation=false",
+        "--tl:off"
     )
 }
 
