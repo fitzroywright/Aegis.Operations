@@ -112,6 +112,9 @@ $definitions = @{
     requestportal = @{
         Project = Join-Path $ProjectsRoot "RequestPortal\RequestPortal.Web\RequestPortal.Web.csproj"
     }
+    studio = @{
+        Project = Join-Path $ProjectsRoot "Aegis.Studio\Aegis.Studio.Web\Aegis.Studio.Web.csproj"
+    }
 }
 
 $Applications = $Applications | ForEach-Object { $_.ToLowerInvariant() } | Select-Object -Unique
