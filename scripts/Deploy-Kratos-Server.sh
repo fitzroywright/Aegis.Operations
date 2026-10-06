@@ -457,14 +457,16 @@ EOF
     systemctl enable aegis-studio.service
   fi
 
-  # Kratos is currently the Studio demo/click-around host. Studio deliberately
-  # permits mock authentication and demo seeding only in Development, so use a
-  # systemd drop-in rather than weakening the application's production guard.
+  # Kratos is currently the Studio demo/click-around host. Keep production
+  # configuration active, but explicitly opt this deployment into mock auth
+  # and demo seeding. The application defaults remain locked down elsewhere.
   mkdir -p /etc/systemd/system/aegis-studio.service.d
   cat >/etc/systemd/system/aegis-studio.service.d/10-kratos-demo.conf <<'EOF'
 [Service]
-Environment=ASPNETCORE_ENVIRONMENT=Development
+Environment=ASPNETCORE_ENVIRONMENT=Production
 Environment=MockAuthentication__Enabled=true
+Environment=MockAuthentication__AllowOutsideDevelopment=true
+Environment=DemoData__Enabled=true
 EOF
   systemctl daemon-reload
 fi
