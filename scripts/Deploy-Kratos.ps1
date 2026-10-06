@@ -151,8 +151,10 @@ try {
         Write-Host "`n========================================"
         Write-Host " PUBLISH $app"
         Write-Host "========================================"
-        $reuseValidatedBuild = $SkipPublishBuild -or (-not $SkipAuthoritativeBuild)
-        Invoke-SafePublish -Project $definition.Project -Output $output -NoBuild:$reuseValidatedBuild
+        # --no-build is only safe when explicitly requested. An authoritative suite build
+        # can validate the source, but project references may carry NoBuild state into
+        # publish under .NET 10 and fail with NETSDK1085. Publish normally by default.
+        Invoke-SafePublish -Project $definition.Project -Output $output -NoBuild:$SkipPublishBuild
     }
 
     $bundleFile = Join-Path ([IO.Path]::GetTempPath()) ("aegis-control-plane-" + [Guid]::NewGuid().ToString("N") + ".tgz")
