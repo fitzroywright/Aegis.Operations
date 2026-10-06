@@ -365,6 +365,48 @@ EOF
 fi
 
 if is_selected studio; then
+  log "Ensuring Aegis.Studio Nginx reverse proxy"
+  if command -v nginx >/dev/null 2>&1; then
+    mkdir -p /etc/nginx/sites-available /etc/nginx/sites-enabled
+    cat >/etc/nginx/sites-available/aegis-studio <<'EOF'
+server {
+    listen 80;
+    listen [::]:80;
+    server_name studio.bryanstudiosltd.com;
+
+    location / {
+        proxy_pass http://127.0.0.1:5402;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_set_header X-Forwarded-Port $server_port;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_read_timeout 300s;
+        proxy_send_timeout 300s;
+        client_max_body_size 2G;
+    }
+}
+EOF
+    ln -sfn /etc/nginx/sites-available/aegis-studio /etc/nginx/sites-enabled/aegis-studio
+    nginx -t
+    systemctl reload nginx
+  else
+    echo "ERROR: nginx is not installed; cannot publish studio.bryanstudiosltd.com." >&2
+    exit 1
+  fi
+
+  if ! grep -q '^Aegis__PublicUrl=' /etc/aegis/studio.env 2>/dev/null; then
+    printf '\nAegis__PublicUrl=https://studio.bryanstudiosltd.com\n' >> /etc/aegis/studio.env
+  else
+    sed -i 's#^Aegis__PublicUrl=.*#Aegis__PublicUrl=https://studio.bryanstudiosltd.com#' /etc/aegis/studio.env
+  fi
+fi
+
+if is_selected studio; then
   log "Ensuring Aegis.Studio systemd service"
   mkdir -p /etc/aegis
   touch /etc/aegis/studio.env
