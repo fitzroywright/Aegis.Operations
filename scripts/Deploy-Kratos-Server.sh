@@ -414,6 +414,15 @@ EOF
   else
     sed -i 's#^Aegis__PublicUrl=.*#Aegis__PublicUrl=https://studio.bryanstudiosltd.com#' /etc/aegis/studio.env
   fi
+
+  # Kratos currently hosts the Studio click-around/pilot deployment. Keep the
+  # process in Production hosting mode while explicitly enabling Studio mock auth.
+  if grep -q '^MockAuthentication__Enabled=' /etc/aegis/studio.env 2>/dev/null; then
+    sed -i 's/^MockAuthentication__Enabled=.*/MockAuthentication__Enabled=true/' /etc/aegis/studio.env
+  else
+    printf 'MockAuthentication__Enabled=true\n' >> /etc/aegis/studio.env
+  fi
+  chmod 600 /etc/aegis/studio.env
 fi
 
 if is_selected studio; then
