@@ -466,6 +466,10 @@ EOF
 Environment=ASPNETCORE_ENVIRONMENT=Production
 Environment=MockAuthentication__Enabled=true
 Environment=MockAuthentication__AllowOutsideDevelopment=true
+Environment=MockAuthentication__UserName=studio.admin
+Environment=MockAuthentication__DisplayName=Studio Administrator
+Environment=MockAuthentication__Groups__0=Domain Admins
+Environment=AuthenticationPlugin__Settings__AdministrativeGroups__0=Domain Admins
 Environment=DemoData__Enabled=true
 EOF
   systemctl daemon-reload
