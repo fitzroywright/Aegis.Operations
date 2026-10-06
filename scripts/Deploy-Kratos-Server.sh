@@ -18,7 +18,7 @@ rolls back automatically if deployment health validation fails.
 
 Options:
   --source PATH       Staging payload root. Default: /tmp/aegis-deploy/payload
-  --apps LIST         Comma-separated: operations,configuration,diagnostics,hello,requestportal
+  --apps LIST         Comma-separated: operations,configuration,diagnostics,hello,requestportal,studio
                       Default: operations,configuration,diagnostics,hello
   --backup-root PATH  Backup root. Default: /opt/aegis/backups
   --owner USER:GROUP  Installed file owner. Default: aegis:aegis
@@ -30,6 +30,7 @@ Expected staging layout:
   SOURCE/diagnostics/Aegis.Diagnostics.dll
   SOURCE/hello/Aegis.Hello.dll
   SOURCE/requestportal/RequestPortal.Web.dll
+  SOURCE/studio/Aegis.Studio.Web.dll
 
 This script preserves application environment files and secrets. During registration-lifecycle migration it removes obsolete ordinary-application registration keys after backing the files up.
 EOF
@@ -59,6 +60,7 @@ declare -A TARGET=(
   [diagnostics]="/opt/aegis/diagnostics"
   [hello]="/opt/aegis/hello"
   [requestportal]="/opt/aegis/requestportal"
+  [studio]="/opt/aegis/studio"
 )
 declare -A SERVICE=(
   [operations]="aegis-operations"
@@ -66,6 +68,7 @@ declare -A SERVICE=(
   [diagnostics]="aegis-diagnostics"
   [hello]="aegis-hello"
   [requestportal]="aegis-requestportal"
+  [studio]="aegis-studio"
 )
 declare -A DLL=(
   [operations]="Aegis.Operations.dll"
@@ -73,6 +76,7 @@ declare -A DLL=(
   [diagnostics]="Aegis.Diagnostics.dll"
   [hello]="Aegis.Hello.dll"
   [requestportal]="RequestPortal.Web.dll"
+  [studio]="Aegis.Studio.Web.dll"
 )
 declare -A HEALTH=(
   [operations]="http://127.0.0.1:5100/health"
@@ -80,6 +84,7 @@ declare -A HEALTH=(
   [diagnostics]="http://127.0.0.1:5300/health"
   [hello]="http://127.0.0.1:5400/health"
   [requestportal]="http://127.0.0.1:5401/health"
+  [studio]="http://127.0.0.1:5402/health"
 )
 
 SELECTED=()
@@ -127,7 +132,7 @@ is_selected() {
 
 stop_selected() {
   # Dependents first; RequestPortal is downstream of the control-plane services.
-  for app in requestportal hello operations diagnostics configuration; do
+  for app in studio requestportal hello operations diagnostics configuration; do
     if is_selected "$app"; then
       systemctl stop "${SERVICE[$app]}" || true
     fi
@@ -136,7 +141,7 @@ stop_selected() {
 
 start_selected() {
   # Operations provides restricted control-plane bootstrap; Configuration is the ordinary application registration authority.
-  for app in operations configuration diagnostics hello requestportal; do
+  for app in operations configuration diagnostics hello requestportal studio; do
     if is_selected "$app"; then
       systemctl start "${SERVICE[$app]}"
     fi
@@ -311,8 +316,9 @@ mkdir -p /var/lib/aegis/operations/registration
 mkdir -p /var/lib/aegis/configuration/contracts/retired
 mkdir -p /var/lib/aegis/diagnostics
 mkdir -p /var/lib/aegis/hello
-chown -R "$OWNER" /var/lib/aegis/operations /var/lib/aegis/configuration /var/lib/aegis/diagnostics /var/lib/aegis/hello
-chmod 700 /var/lib/aegis/operations/registration /var/lib/aegis/configuration /var/lib/aegis/diagnostics /var/lib/aegis/hello
+mkdir -p /var/lib/aegis/studio
+chown -R "$OWNER" /var/lib/aegis/operations /var/lib/aegis/configuration /var/lib/aegis/diagnostics /var/lib/aegis/hello /var/lib/aegis/studio
+chmod 700 /var/lib/aegis/operations/registration /var/lib/aegis/configuration /var/lib/aegis/diagnostics /var/lib/aegis/hello /var/lib/aegis/studio
 
 if is_selected hello; then
   log "Ensuring Aegis.Hello systemd service"
@@ -344,6 +350,39 @@ WantedBy=multi-user.target
 EOF
     systemctl daemon-reload
     systemctl enable aegis-hello.service
+  fi
+fi
+
+if is_selected studio; then
+  log "Ensuring Aegis.Studio systemd service"
+  mkdir -p /etc/aegis
+  touch /etc/aegis/studio.env
+  chmod 600 /etc/aegis/studio.env
+  if [[ ! -f /etc/systemd/system/aegis-studio.service ]]; then
+    cat >/etc/systemd/system/aegis-studio.service <<'EOF'
+[Unit]
+Description=Aegis Studio
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=aegis
+Group=aegis
+WorkingDirectory=/opt/aegis/studio
+ExecStart=/usr/bin/dotnet /opt/aegis/studio/Aegis.Studio.Web.dll
+Environment=ASPNETCORE_ENVIRONMENT=Production
+Environment=ASPNETCORE_URLS=http://127.0.0.1:5402
+EnvironmentFile=/etc/aegis/studio.env
+Restart=always
+RestartSec=5
+SyslogIdentifier=aegis-studio
+
+[Install]
+WantedBy=multi-user.target
+EOF
+    systemctl daemon-reload
+    systemctl enable aegis-studio.service
   fi
 fi
 
