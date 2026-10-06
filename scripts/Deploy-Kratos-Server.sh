@@ -317,7 +317,18 @@ mkdir -p /var/lib/aegis/configuration/contracts/retired
 mkdir -p /var/lib/aegis/diagnostics
 mkdir -p /var/lib/aegis/hello
 mkdir -p /var/lib/aegis/studio
-chown -R "$OWNER" /var/lib/aegis/operations /var/lib/aegis/configuration /var/lib/aegis/diagnostics /var/lib/aegis/hello /var/lib/aegis/studio
+# Only touch persistent state for applications selected in this deployment.
+# Recursively chowning live state for unrelated services races with their atomic
+# temp-file writes (for example Operations application-logs.json.tmp-*).
+for app in "${SELECTED[@]}"; do
+  case "$app" in
+    operations) chown -R "$OWNER" /var/lib/aegis/operations ;;
+    configuration) chown -R "$OWNER" /var/lib/aegis/configuration ;;
+    diagnostics) chown -R "$OWNER" /var/lib/aegis/diagnostics ;;
+    hello) chown -R "$OWNER" /var/lib/aegis/hello ;;
+    studio) chown -R "$OWNER" /var/lib/aegis/studio ;;
+  esac
+done
 chmod 700 /var/lib/aegis/operations/registration /var/lib/aegis/configuration /var/lib/aegis/diagnostics /var/lib/aegis/hello /var/lib/aegis/studio
 
 if is_selected hello; then
