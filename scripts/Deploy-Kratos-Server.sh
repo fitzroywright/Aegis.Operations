@@ -368,7 +368,13 @@ if is_selected studio; then
   log "Ensuring Aegis.Studio Nginx reverse proxy"
   if command -v nginx >/dev/null 2>&1; then
     mkdir -p /etc/nginx/sites-available /etc/nginx/sites-enabled
-    cat >/etc/nginx/sites-available/aegis-studio <<'EOF'
+    studio_nginx_site="/etc/nginx/sites-available/aegis-studio"
+
+    # Create the bootstrap HTTP site only when Studio has no Nginx site yet.
+    # Once Certbot has provisioned TLS it owns certificate/redirect directives in
+    # this file; normal application deployments must not overwrite them.
+    if [[ ! -f "$studio_nginx_site" ]]; then
+      cat >"$studio_nginx_site" <<'EOF'
 server {
     listen 80;
     listen [::]:80;
@@ -391,7 +397,11 @@ server {
     }
 }
 EOF
-    ln -sfn /etc/nginx/sites-available/aegis-studio /etc/nginx/sites-enabled/aegis-studio
+    else
+      log "Preserving existing Aegis.Studio Nginx site (including Certbot-managed TLS)"
+    fi
+
+    ln -sfn "$studio_nginx_site" /etc/nginx/sites-enabled/aegis-studio
     nginx -t
     systemctl reload nginx
   else
