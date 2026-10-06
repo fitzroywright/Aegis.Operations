@@ -2,7 +2,7 @@
 param(
     [string]$HostName = "kratos",
     [string]$UserName = "fwright@fftpj.local",
-    [ValidateSet("operations","configuration","diagnostics","hello","requestportal")]
+    [ValidateSet("operations","configuration","diagnostics","hello","requestportal","studio")]
     [string[]]$Applications = @("operations","configuration","diagnostics","hello"),
     [string]$ProjectsRoot = "D:\Projects",
     [string]$RemoteArchive = "/tmp/aegis-control-plane.tgz",
