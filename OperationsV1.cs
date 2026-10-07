@@ -131,6 +131,7 @@ internal sealed class OperationsV1Store
         _alertRetention = Math.Clamp(configuration.GetValue("Operations:Retention:Alerts", 5000), 100, 100000);
         _engineerLogRetention = Math.Clamp(configuration.GetValue("Operations:Retention:EngineerLog", 5000), 100, 100000);
         Directory.CreateDirectory(_root);
+        CleanupOrphanedTempFiles();
     }
 
     internal async Task<IReadOnlyList<T>> LoadAsync<T>(string bucket, CancellationToken ct)
@@ -217,12 +218,45 @@ internal sealed class OperationsV1Store
     {
         string path = Path.Combine(_root, bucket + ".json");
         string temp = path + ".tmp-" + Guid.NewGuid().ToString("N");
-        await File.WriteAllTextAsync(temp, JsonSerializer.Serialize(values, JsonOptions), ct);
-        if (!OperatingSystem.IsWindows())
-            File.SetUnixFileMode(temp, UnixFileMode.UserRead | UnixFileMode.UserWrite);
-        File.Move(temp, path, true);
-        if (!OperatingSystem.IsWindows())
-            File.SetUnixFileMode(path, UnixFileMode.UserRead | UnixFileMode.UserWrite);
+        try
+        {
+            await File.WriteAllTextAsync(temp, JsonSerializer.Serialize(values, JsonOptions), ct);
+            if (!OperatingSystem.IsWindows())
+                File.SetUnixFileMode(temp, UnixFileMode.UserRead | UnixFileMode.UserWrite);
+            File.Move(temp, path, true);
+            if (!OperatingSystem.IsWindows())
+                File.SetUnixFileMode(path, UnixFileMode.UserRead | UnixFileMode.UserWrite);
+        }
+        finally
+        {
+            // A cancelled or failed write must never leave a full-size orphan behind.
+            // application-logs can be tens of MB and is written frequently.
+            try
+            {
+                if (File.Exists(temp))
+                    File.Delete(temp);
+            }
+            catch
+            {
+                // Preserve the original write exception. Startup cleanup will retry.
+            }
+        }
+    }
+
+    private void CleanupOrphanedTempFiles()
+    {
+        try
+        {
+            foreach (string temp in Directory.EnumerateFiles(_root, "*.json.tmp-*", SearchOption.TopDirectoryOnly))
+            {
+                try { File.Delete(temp); }
+                catch { /* A later startup can retry files that are temporarily unavailable. */ }
+            }
+        }
+        catch
+        {
+            // Persistence must remain available even if best-effort cleanup cannot enumerate the directory.
+        }
     }
 }
 
