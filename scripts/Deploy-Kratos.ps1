@@ -62,6 +62,7 @@ function Invoke-SafePublish {
             "--output", $Output,
             "--no-build",
             "--no-restore",
+            "/p:BuildProjectReferences=false",
             "-m:1",
             "/nodeReuse:false",
             "/p:UseSharedCompilation=false"
