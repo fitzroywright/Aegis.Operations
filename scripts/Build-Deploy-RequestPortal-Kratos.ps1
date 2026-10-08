@@ -48,9 +48,9 @@ function Get-MeaningfulGitChanges {
 
         if ($isUntracked) {
             $isGeneratedBuildArtifact = $normalized -match '(^|/)(bin|obj)(/|$)'
-            $isVisualRequestPortalState = $normalized -match '^\.vs/'
+            $isVisualStudioState = $normalized -match '^\.vs/'
 
-            if ($isGeneratedBuildArtifact -or $isVisualRequestPortalState) {
+            if ($isGeneratedBuildArtifact -or $isVisualStudioState) {
                 return $false
             }
         }
