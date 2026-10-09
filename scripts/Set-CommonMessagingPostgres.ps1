@@ -9,25 +9,45 @@ try {
         $variableName = $entry.Key
         $connectionString = $entry.Value
 
-        # Persist for the current Windows user.
+        # Preserve existing Windows behavior: persist the configured test value
+        # for the current user and expose it to this process.
+        if ($IsWindows) {
+            [Environment]::SetEnvironmentVariable(
+                $variableName,
+                $connectionString,
+                "User"
+            )
+
+            $resolvedValue = [Environment]::GetEnvironmentVariable(
+                $variableName,
+                "User"
+            )
+        }
+        else {
+            # User-level environment persistence is unsupported on macOS/Linux.
+            # Respect values supplied by the invoking shell or CI environment.
+            $resolvedValue = [Environment]::GetEnvironmentVariable(
+                $variableName,
+                "Process"
+            )
+            if ([string]::IsNullOrWhiteSpace($resolvedValue)) {
+                $resolvedValue = $connectionString
+            }
+        }
+
         [Environment]::SetEnvironmentVariable(
             $variableName,
-            $connectionString,
-            "User"
+            $resolvedValue,
+            "Process"
         )
-
-        # Make it immediately available in this PowerShell session.
-        $resolvedValue = [Environment]::GetEnvironmentVariable(
-            $variableName,
-            "User"
-        )
-
-        Set-Item `
-            -Path "Env:$variableName" `
-            -Value $resolvedValue
 
         Write-Host ""
-        Write-Host "$variableName has been set permanently for the current user."
+        if ($IsWindows) {
+            Write-Host "$variableName has been set permanently for the current user."
+        }
+        else {
+            Write-Host "$variableName is configured for this PowerShell process."
+        }
         Write-Host "It is also available in this PowerShell session."
     }
 
