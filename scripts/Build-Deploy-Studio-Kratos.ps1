@@ -183,7 +183,7 @@ try {
     Write-Host "========================================" -ForegroundColor Cyan
     Write-Host " DEPLOY Aegis.Studio TO KRATOS" -ForegroundColor Cyan
     Write-Host "========================================" -ForegroundColor Cyan
-    Write-Host "Reusing the Release binaries built above; no second compile will be performed." -ForegroundColor DarkCyan
+    Write-Host "Publishing framework-dependent linux-x64 assets for Kratos after the validated build/tests." -ForegroundColor DarkCyan
 
     $deployArguments = @{
         Applications = @("studio")
@@ -191,7 +191,7 @@ try {
         HostName = $HostName
         UserName = $UserName
         SkipAuthoritativeBuild = $true
-        SkipPublishBuild = $true
+        SkipPublishBuild = $false
         KeepLocalBundle = $KeepLocalBundle
         KeepRemoteBundle = $KeepRemoteBundle
     }
