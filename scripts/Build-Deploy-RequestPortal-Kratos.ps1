@@ -183,7 +183,7 @@ try {
     Write-Host "========================================" -ForegroundColor Cyan
     Write-Host " DEPLOY RequestPortal TO KRATOS" -ForegroundColor Cyan
     Write-Host "========================================" -ForegroundColor Cyan
-    Write-Host "Reusing the Release binaries built above; no second compile will be performed." -ForegroundColor DarkCyan
+    Write-Host "Publishing RequestPortal for Linux x64 using the shared deployment script." -ForegroundColor DarkCyan
 
     $deployArguments = @{
         Applications = @("requestportal")
@@ -191,7 +191,7 @@ try {
         HostName = $HostName
         UserName = $UserName
         SkipAuthoritativeBuild = $true
-        SkipPublishBuild = $true
+        SkipPublishBuild = $false
         KeepLocalBundle = $KeepLocalBundle
         KeepRemoteBundle = $KeepRemoteBundle
     }
