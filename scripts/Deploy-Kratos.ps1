@@ -12,6 +12,7 @@ param(
     [System.Management.Automation.PSCredential]$Credential,
     [switch]$SkipAuthoritativeBuild,
     [switch]$SkipPublishBuild,
+    [string]$TargetRuntime = "linux-x64",
     [switch]$KeepLocalBundle,
     [switch]$KeepRemoteBundle
 )
@@ -58,6 +59,8 @@ function Invoke-SafePublish {
     if ($NoBuild) {
         Invoke-Native -FilePath "dotnet" -ArgumentList @(
             "publish", $Project,
+            "--runtime", $TargetRuntime,
+            "--self-contained", "false",
             "--configuration", "Release",
             "--output", $Output,
             "--no-build",
@@ -72,6 +75,7 @@ function Invoke-SafePublish {
 
     Invoke-Native -FilePath "dotnet" -ArgumentList @(
         "restore", $Project,
+        "--runtime", $TargetRuntime,
         "--disable-parallel",
         "-m:1",
         "/nodeReuse:false",
@@ -81,6 +85,8 @@ function Invoke-SafePublish {
 
     Invoke-Native -FilePath "dotnet" -ArgumentList @(
         "publish", $Project,
+        "--runtime", $TargetRuntime,
+        "--self-contained", "false",
         "--configuration", "Release",
         "--output", $Output,
         "--no-restore",
