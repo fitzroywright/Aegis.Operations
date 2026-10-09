@@ -4,7 +4,7 @@ param(
     [string]$UserName = "fwright@fftpj.local",
     [ValidateSet("operations","configuration","diagnostics","hello","requestportal","studio")]
     [string[]]$Applications = @("operations","configuration","diagnostics","hello"),
-    [string]$ProjectsRoot = "D:\Projects",
+    [string]$ProjectsRoot = $(if ($IsWindows) { "D:\Projects" } else { Join-Path $HOME "Projects" }),
     [string]$RemoteArchive = "/tmp/aegis-control-plane.tgz",
     [string]$RemoteWorkRoot = "/tmp/aegis-deploy",
     [string]$RemoteDeployCommand = "/usr/local/sbin/aegis-deploy",
@@ -132,7 +132,13 @@ if (-not $SkipAuthoritativeBuild) {
     Write-Host "========================================`n"
     $buildAll = Join-Path $PSScriptRoot "Build-All-Aegis.ps1"
     if (-not (Test-Path $buildAll)) { throw "Missing authoritative build script: $buildAll" }
-    & $buildAll
+    $controlPlaneApps = @("operations", "configuration", "diagnostics")
+    $controlPlaneOnly = @($Applications | Where-Object { $_ -notin $controlPlaneApps }).Count -eq 0
+    if ($controlPlaneOnly) {
+        & $buildAll -Root $ProjectsRoot -ControlPlaneOnly
+    } else {
+        & $buildAll -Root $ProjectsRoot
+    }
 }
 
 $bundleRoot = Join-Path ([IO.Path]::GetTempPath()) ("aegis-kratos-deploy-" + [Guid]::NewGuid().ToString("N"))
@@ -249,7 +255,7 @@ try {
     Write-Host "========================================"
     Write-Host "Applications: $appsCsv"
     Write-Host "Host:         $HostName"
-    if ($SkipPublishBuild -or (-not $SkipAuthoritativeBuild)) {
+    if ($SkipPublishBuild) {
         Write-Host "Publish:      reused existing validated Release build outputs"
     } else {
         Write-Host "Publish:      serialized restore/publish"
