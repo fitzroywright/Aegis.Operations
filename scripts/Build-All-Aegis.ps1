@@ -1,5 +1,6 @@
 param(
-    [string]$Root = "D:\Projects",
+    [string]$Root = $(if ($IsWindows) { "D:\Projects" } else { Join-Path $HOME "Projects" }),
+    [switch]$ControlPlaneOnly,
     [string]$CommonMessagingPostgres = $env:COMMON_MESSAGING_POSTGRES
 )
 
@@ -214,6 +215,11 @@ $projects = @(
     @{ Name = "Ebolito";             Path = "$Root\Ebolito";                    Build = ".\Ebolito.slnx";              Test = ".\Ebolito.slnx" }
 )
 
+if ($ControlPlaneOnly) {
+    $controlPlaneNames = @("Common.Diagnostics", "Common.Messaging", "Common.Registration", "Common.Secrets", "Common.Security", "Common.Storage", "Aegis.Configuration", "Aegis.Diagnostics", "Aegis.Operations")
+    $projects = @($projects | Where-Object { $_.Name -in $controlPlaneNames })
+}
+
 $originalLocation = Get-Location
 try {
     Write-Host "`n========================================" -ForegroundColor Cyan
@@ -231,14 +237,19 @@ try {
         }
     }
 
-    $ffpManagerProvisioning = Join-Path $PSScriptRoot "Initialize-FfpManagerTestIntegration.ps1"
-    if (-not (Test-Path $ffpManagerProvisioning)) {
-        throw "Missing FFP Manager test integration provisioning script: $ffpManagerProvisioning"
-    }
+    if (-not $ControlPlaneOnly) {
+        $ffpManagerProvisioning = Join-Path $PSScriptRoot "Initialize-FfpManagerTestIntegration.ps1"
+        if (-not (Test-Path $ffpManagerProvisioning)) {
+            throw "Missing FFP Manager test integration provisioning script: $ffpManagerProvisioning"
+        }
 
-    Write-Host ""
-    Write-Host "Provisioning shared FFPMANAGER_TEST integration schema..." -ForegroundColor DarkCyan
-    & $ffpManagerProvisioning -ProjectsRoot $Root
+        Write-Host ""
+        Write-Host "Provisioning shared FFPMANAGER_TEST integration schema..." -ForegroundColor DarkCyan
+        & $ffpManagerProvisioning -ProjectsRoot $Root
+
+    } else {
+        Write-Host "Control Plane scope: FFP Manager test integration excluded." -ForegroundColor DarkCyan
+    }
 
     foreach ($project in $projects) {
         $testEnvironment = $null
