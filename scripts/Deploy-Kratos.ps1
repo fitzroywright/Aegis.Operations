@@ -161,7 +161,7 @@ try {
     $bundleFile = Join-Path ([IO.Path]::GetTempPath()) ("aegis-control-plane-" + [Guid]::NewGuid().ToString("N") + ".tgz")
     Push-Location $bundleRoot
     try {
-        Invoke-Native -FilePath "tar.exe" -ArgumentList @("-czf", $bundleFile, ".")
+        Invoke-Native -FilePath "tar" -ArgumentList @("-czf", $bundleFile, ".")
     }
     finally { Pop-Location }
 
