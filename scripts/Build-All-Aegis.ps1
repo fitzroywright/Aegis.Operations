@@ -1,5 +1,5 @@
 param(
-    // Infer the sibling-repository root from this checkout on every PowerShell version.
+    # Infer the sibling-repository root from this checkout on every PowerShell version.
     [string]$Root = (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)),
     [switch]$ControlPlaneOnly,
     [string]$CommonMessagingPostgres = $env:COMMON_MESSAGING_POSTGRES
