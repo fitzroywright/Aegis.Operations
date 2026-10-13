@@ -182,7 +182,7 @@ __CONTROL_PLANE_HEADER_CSS__
     <a href="/deployments"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9 12 4l8 5-8 5-8-5Z"/><path d="M4 9v7l8 5 8-5V9M12 14v7"/></svg><span>Deployments</span></a>
     <a href="#attention"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 2.5 20h19L12 3Z"/><path d="M12 9v5M12 17h.01"/></svg><span>Attention</span></a>
     <a href="/logs"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 6h14M5 12h14M5 18h10"/><path d="M3 6h.01M3 12h.01M3 18h.01"/></svg><span>Logs</span></a>
-  </nav>
+  <a class="nav-button" href="/cafeteria-acceptance"><span>Cafeteria Acceptance</span></a></nav>
   <button class="lcars-back" type="button" onclick="if(history.length>1){history.back()}else{location.href='/'}">Back</button>
 
   <main class="detail-scroll" id="detail"><div class="aegis-busy-overlay" id="aegisBusyOverlay" aria-hidden="true"><div class="aegis-sensor" role="status" aria-live="polite"><div class="aegis-sensor-ticks"></div><div class="aegis-sensor-ring r1"></div><div class="aegis-sensor-ring r2"></div><div class="aegis-sensor-ring r3"></div><div class="aegis-sensor-sweep"></div><div class="aegis-sensor-pulse"></div><i class="aegis-sensor-dot d1"></i><i class="aegis-sensor-dot d2"></i><i class="aegis-sensor-dot d3"></i><div class="aegis-sensor-core"><i></i><i></i><i></i><i></i></div><div class="aegis-sensor-copy"><b>Processing</b><span id="aegisBusyText">Analyzing system state</span></div></div></div>
@@ -464,3 +464,4 @@ installAegisConsoleAudio();
 """;
     }
 }
+
