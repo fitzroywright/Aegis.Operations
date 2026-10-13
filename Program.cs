@@ -4,6 +4,7 @@ using Common.Registration;
 using Common.Diagnostics;
 using Common.Secrets;
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
+builder.Services.AddSingleton<CafeteriaAcceptanceOperations>();
 string suiteSecurityMode =
     builder.Configuration["SuiteSecurity:Mode"]?.Trim()
     ?? (builder.Environment.IsDevelopment() ? "Mock" : "ActiveDirectory");
@@ -128,5 +129,7 @@ app.MapOperationsV1(configurationUrl, diagnosticsUrl, site, environment);
 app.MapActivityTelemetry();
 app.MapOperationsLogs();
 app.MapOperationsSpecialized();
+CafeteriaAcceptanceOperations.Map(app, configurationUrl, diagnosticsUrl);
 app.MapOperationsAdvisor();
 app.Run();
+
