@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [string]$Root = "D:\Projects",
+    [string]$Root,
     [string]$HostName = "kratos",
     [string]$UserName = "fwright@fftpj.local",
     [string]$IdentityFile,
@@ -93,6 +93,14 @@ function Assert-CleanMain {
     if ($LASTEXITCODE -ne 0) { throw "Could not read HEAD for $Path" }
     Write-Host "Authoritative main: $sha" -ForegroundColor DarkCyan
 }
+
+if ([string]::IsNullOrWhiteSpace($Root)) {
+    $Root = (Resolve-Path (Join-Path $PSScriptRoot "../..")).Path
+}
+if (-not (Test-Path -LiteralPath $Root -PathType Container)) {
+    throw "Projects root does not exist: $Root"
+}
+$Root = (Resolve-Path -LiteralPath $Root).Path
 
 $studioPath = Join-Path $Root "Aegis.Studio"
 $studioSolution = Join-Path $studioPath "Aegis.Studio.slnx"
