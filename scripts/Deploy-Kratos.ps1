@@ -4,7 +4,7 @@ param(
     [string]$UserName = "fwright@fftpj.local",
     [ValidateSet("operations","configuration","diagnostics","hello","requestportal","studio")]
     [string[]]$Applications = @("operations","configuration","diagnostics","hello"),
-    [string]$ProjectsRoot = $(if ($IsWindows) { "D:\Projects" } else { Join-Path $HOME "Projects" }),
+    [string]$ProjectsRoot = $(if ([Environment]::OSVersion.Platform -eq [PlatformID]::Win32NT) { "D:\Projects" } else { Join-Path $HOME "Projects" }),
     [string]$RemoteArchive = "/tmp/aegis-control-plane.tgz",
     [string]$RemoteWorkRoot = "/tmp/aegis-deploy",
     [string]$RemoteDeployCommand = "/usr/local/sbin/aegis-deploy",
@@ -20,13 +20,15 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
-$testEnvironmentScript = Join-Path $PSScriptRoot "Set-CommonMessagingPostgres.ps1"
-if (-not (Test-Path $testEnvironmentScript)) {
-    throw "Missing test environment setup script: $testEnvironmentScript"
-}
+if (-not $SkipAuthoritativeBuild) {
+    $testEnvironmentScript = Join-Path $PSScriptRoot "Set-CommonMessagingPostgres.ps1"
+    if (-not (Test-Path $testEnvironmentScript)) {
+        throw "Missing test environment setup script: $testEnvironmentScript"
+    }
 
-Write-Host "Loading shared Aegis test environment..." -ForegroundColor DarkCyan
-& $testEnvironmentScript
+    Write-Host "Loading shared Aegis test environment..." -ForegroundColor DarkCyan
+    & $testEnvironmentScript
+}
 
 function Invoke-Native {
     param(
