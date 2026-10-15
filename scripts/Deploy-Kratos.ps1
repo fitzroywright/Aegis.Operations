@@ -2,7 +2,7 @@
 param(
     [string]$HostName = "kratos",
     [string]$UserName = "fwright@fftpj.local",
-    [ValidateSet("operations","configuration","diagnostics","hello","requestportal","studio")]
+    [ValidateSet("operations","configuration","diagnostics","hello","requestportal","studio","cafeteria")]
     [string[]]$Applications = @("operations","configuration","diagnostics","hello"),
     [string]$ProjectsRoot = $(if ([Environment]::OSVersion.Platform -eq [PlatformID]::Win32NT) { "D:\Projects" } else { Join-Path $HOME "Projects" }),
     [string]$RemoteArchive = "/tmp/aegis-control-plane.tgz",
@@ -123,6 +123,9 @@ $definitions = @{
     }
     studio = @{
         Project = Join-Path $ProjectsRoot "Aegis.Studio\Aegis.Studio.Web\Aegis.Studio.Web.csproj"
+    }
+    cafeteria = @{
+        Project = Join-Path $ProjectsRoot "Aegis.Cafeteria\Aegis.Cafeteria.Services\Aegis.Cafeteria.Services.csproj"
     }
 }
 
