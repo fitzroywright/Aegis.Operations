@@ -117,10 +117,12 @@ internal sealed class CafeteriaAcceptanceOperations(IConfiguration configuration
 
     public static void Map(WebApplication app, string configurationUrl, string diagnosticsUrl)
     {
-        app.MapGet("/cafeteria-acceptance", (HttpContext context) => Results.Content(
+        app.MapGet("/cafeteria-acceptance", () => Results.Redirect("/diagnostics/level-5/acceptance"));
+        app.MapGet("/diagnostics/level-5/acceptance", (HttpContext context) => Results.Content(
             OperationsSectionPage.RenderCafeteriaAcceptance(configurationUrl, diagnosticsUrl, (context.Items["SuiteIdentity"] as SuiteIdentity)?.UserName), "text/html; charset=utf-8"));
-        app.MapGet("/api/operations/cafeteria-acceptance", async (HttpContext context, CafeteriaAcceptanceOperations service, CancellationToken ct) =>
+        app.MapGet("/api/operations/acceptance/{applicationId}", async (string applicationId, HttpContext context, CafeteriaAcceptanceOperations service, CancellationToken ct) =>
         {
+            if (!string.Equals(applicationId, "Aegis.Cafeteria.Services", StringComparison.Ordinal)) return Results.NotFound();
             var history = await service.ReadHistoryAsync(ct);
             var latest = history.FirstOrDefault();
             var required = Enumerable.Range(1, 20).Select(i => new AcceptanceProofDefinition($"CAF-{i:D2}", "", 1)).ToArray();
@@ -140,9 +142,10 @@ internal sealed class CafeteriaAcceptanceOperations(IConfiguration configuration
                     integration, reviewed && qualification!.DeploymentVerified,
                     reviewed ? qualification!.ReleaseBlockingDefects.Count : 1) });
         });
-        app.MapPost("/api/operations/cafeteria-acceptance/run", async (HttpContext context, CafeteriaAcceptanceRequest request,
+        app.MapPost("/api/operations/acceptance/{applicationId}/run", async (string applicationId, HttpContext context, CafeteriaAcceptanceRequest request,
             CafeteriaAcceptanceOperations service, IHostApplicationLifetime lifetime) =>
         {
+            if (!string.Equals(applicationId, "Aegis.Cafeteria.Services", StringComparison.Ordinal)) return Results.NotFound();
             var identity = context.Items["SuiteIdentity"] as SuiteIdentity;
             if (!CanRun(identity)) return Results.StatusCode(403);
             if (context.Request.Headers["X-Aegis-Action"] != "cafeteria-acceptance") return Results.BadRequest("An explicit acceptance action is required.");
@@ -151,7 +154,7 @@ internal sealed class CafeteriaAcceptanceOperations(IConfiguration configuration
             {
                 var execution = await service.StartAsync(identity!.UserName, request.Reason.Trim(), lifetime.ApplicationStopping);
                 return execution is null ? Results.Conflict("Acceptance is unavailable or already executing.")
-                    : Results.Accepted("/api/operations/cafeteria-acceptance", execution);
+                    : Results.Accepted("/api/operations/acceptance/Aegis.Cafeteria.Services", execution);
             }
             catch (Exception e) when (e is InvalidOperationException or JsonException or IOException)
             { return Results.Conflict("Acceptance configuration is invalid; inspect the manifest, output root and runner fingerprint."); }
