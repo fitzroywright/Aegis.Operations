@@ -262,11 +262,7 @@ deploy_payload() {
     if [[ "$app" == "cafeteria" ]]; then
       chown -R aegis-cafeteria:aegis-cafeteria "$target"
     else
-      if [[ "$app" == "cafeteria" ]]; then
-        chown -R aegis-cafeteria:aegis-cafeteria "$target"
-      else
-        chown -R "$OWNER" "$target"
-      fi
+      chown -R "$OWNER" "$target"
     fi
     if [[ -d "$target/scripts" ]]; then
       find "$target/scripts" -maxdepth 1 -type f \( -name '*.sh' -o -name 'aegis-hello' \) -exec chmod 0755 {} +
@@ -309,7 +305,11 @@ rollback() {
     if [[ ! -f "$BACKUP_DIR/$app.__absent__" ]]; then
       mkdir -p "$target"
       cp -a "$BACKUP_DIR/$app/." "$target/"
-      chown -R "$OWNER" "$target"
+      if [[ "$app" == "cafeteria" ]]; then
+        chown -R aegis-cafeteria:aegis-cafeteria "$target"
+      else
+        chown -R "$OWNER" "$target"
+      fi
     fi
 
     env_file="/etc/aegis/$app.env"
