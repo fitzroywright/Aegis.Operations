@@ -195,9 +195,28 @@ internal static class LifecycleRegistrationProxy
                 ct);
         });
 
-        app.MapPost("/api/lifecycle-registrations/cleanup/cafeteria", async (
+        app.MapGet("/api/lifecycle-registrations/cleanup-targets", async (
+            HttpContext context, SuiteSecurity suiteSecurity, IHttpClientFactory factory, CancellationToken ct) =>
+        {
+            if (!Has(context, "Configuration.Manage")) return Results.StatusCode(403);
+            return await ForwardAsync(context, suiteSecurity, factory,
+                configurationUrl.TrimEnd('/') + "/api/registration/cleanup-targets",
+                HttpMethod.Get, null, ct);
+        });
+        app.MapGet("/api/lifecycle-registrations/cleanup-preview", async (
+            HttpContext context, string applicationId, bool includeChildren,
+            SuiteSecurity suiteSecurity, IHttpClientFactory factory, CancellationToken ct) =>
+        {
+            if (!Has(context, "Configuration.Manage")) return Results.StatusCode(403);
+            return await ForwardAsync(context, suiteSecurity, factory,
+                configurationUrl.TrimEnd('/') + "/api/registration/cleanup-preview?applicationId=" +
+                Uri.EscapeDataString(applicationId) + "&includeChildren=" + (includeChildren ? "true" : "false"),
+                HttpMethod.Get, null, ct);
+        });
+
+        app.MapPost("/api/lifecycle-registrations/cleanup", async (
             HttpContext context,
-            [Microsoft.AspNetCore.Mvc.FromBody] CafeteriaCleanup request,
+            [Microsoft.AspNetCore.Mvc.FromBody] ApplicationCleanup request,
             SuiteSecurity suiteSecurity,
             IHttpClientFactory factory,
             OperationsV1Store store,
@@ -207,14 +226,16 @@ internal static class LifecycleRegistrationProxy
                 return Results.Json(new { error = "Configuration.Manage permission is required." }, statusCode: 403);
             if (context.Request.Headers["X-Aegis-Action"] != "registration-cleanup")
                 return Results.BadRequest(new { error = "Explicit cleanup action header is required." });
-            if (request.Confirmation != "CAFETERIA" || !request.ApplicationsStopped ||
-                string.IsNullOrWhiteSpace(request.Reason))
-                return Results.BadRequest(new { error = "Confirm CAFETERIA, stop its applications, and provide a reason." });
+            var scope = new RegistrationCleanupScope(request.ApplicationId ?? "", request.IncludeChildren);
+            if (!scope.IsValid || scope.IsProtected || request.Confirmation != request.ApplicationId ||
+                !request.ApplicationsStopped || string.IsNullOrWhiteSpace(request.Reason) ||
+                request.ExpectedRegistrationIds is null || request.ExpectedContracts is null)
+                return Results.BadRequest(new { error = "Review the preview, confirm the Application ID, stop its applications, and provide a reason." });
             return await ForwardAsync(
                 context, suiteSecurity, factory,
-                configurationUrl.TrimEnd('/') + "/api/registration/cleanup/cafeteria",
+                configurationUrl.TrimEnd('/') + "/api/registration/cleanup",
                 HttpMethod.Post, request, ct,
-                async token => await CafeteriaControlPlaneCleanup.ClearCurrentStateAsync(store, token));
+                async token => await ApplicationControlPlaneCleanup.ClearCurrentStateAsync(store, scope, token));
         });
 
         app.MapGet("/registration-lifecycle", () => Results.Redirect("/registration/lifecycle", permanent: true));
@@ -316,5 +337,7 @@ internal static class LifecycleRegistrationProxy
            identity.Permissions.Contains(permission, StringComparer.OrdinalIgnoreCase);
 
     private sealed record LifecycleDecision(string? Reason);
-    private sealed record CafeteriaCleanup(string? Reason, string? Confirmation, bool ApplicationsStopped);
+    private sealed record ApplicationCleanup(
+        string ApplicationId, bool IncludeChildren, string? Reason, string? Confirmation,
+        bool ApplicationsStopped, string[]? ExpectedRegistrationIds, string[]? ExpectedContracts);
 }

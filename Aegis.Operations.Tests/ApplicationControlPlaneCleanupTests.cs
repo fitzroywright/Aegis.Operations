@@ -1,19 +1,26 @@
 using Microsoft.Extensions.Configuration;
 using Xunit;
 
-public sealed class CafeteriaControlPlaneCleanupTests
+public sealed class ApplicationControlPlaneCleanupTests
 {
     [Theory]
-    [InlineData("Aegis.Cafeteria", true)]
-    [InlineData("Aegis.Cafeteria.POS", true)]
-    [InlineData("Aegis.Cafeteria.POS.UI", true)]
-    [InlineData("Aegis.Cafeteria.Services", true)]
-    [InlineData("Cafeteria.Services", true)]
-    [InlineData("aegis.cafeteria.services", true)]
-    [InlineData("Aegis.CafeteriaBackup", false)]
-    [InlineData("Aegis.Hello", false)]
-    public void Cleanup_is_scoped_to_cafeteria(string applicationId, bool expected)
-        => Assert.Equal(expected, CafeteriaControlPlaneCleanup.Matches(applicationId));
+    [InlineData("Aegis.Studio", true, "Aegis.Studio.Web", true)]
+    [InlineData("Aegis.Studio", false, "Aegis.Studio.Web", false)]
+    [InlineData("Aegis.Studio", true, "Aegis.StudioBackup", false)]
+    [InlineData("Aegis.Studio", false, "aegis.studio", true)]
+    [InlineData("Aegis.Cafeteria", true, "Aegis.Cafeteria.POS.UI", true)]
+    [InlineData("RequestPortal", false, "RequestPortal", true)]
+    public void Exact_and_family_scopes_respect_application_id_boundaries(
+        string id, bool children, string candidate, bool expected)
+        => Assert.Equal(expected, new RegistrationCleanupScope(id, children).Matches(candidate));
+
+    [Fact]
+    public void Previous_cleanup_markers_keep_family_semantics()
+    {
+        var marker = System.Text.Json.JsonSerializer.Deserialize<ApplicationCleanupMarker>(
+            """{"ApplicationFamily":"Aegis.Cafeteria","AtUtc":"2026-10-15T00:00:00Z"}""");
+        Assert.True(marker!.IncludeChildren);
+    }
 
     [Fact]
     public async Task Cleanup_removes_only_cafeteria_current_entries_and_retains_history()
@@ -33,8 +40,8 @@ public sealed class CafeteriaControlPlaneCleanupTests
             await store.UpsertAlertAsync(new("alert-1", "Aegis.Cafeteria.Services", "kratos",
                 AlertSeverity.Warning, "Old registration", "Test", AlertLifecycleState.Raised, now), default);
 
-            await CafeteriaControlPlaneCleanup.ClearCurrentStateAsync(store, default);
-            await CafeteriaControlPlaneCleanup.ClearCurrentStateAsync(store, default);
+            await ApplicationControlPlaneCleanup.ClearCurrentStateAsync(store, new("Aegis.Cafeteria", true), default);
+            await ApplicationControlPlaneCleanup.ClearCurrentStateAsync(store, new("Aegis.Cafeteria", true), default);
             Assert.Equal("Aegis.CafeteriaBackup",
                 Assert.Single(await store.LoadAsync<ApplicationOperationalRecord>("applications", default)).ApplicationId);
             var flow = Assert.Single(await store.LoadAsync<FlowRecord>("flows", default));

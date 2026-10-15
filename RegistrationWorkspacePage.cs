@@ -109,7 +109,7 @@ __SCRIPT__
     {
         "applications" => """<section class="panel"><h2>Registered Applications</h2><p class="muted">Registration-scoped inventory. Configuration remains the authority; Operations overlays observed runtime state.</p><div class="table-scroll"><table><thead><tr><th>Application</th><th>Instance</th><th>Environment</th><th>Registration</th><th>Runtime</th><th>Registration ID</th></tr></thead><tbody id="rows"><tr><td colspan="6">Loading…</td></tr></tbody></table></div></section>""",
         "lifecycle" => """<section class="metrics"><div class="metric"><b id="journeys">—</b><small>Journeys</small></div><div class="metric"><b id="events">—</b><small>Events</small></div><div class="metric"><b id="registered">—</b><small>Registered</small></div><div class="metric"><b id="attention">—</b><small>Attention</small></div></section><section class="panel"><h2>Registration Lifecycle</h2><p class="muted">Canonical lifecycle view for Operations → Registration.</p><div class="table-scroll"><table><thead><tr><th>Application</th><th>Instance</th><th>State</th><th>Stage</th><th>Observed</th><th>Registration ID</th></tr></thead><tbody id="rows"><tr><td colspan="6">Loading…</td></tr></tbody></table></div></section>""",
-        "actions" => """<section class="panel"><h2>Reset Cafeteria registrations</h2><p class="muted">Stop Cafeteria Services and every POS first. This retires all Cafeteria identities and configuration contracts, clears current Operations state, and retains history. Business data is unchanged.</p><div class="actions"><button id="cleanupCafeteria" class="danger" onclick="cleanupCafeteria()" disabled>Clean up Cafeteria</button></div><p id="cleanupStatus" role="status" class="muted">Checking management permission…</p><p class="muted">After cleanup: back up the local registration identity files on each Cafeteria host, start one application, then approve its new Pending entry here. Give each host a distinct Instance ID.</p></section><section class="panel"><h2>Registration Actions</h2><p class="muted">Only lifecycle actions belong here. Actions remain backed by the Registration authority through the Operations proxy.</p><div class="table-scroll"><table><thead><tr><th>Application</th><th>Instance</th><th>State</th><th>Registration ID</th><th>Available Actions</th></tr></thead><tbody id="rows"><tr><td colspan="5">Loading…</td></tr></tbody></table></div></section>""",
+        "actions" => """<section class="panel"><h2>Clean up application</h2><p class="muted">Select one application or a family, then review the affected registrations and contracts. Stop all selected applications before cleanup. Audit history and business data are preserved.</p><label>Application or family <select id="cleanupTarget" onchange="previewCleanup()" disabled><option value="">Select an application or family…</option></select></label><div class="actions"><button id="refreshCleanupPreview" onclick="previewCleanup()" disabled>Preview selected scope</button><button id="cleanupApplication" class="danger" onclick="cleanupApplication()" disabled>Clean up application</button></div><div id="cleanupPreview" class="muted">Select an application or family to preview.</div><p id="cleanupStatus" role="status" class="muted">Checking management permission…</p><p class="muted">After cleanup: back up registration identity files on the selected hosts, restart one application at a time, and approve its new Pending registrations.</p></section><section class="panel"><h2>Registration Actions</h2><p class="muted">Only lifecycle actions belong here. Actions remain backed by the Registration authority through the Operations proxy.</p><div class="table-scroll"><table><thead><tr><th>Application</th><th>Instance</th><th>State</th><th>Registration ID</th><th>Available Actions</th></tr></thead><tbody id="rows"><tr><td colspan="5">Loading…</td></tr></tbody></table></div></section>""",
         "logs" => """<section class="panel"><h2>Registration Logs</h2><p class="muted">Registration-scoped lifecycle telemetry only. General Operations logs remain at /logs.</p><div id="rows"><div class="empty">Loading…</div></div></section>""",
         _ => """<section class="metrics"><div class="metric"><b id="total">—</b><small>Registrations</small></div><div class="metric"><b id="active">—</b><small>Registered</small></div><div class="metric"><b id="pending">—</b><small>Pending</small></div><div class="metric"><b id="issues">—</b><small>Attention</small></div></section><section class="panel"><h2>Registration Overview</h2><p class="muted">This workspace contains Registration only: inventory, lifecycle, operator actions, and registration logs. It does not redirect its left navigation into general Operations, Diagnostics, or Configuration pages.</p><div id="summary">Loading authoritative registration state…</div></section>"""
     };
@@ -123,24 +123,71 @@ async function load(){try{const r=await fetch('/api/operations/registered-applic
 async function load(){try{const [fr,rr]=await Promise.all([fetch('/api/lifecycle-registrations/flow',{cache:'no-store'}),fetch('/api/lifecycle-registrations',{cache:'no-store'})]);authorityState(fr);authorityState(rr);if(!fr.ok||!rr.ok)throw new Error('Registration authority returned HTTP '+(!fr.ok?fr.status:rr.status));const f=await fr.json(),regs=await rr.json(),js=f.journeys||[],list=Array.isArray(regs)?regs:(regs.registrations||[]);journeys.textContent=js.length;events.textContent=(f.events||[]).length;registered.textContent=list.filter(x=>String(x.state).toLowerCase()==='registered').length;attention.textContent=list.filter(x=>!['registered','purged'].includes(String(x.state).toLowerCase())).length;rows.innerHTML=js.length?js.map(x=>'<tr><td><b>'+esc(x.applicationId)+'</b></td><td>'+esc(x.instanceId)+'</td><td class="'+tone(x.state)+'">'+esc(x.state||'Unknown')+'</td><td>'+esc(x.currentStage||'—')+'</td><td>'+fmt(x.lastEventAtUtc||x.observedAtUtc)+'</td><td>'+esc(x.registrationId||'—')+'</td></tr>').join(''):'<tr><td colspan="6">No active registration journeys.</td></tr>';scan()}catch(e){rows.innerHTML='<tr><td colspan="6">Lifecycle unavailable · '+esc(e.message)+'</td></tr>'}}load();setInterval(load,5000);
 """,
         "actions" => """
-let canManage=false,cleanupBusy=false;
-async function cleanupCafeteria(){
-  if(!canManage||cleanupBusy)return;
-  if(!confirm('Have you stopped Cafeteria Services and ALL Cafeteria POS applications?'))return;
-  if(prompt('Type CAFETERIA to retire all Cafeteria control-plane registrations and contracts:')!=='CAFETERIA')return;
-  const reason=prompt('Reason for this registration reset:');
-  if(!reason||!reason.trim())return;
-  cleanupBusy=true;document.getElementById('cleanupCafeteria').disabled=true;
-  const status=document.getElementById('cleanupStatus');
-  status.textContent='Cleaning up Cafeteria registrations…';
-  try{
-    const response=await fetch('/api/lifecycle-registrations/cleanup/cafeteria',{method:'POST',headers:{'Content-Type':'application/json','X-Aegis-Action':'registration-cleanup'},body:JSON.stringify({reason:reason.trim(),confirmation:'CAFETERIA',applicationsStopped:true})});
-    const result=await response.json().catch(()=>({}));
-    if(!response.ok)throw new Error(result.detail||result.error||('HTTP '+response.status));
-    status.textContent='Cleanup complete: '+result.registrations+' registrations and '+result.retiredContracts+' contracts retired. Back up local registration identities, start each application and approve its new Pending registration. History retained.';
-    await load();
-  }catch(error){status.textContent='Cleanup did not complete: '+error.message+'. Keep applications stopped; retry cleanup before re-registering.'}
-  finally{cleanupBusy=false;document.getElementById('cleanupCafeteria').disabled=!canManage}
+let canManage=false,cleanupBusy=false,cleanupPreview=null,previewSequence=0,targetsLoaded=false;
+function selectedCleanupScope(){const value=document.getElementById('cleanupTarget').value;return value?JSON.parse(value):null}
+function updateCleanupControls(){
+ document.getElementById('cleanupTarget').disabled=!canManage||cleanupBusy;
+ document.getElementById('refreshCleanupPreview').disabled=!canManage||cleanupBusy||!selectedCleanupScope();
+ document.getElementById('cleanupApplication').disabled=!canManage||cleanupBusy||!cleanupPreview;
+}
+async function loadCleanupTargets(){
+ if(!canManage||targetsLoaded)return;
+ const response=await fetch('/api/lifecycle-registrations/cleanup-targets',{cache:'no-store'});
+ if(!response.ok)throw new Error('Cleanup targets HTTP '+response.status);
+ if(response.headers.get('X-Aegis-Authority-Status')==='Unavailable')throw new Error('Cleanup authority unavailable');
+ const data=await response.json(),scopes=new Map();
+ const protectedIds=['Aegis.Operations','Aegis.Configuration','Aegis.Diagnostics'];
+ const add=(id,includeChildren)=>{
+   if(protectedIds.some(p=>p.toLowerCase()===id.toLowerCase()||(includeChildren&&p.toLowerCase().startsWith(id.toLowerCase()+'.'))))return;
+   const scope={applicationId:id,includeChildren},key=JSON.stringify(scope);scopes.set(key,scope);
+ };
+ for(const id of data.applicationIds||[]){
+   add(id,false);const parts=id.split('.');
+   for(let i=1;i<parts.length;i++)add(parts.slice(0,i).join('.'),true);
+ }
+ const select=document.getElementById('cleanupTarget');
+ select.innerHTML='<option value="">Select an application or family…</option>'+[...scopes.values()].sort((a,b)=>a.applicationId.localeCompare(b.applicationId)||Number(a.includeChildren)-Number(b.includeChildren)).map(scope=>'<option value="'+esc(JSON.stringify(scope))+'">'+esc(scope.applicationId)+(scope.includeChildren?' — family (includes descendants)':' — application only')+'</option>').join('');
+ select.value='';cleanupPreview=null;targetsLoaded=true;updateCleanupControls();
+}
+async function previewCleanup(){
+ const scope=selectedCleanupScope(),sequence=++previewSequence;
+ cleanupPreview=null;updateCleanupControls();
+ const host=document.getElementById('cleanupPreview');
+ if(!canManage||cleanupBusy||!scope){host.textContent='Select an application or family to preview.';return}
+ host.textContent='Loading affected registrations and contracts…';
+ try{
+   const response=await fetch('/api/lifecycle-registrations/cleanup-preview?'+new URLSearchParams(scope),{cache:'no-store'});
+   const data=await response.json().catch(()=>({}));
+   if(!response.ok)throw new Error(data.error||('HTTP '+response.status));
+   if(response.headers.get('X-Aegis-Authority-Status')==='Unavailable')throw new Error('Cleanup authority unavailable; refresh when it is online.');
+   if(sequence!==previewSequence)return;
+   cleanupPreview=data;
+   host.innerHTML='<p><b>'+esc(data.applicationId)+(data.includeChildren?' — family':' — application only')+'</b></p><p>'+data.registrations.length+' registrations; '+data.contracts.length+' contracts. Current Operations state in this scope will also be cleared.</p>'+
+    '<table><thead><tr><th>Application</th><th>Instance</th><th>State</th></tr></thead><tbody>'+
+    data.registrations.map(x=>'<tr><td>'+esc(x.applicationId)+'</td><td>'+esc(x.instanceId)+'</td><td>'+esc(x.state)+'</td></tr>').join('')+'</tbody></table><p>Contracts: '+(data.contracts.map(esc).join(', ')||'None')+'</p>';
+ }catch(error){if(sequence===previewSequence)host.textContent='Preview unavailable: '+error.message}
+ if(sequence===previewSequence)updateCleanupControls();
+}
+async function cleanupApplication(){
+ if(!canManage||cleanupBusy||!cleanupPreview)return;
+ const preview=cleanupPreview;
+ if(!confirm('Have you stopped ALL applications in the selected scope: '+preview.applicationId+'?'))return;
+ if(prompt('Type '+preview.applicationId+' to clean up the previewed application'+(preview.includeChildren?' family':'')+':')!==preview.applicationId)return;
+ const reason=prompt('Reason for this registration reset:');
+ if(!reason||!reason.trim())return;
+ cleanupBusy=true;updateCleanupControls();
+ const status=document.getElementById('cleanupStatus');status.textContent='Cleaning up '+preview.applicationId+'…';
+ try{
+   const response=await fetch('/api/lifecycle-registrations/cleanup',{method:'POST',headers:{'Content-Type':'application/json','X-Aegis-Action':'registration-cleanup'},body:JSON.stringify({
+    applicationId:preview.applicationId,includeChildren:preview.includeChildren,reason:reason.trim(),
+    confirmation:preview.applicationId,applicationsStopped:true,
+    expectedRegistrationIds:preview.registrations.map(x=>x.registrationId),expectedContracts:preview.contracts})});
+   const result=await response.json().catch(()=>({}));
+   if(!response.ok)throw new Error(result.detail||result.error||('HTTP '+response.status));
+   status.textContent='Cleanup complete for '+preview.applicationId+': '+result.registrations+' registrations and '+result.retiredContracts+' contracts retired. Back up local registration identities, restart applications and approve their new Pending entries. History retained.';
+   cleanupPreview=null;targetsLoaded=false;await load();
+ }catch(error){cleanupPreview=null;status.textContent='Cleanup did not complete: '+error.message+'. Keep applications stopped and refresh the preview before retrying.'}
+ finally{cleanupBusy=false;updateCleanupControls()}
 }
 function actionButtons(x){if(!canManage)return '<span class="muted">Configuration.Manage required</span>';const id=encodeURIComponent(x.registrationId||''),s=String(x.state||'').toLowerCase(),b=[];if(['pending','recoverypending'].includes(s)){b.push(['approve','Approve','']);b.push(['reject','Reject','danger'])}if(s==='registered')b.push(['revoke','Revoke','danger']);if(['conflict','identityconflict'].includes(s)){b.push(['conflict/retain-existing','Retain Existing','']);b.push(['conflict/replace-with-incoming','Replace Incoming','danger'])}if(['revoked','rejected'].includes(s))b.push(['purge','Remove','danger']);return b.map(z=>'<button class="'+z[2]+'" onclick="act(\''+id+'\',\''+z[0]+'\')">'+z[1]+'</button>').join('')||'<span class="muted">No operator action</span>'}
 async function act(id,action){
@@ -164,9 +211,10 @@ async function load(){try{
 const me=await fetch('/auth/me',{cache:'no-store'});
 if(!me.ok)throw new Error('Sign in again to load current permissions.');
 const identity=await me.json();canManage=(identity.permissions||[]).some(p=>p.toLowerCase()==='configuration.manage');
-document.getElementById('cleanupCafeteria').disabled=!canManage||cleanupBusy;
+updateCleanupControls();
+if(canManage)await loadCleanupTargets();
 const status=document.getElementById('cleanupStatus');
-if(status.textContent.includes('Checking management'))status.textContent=canManage?'Management permission confirmed. Stop all Cafeteria applications before cleanup.':'Configuration.Manage is required for cleanup and registration actions. Sign in with an authorized administrator.';
+if(status.textContent.includes('Checking management'))status.textContent=canManage?'Management permission confirmed. Select an application or family and review its preview.':'Configuration.Manage is required for cleanup and registration actions. Sign in with an authorized administrator.';
 const r=await fetch('/api/lifecycle-registrations',{cache:'no-store'});authorityState(r);if(!r.ok)throw new Error('HTTP '+r.status);const x=await r.json(),list=Array.isArray(x)?x:(x.registrations||[]);rows.innerHTML=list.length?list.map(x=>'<tr><td><b>'+esc(x.applicationId)+'</b></td><td>'+esc(x.instanceId)+'</td><td class="'+tone(x.state)+'">'+esc(x.state||'Unknown')+'</td><td>'+esc(x.registrationId||'—')+'</td><td><div class="actions">'+actionButtons(x)+'</div></td></tr>').join(''):'<tr><td colspan="5">No registrations.</td></tr>';scan()}catch(e){rows.innerHTML='<tr><td colspan="5">Actions unavailable · '+esc(e.message)+'</td></tr>'}}load();setInterval(load,10000);
 """,
         "logs" => """
