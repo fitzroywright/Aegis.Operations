@@ -639,10 +639,20 @@ internal static class OperationsEndpoints
                     x => x.OrderByDescending(y => y.ObservedAtUtc).First(),
                     StringComparer.OrdinalIgnoreCase);
 
+            // Bootstrap identities live in Operations, not Configuration's ordinary
+            // application lifecycle store. Merge them explicitly into the inventory.
+            IReadOnlyList<ControlPlaneRegistrationRecord> controlPlaneRegistrations =
+                await registrationStore.ListActiveAsync(ct);
+            var controlPlaneKeys = controlPlaneRegistrations
+                .Select(x => Key(x.ApplicationId, x.InstanceId))
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            registrations.RemoveAll(x => controlPlaneKeys.Contains(Key(x.ApplicationId, x.InstanceId)));
+            lifecycleHistoryRecords.RemoveAll(x => controlPlaneKeys.Contains(Key(x.ApplicationId, x.InstanceId)));
+
             var applications = new List<object>();
             var history = new List<object>();
             var registeredKeys = new HashSet<string>(
-                registrations.Select(x => Key(x.ApplicationId, x.InstanceId)),
+                registrations.Select(x => Key(x.ApplicationId, x.InstanceId)).Concat(controlPlaneKeys),
                 StringComparer.OrdinalIgnoreCase);
 
             var currentRegistrations = new List<RegisteredApplicationJourney>();
@@ -786,6 +796,50 @@ internal static class OperationsEndpoints
                     reason = "Historical registration retained for audit. It is not the current authoritative instance."
                 });
             }
+
+            // Probe health independently of credential authentication: successful
+            // registration alone must not manufacture a healthy runtime observation.
+            HttpClient controlPlaneClient = factory.CreateClient("ops");
+            var controlPlaneRows = await Task.WhenAll(controlPlaneRegistrations.Select(async registration =>
+            {
+                string url = registration.ApplicationId switch
+                {
+                    "Aegis.Operations" => operationsLocalUrl,
+                    "Aegis.Configuration" => configurationUrl,
+                    "Aegis.Diagnostics" => diagnosticsUrl,
+                    _ => string.Empty
+                };
+                OperationalObservation health = await ProbeAsync(controlPlaneClient, url, ct);
+                telemetryByKey.TryGetValue(Key(registration.ApplicationId, registration.InstanceId), out var observed);
+                string label = RegistrationFlowStateFormatter.Format(
+                    "Registered", health.State, true, false, false, authorityAvailable: true);
+                return new
+                {
+                    registration.RegistrationId,
+                    registration.ApplicationId,
+                    displayName = registration.DisplayName,
+                    registration.InstanceId,
+                    installationId = string.Empty,
+                    registrationStatus = "Registered",
+                    registrationHealth = health.State.ToString(),
+                    registrationObservedAtUtc = registration.LastAuthenticatedAtUtc,
+                    state = health.State.ToString(),
+                    telemetryAvailable = true,
+                    aging = false,
+                    stale = false,
+                    registrationFlowLabel = label,
+                    registrationFlowTone = RegistrationFlowStateFormatter.Tone(label),
+                    observedAtUtc = health.ObservedAt,
+                    environment = observed?.Environment ?? environment,
+                    version = observed?.Version ?? "—",
+                    configurationStatus = observed?.ConfigurationStatus,
+                    build = observed?.Build,
+                    runbook = observed?.Runbook,
+                    reason = health.Reason ?? "Control-plane identity registered in Operations; runtime health checked directly.",
+                    registrationAuthority = "Operations"
+                };
+            }));
+            applications.AddRange(controlPlaneRows);
 
             foreach (ApplicationOperationalRecord observed in telemetry
                 .Where(x => !registeredKeys.Contains(Key(x.ApplicationId, x.InstanceId)))
@@ -1298,6 +1352,23 @@ internal static class OperationsEndpoints
                 ct);
 
             return validation == RegistrationValidation.Valid;
+        }
+
+        public async Task<IReadOnlyList<ControlPlaneRegistrationRecord>> ListActiveAsync(CancellationToken ct)
+        {
+            await _gate.WaitAsync(ct);
+            try
+            {
+                return (await LoadAllUnsafeAsync(ct))
+                    .Where(x => !x.Revoked)
+                    .GroupBy(x => (x.ApplicationId.ToUpperInvariant(), x.InstanceId.ToUpperInvariant()))
+                    .Select(x => x.OrderByDescending(y => y.CreatedAtUtc).First())
+                    .ToList();
+            }
+            finally
+            {
+                _gate.Release();
+            }
         }
 
         public async Task<IReadOnlyList<string>> RegisteredApplicationIdsAsync(CancellationToken ct)
