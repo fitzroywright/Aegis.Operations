@@ -3,7 +3,7 @@ using System.Text.Encodings.Web;
 internal static class OperationsSectionPage
 {
     internal static string RenderCafeteriaAcceptance(string configurationUrl, string diagnosticsUrl, string? userName = null) =>
-        Render("Diagnostics Level 5 · Acceptance Tests", "cafeteria-acceptance", configurationUrl, diagnosticsUrl, userName, CafeteriaAcceptancePage.Body);
+        Render("Diagnostics Level 1 · Acceptance Tests", "cafeteria-acceptance", configurationUrl, diagnosticsUrl, userName, CafeteriaAcceptancePage.Body);
     internal static string RenderApplications(string configurationUrl, string diagnosticsUrl, string? userName = null) =>
         Render("Applications", "applications", configurationUrl, diagnosticsUrl, userName, ApplicationsBody);
 

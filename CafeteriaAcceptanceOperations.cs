@@ -117,8 +117,8 @@ internal sealed class CafeteriaAcceptanceOperations(IConfiguration configuration
 
     public static void Map(WebApplication app, string configurationUrl, string diagnosticsUrl)
     {
-        app.MapGet("/cafeteria-acceptance", () => Results.Redirect("/diagnostics/level-5/acceptance"));
-        app.MapGet("/diagnostics/level-5/acceptance", (HttpContext context) => Results.Content(
+        app.MapGet("/cafeteria-acceptance", () => Results.Redirect("/diagnostics/level-1/acceptance"));
+        app.MapGet("/diagnostics/level-1/acceptance", (HttpContext context) => Results.Content(
             OperationsSectionPage.RenderCafeteriaAcceptance(configurationUrl, diagnosticsUrl, (context.Items["SuiteIdentity"] as SuiteIdentity)?.UserName), "text/html; charset=utf-8"));
         app.MapGet("/api/operations/acceptance/{applicationId}", async (string applicationId, HttpContext context, CafeteriaAcceptanceOperations service, CancellationToken ct) =>
         {

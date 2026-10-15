@@ -31,7 +31,7 @@ public sealed class CafeteriaAcceptanceOperationsTests
     public void Acceptance_page_uses_existing_operations_shell_and_safe_text_rendering()
     {
         string html = OperationsSectionPage.RenderCafeteriaAcceptance("http://configuration", "http://diagnostics", "Engineer");
-        Assert.Contains("lcars-top", html); Assert.Contains("Diagnostics Level 5", html);
+        Assert.Contains("lcars-top", html); Assert.Contains("Diagnostics Level 1", html);
         Assert.Contains("acceptanceApplication", html);
         Assert.Contains("Select an application", html);
         Assert.DoesNotContain("href=\"/cafeteria-acceptance\"", html);
