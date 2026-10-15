@@ -130,6 +130,8 @@ app.MapActivityTelemetry();
 app.MapOperationsLogs();
 app.MapOperationsSpecialized();
 CafeteriaAcceptanceOperations.Map(app, configurationUrl, diagnosticsUrl);
+OperationsIssueEndpoints.Map(app, configurationUrl, diagnosticsUrl);
 app.MapOperationsAdvisor();
 app.Run();
+
 

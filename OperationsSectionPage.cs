@@ -2,6 +2,7 @@ using System.Text.Encodings.Web;
 
 internal static class OperationsSectionPage
 {
+    internal static string RenderIssue(string applicationId, string body, string configurationUrl, string diagnosticsUrl) => Render(applicationId + " Issues", "issues", configurationUrl, diagnosticsUrl, null, body);
     internal static string RenderCafeteriaAcceptance(string configurationUrl, string diagnosticsUrl, string? userName = null) =>
         Render("Cafeteria Acceptance", "cafeteria-acceptance", configurationUrl, diagnosticsUrl, userName, CafeteriaAcceptancePage.Body);
     internal static string RenderApplications(string configurationUrl, string diagnosticsUrl, string? userName = null) =>
@@ -22,7 +23,7 @@ internal static class OperationsSectionPage
 <title>__TITLE__ · Operations</title>
 <style>
 :root{--alpha-blue:#5588ee;--arctic-ice:#66ccff;--arctic-snow:#99ccff;--radioactive:#88eeff;--starship-white:#f3f3fc;--sunset-red:#ff3500;--salmon:#7799dd;--title-gold:#ffcc66;--line:#455580;--line-soft:#344470;--muted:#99ccff;--rail-width:160px;--workspace-arm-height:48px;--elbow-radius:18px;--scroll-arrow-space:18px;--header-gap:18px}
-*{box-sizing:border-box}html,body{width:100%;height:100%;margin:0;overflow:hidden;background:#000;color:var(--starship-white);font:14px/1.35 "Arial Narrow","Roboto Condensed","Segoe UI",Arial,sans-serif}a{color:inherit;text-decoration:none}button,input,select{font:inherit}
+a:focus-visible,button:focus-visible{outline:3px solid #ffcc66;outline-offset:3px}*{box-sizing:border-box}html,body{width:100%;height:100%;margin:0;overflow:hidden;background:#000;color:var(--starship-white);font:14px/1.35 "Arial Narrow","Roboto Condensed","Segoe UI",Arial,sans-serif}a{color:inherit;text-decoration:none}button,input,select{font:inherit}
 .lcars-top{position:fixed;left:8px;right:18px;top:8px;height:140px;z-index:20;background:#000}.left-vertical{position:absolute;left:0;top:0;width:var(--rail-width);height:140px;background:var(--alpha-blue);border-radius:28px 0 0 28px}.bottom-arm{position:absolute;left:var(--rail-width);right:0;top:126px;height:14px;background:var(--alpha-blue);border-radius:0 9px 9px 0}.lcars-top::after{content:"";position:absolute;left:var(--rail-width);top:108px;width:var(--elbow-radius);height:var(--elbow-radius);background:radial-gradient(circle at 100% 0,transparent 0 calc(var(--elbow-radius) - 1px),var(--alpha-blue) var(--elbow-radius));z-index:4}
 .brand{position:absolute;left:calc(var(--rail-width) + 18px);top:8px;width:270px;height:96px}.brand .section{font-size:36px;line-height:1;color:var(--arctic-ice);font-weight:900;text-transform:uppercase;margin-top:10px}.brand .org{font-size:10px;color:var(--arctic-snow);font-weight:800;text-transform:uppercase;margin-top:5px;white-space:nowrap}.brand .datetime{margin-top:8px;font-weight:900;text-transform:uppercase;color:var(--arctic-ice);font-size:14px;white-space:nowrap}.brand .brand-user{margin-top:4px;color:var(--arctic-snow);font:800 10px/1 Arial,sans-serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:260px}
 .live-log{position:absolute;left:470px;top:8px;right:318px;height:108px;overflow:hidden;font:13px/1.35 ui-monospace,SFMono-Regular,Consolas,monospace}.recent-title{height:18px;background:var(--title-gold);color:#071018;font:900 10px/18px Arial,sans-serif;letter-spacing:.12em;text-transform:uppercase;padding:0 8px;border-radius:3px 3px 0 0}.recent-rows{height:90px;overflow:hidden;padding:3px 10px}.row{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.t{display:inline-block;min-width:176px;color:var(--arctic-snow)}.inf{color:var(--radioactive);font-weight:900}.wrn{color:var(--title-gold);font-weight:900}.src{color:var(--arctic-ice)}
@@ -65,7 +66,7 @@ __SCRIPT__
             .Replace("__APPLICATIONS__", active == "applications" ? "active" : "", StringComparison.Ordinal)
             .Replace("__DEPLOYMENTS__", active == "deployments" ? "active" : "", StringComparison.Ordinal)
             .Replace("__BODY__", body, StringComparison.Ordinal)
-            .Replace("__SCRIPT__", active == "cafeteria-acceptance" ? CafeteriaAcceptancePage.Script : active == "applications" ? ApplicationsScript : DeploymentsScript, StringComparison.Ordinal)
+            .Replace("__SCRIPT__", active == "issues" ? string.Empty : active == "cafeteria-acceptance" ? CafeteriaAcceptancePage.Script : active == "applications" ? ApplicationsScript : DeploymentsScript, StringComparison.Ordinal)
             .Replace("__VERSION__", HtmlEncoder.Default.Encode(version), StringComparison.Ordinal)
             .Replace("__CONTROL_PLANE_HEADER_CSS__", ControlPlaneHeader.Css, StringComparison.Ordinal);
     }
@@ -80,7 +81,7 @@ __SCRIPT__
     private const string ApplicationsScript = """
 async function load(){
  try{
-  const [registered,telemetry]=await Promise.all([fetch('/api/operations/registered-applications',{cache:'no-store'}).then(r=>r.json()),fetch('/api/operations/applications',{cache:'no-store'}).then(r=>r.json())]);
+  const [registered,telemetry]=await Promise.all([fetch('/api/operations/registered-applications',{cache:'no-store'}).then(r=>r.json()),fetch('/api/operations/applications',{cache:'no-store'}).then(r=>r.ok?r.json():[]).catch(()=>[])]);
   const apps=registered.applications||[], history=registered.history||[], raw=telemetry||[], byKey=new Map(raw.map(x=>[(x.applicationId+'|'+x.instanceId).toLowerCase(),x]));
   const uniqueApps=new Set(apps.map(x=>x.applicationId)), envs=new Set(apps.map(x=>x.environment).filter(x=>x&&x!=='—'));
   const configurationReady=x=>!x.configurationStatus||['published','configured','healthy','ready'].includes(String(x.configurationStatus).toLowerCase());
@@ -89,7 +90,7 @@ async function load(){
   authority.textContent=registered.authorityAvailable?'Configuration registration authority online · operational state merged by instance':'Registration authority unavailable'+(registered.authorityError?' · '+registered.authorityError:'');
   appsBody.innerHTML=apps.length?apps.map(a=>{const op=byKey.get((a.applicationId+'|'+a.instanceId).toLowerCase())||{};const deps=op.dependencies||[];return '<tr><td><b>'+esc(a.displayName||a.applicationId)+'</b><small>'+esc(a.applicationId)+(deps.length?' · '+deps.length+' dependencies':'')+'</small></td><td>'+esc(a.instanceId)+'</td><td>'+esc(a.environment)+'</td><td>'+esc(a.version||'—')+'<small>'+esc(a.build||'No build published')+'</small></td><td><span class="state '+esc(a.registrationFlowTone||'')+'">'+esc(a.registrationFlowLabel||a.registrationStatus||'Unknown')+'</span><small>'+esc(a.registrationHealth||'')+'</small></td><td><span class="state '+esc(a.state)+'">'+esc(a.stale?'Offline':a.state)+'</span><small>'+esc(a.reason||'')+'</small></td><td>'+esc(a.configurationStatus||'—')+'</td><td>'+fmt(a.observedAtUtc||a.registrationObservedAtUtc)+'</td></tr>'}).join(''):'<tr><td colspan="8">No applications registered.</td></tr>';
   const issues=apps.filter(a=>String(a.state).toLowerCase()!=='healthy'||a.stale||String(a.registrationHealth).toLowerCase()==='attention'||!configurationReady(a));
-  attentionList.innerHTML=issues.length?issues.map(a=>'<div class="activity-row"><b>'+esc(a.applicationId)+'</b><span class="state '+esc(a.state)+'">'+esc(!configurationReady(a)?(a.configurationStatus||'Attention'):(a.stale?'Offline':a.state))+'</span><span>'+esc(a.reason||a.registrationHealth||'Attention required')+'</span></div>').join(''):'<div class="muted">No application conditions require attention.</div>';
+  attentionList.innerHTML=issues.length?issues.map(a=>'<a class="activity-row" href="/issues?applicationId='+encodeURIComponent(a.applicationId)+'&amp;instanceId='+encodeURIComponent(a.instanceId||'')+'"><b>'+esc(a.applicationId)+'</b><span class="state '+esc(a.state)+'">'+esc(!configurationReady(a)?(a.configurationStatus||'Attention'):(a.stale?'Offline':a.state))+'</span><span>'+esc(a.reason||a.registrationHealth||'Attention required')+'</span></a>').join(''):'<div class="muted">No application conditions require attention.</div>';
   const depRows=raw.filter(x=>(x.dependencies||[]).length).map(x=>'<div class="activity-row"><b>'+esc(x.applicationId)+'</b><span>'+esc(x.instanceId)+'</span><span class="chips">'+x.dependencies.map(d=>'<span class="chip">'+esc(d)+'</span>').join('')+'</span></div>');
   dependencyList.innerHTML=depRows.length?depRows.join(''):'<div class="muted">No dependency telemetry has been published.</div>';
   window.__historyCount=history.length;
@@ -128,4 +129,5 @@ async function load(){
 load();refreshRecentLogs();setInterval(load,15000);setInterval(refreshRecentLogs,5000);
 """;
 }
+
 
