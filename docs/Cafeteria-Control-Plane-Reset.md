@@ -37,12 +37,13 @@ Stop that unit using sudo systemctl stop followed by the exact unit name shown. 
 ## Clean up using the UI
 
 1. Open Operations → Registration → Actions.
-2. Select **Clean up Cafeteria**.
-3. Confirm all Cafeteria applications have been stopped.
-4. Type **CAFETERIA**, then enter the reason.
-5. Wait for the completion message. If cleanup reports a failure, keep the applications stopped and retry before registering again.
+2. Under **Clean up application**, select **Aegis.Cafeteria — family (includes descendants)**.
+3. Review the registrations and contracts in the preview.
+4. Select **Clean up application**, confirm all selected applications have stopped, type **Aegis.Cafeteria**, and enter a reason.
+5. Wait for completion. If cleanup reports a failure, keep the applications stopped, refresh the preview, and retry.
+6. If the legacy **Cafeteria.Services** identity is listed separately, select it as an exact application and repeat cleanup for that entry.
 
-The server retires every active registration whose ApplicationId is exactly Aegis.Cafeteria or begins Aegis.Cafeteria. (including Services, POS and POS.UI), plus the legacy Cafeteria.Services identity, in any state including IdentityConflict. Credentials and runtime leases are invalidated, active contracts are retired, current Operations application rows are removed, active flows are closed, and active alerts are resolved. A marker prevents delayed telemetry from resurrecting an unregistered Cafeteria entry. Other application families are unchanged.
+The selected Aegis.Cafeteria family includes Services, POS and POS.UI. The server retires matching active registrations in any state, including IdentityConflict. The legacy Cafeteria.Services alias is a separate exact selection. Credentials and runtime leases are invalidated, active contracts are retired, current Operations application rows are removed, active flows are closed, and active alerts are resolved. A marker prevents delayed telemetry from resurrecting an unregistered Cafeteria entry. Other application families are unchanged.
 
 Historical Cafeteria logs remain visible by design. They are not proof that cleanup failed.
 

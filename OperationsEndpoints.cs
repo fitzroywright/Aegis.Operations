@@ -841,11 +841,11 @@ internal static class OperationsEndpoints
             }));
             applications.AddRange(controlPlaneRows);
 
-            bool cafeteriaReset = (await store.LoadAsync<ApplicationCleanupMarker>("application-cleanups", ct))
-                .Any(x => x.ApplicationFamily == "Aegis.Cafeteria");
+            var cleanupScopes = (await store.LoadAsync<ApplicationCleanupMarker>("application-cleanups", ct))
+                .Select(x => new RegistrationCleanupScope(x.ApplicationFamily, x.IncludeChildren)).ToArray();
             foreach (ApplicationOperationalRecord observed in telemetry
                 .Where(x => !registeredKeys.Contains(Key(x.ApplicationId, x.InstanceId)))
-                .Where(x => !cafeteriaReset || !CafeteriaControlPlaneCleanup.Matches(x.ApplicationId))
+                .Where(x => !cleanupScopes.Any(scope => scope.Matches(x.ApplicationId)))
                 .OrderBy(x => x.ApplicationId, StringComparer.OrdinalIgnoreCase)
                 .ThenBy(x => x.InstanceId, StringComparer.OrdinalIgnoreCase))
             {
