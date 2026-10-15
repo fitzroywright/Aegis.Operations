@@ -195,6 +195,28 @@ internal static class LifecycleRegistrationProxy
                 ct);
         });
 
+        app.MapPost("/api/lifecycle-registrations/cleanup/cafeteria", async (
+            HttpContext context,
+            [Microsoft.AspNetCore.Mvc.FromBody] CafeteriaCleanup request,
+            SuiteSecurity suiteSecurity,
+            IHttpClientFactory factory,
+            OperationsV1Store store,
+            CancellationToken ct) =>
+        {
+            if (!Has(context, "Configuration.Manage"))
+                return Results.Json(new { error = "Configuration.Manage permission is required." }, statusCode: 403);
+            if (context.Request.Headers["X-Aegis-Action"] != "registration-cleanup")
+                return Results.BadRequest(new { error = "Explicit cleanup action header is required." });
+            if (request.Confirmation != "CAFETERIA" || !request.ApplicationsStopped ||
+                string.IsNullOrWhiteSpace(request.Reason))
+                return Results.BadRequest(new { error = "Confirm CAFETERIA, stop its applications, and provide a reason." });
+            return await ForwardAsync(
+                context, suiteSecurity, factory,
+                configurationUrl.TrimEnd('/') + "/api/registration/cleanup/cafeteria",
+                HttpMethod.Post, request, ct,
+                async token => await CafeteriaControlPlaneCleanup.ClearCurrentStateAsync(store, token));
+        });
+
         app.MapGet("/registration-lifecycle", () => Results.Redirect("/registration/lifecycle", permanent: true));
     }
 
@@ -205,7 +227,8 @@ internal static class LifecycleRegistrationProxy
         string url,
         HttpMethod method,
         object? body,
-        CancellationToken ct)
+        CancellationToken ct,
+        Func<CancellationToken, Task>? afterSuccess = null)
     {
         using var request = new HttpRequestMessage(method, url);
         if (body is not null)
@@ -221,6 +244,9 @@ internal static class LifecycleRegistrationProxy
             "X-Aegis-Correlation-Id",
             Guid.NewGuid().ToString("N"));
 
+        if (source.Request.Headers["X-Aegis-Action"] == "registration-cleanup")
+            request.Headers.TryAddWithoutValidation("X-Aegis-Action", "registration-cleanup");
+
         bool cacheable = method == HttpMethod.Get;
         string cacheKey = method.Method + " " + url;
 
@@ -232,6 +258,12 @@ internal static class LifecycleRegistrationProxy
 
             string content = await response.Content.ReadAsStringAsync(ct);
             string contentType = response.Content.Headers.ContentType?.ToString() ?? "application/json";
+
+            if (response.IsSuccessStatusCode && !cacheable)
+            {
+                LastKnown.Clear();
+                if (afterSuccess is not null) await afterSuccess(ct);
+            }
 
             if (cacheable && response.IsSuccessStatusCode)
             {
@@ -284,4 +316,5 @@ internal static class LifecycleRegistrationProxy
            identity.Permissions.Contains(permission, StringComparer.OrdinalIgnoreCase);
 
     private sealed record LifecycleDecision(string? Reason);
+    private sealed record CafeteriaCleanup(string? Reason, string? Confirmation, bool ApplicationsStopped);
 }
