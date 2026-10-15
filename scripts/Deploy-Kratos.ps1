@@ -20,15 +20,7 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
-if (-not $SkipAuthoritativeBuild) {
-    $testEnvironmentScript = Join-Path $PSScriptRoot "Set-CommonMessagingPostgres.ps1"
-    if (-not (Test-Path $testEnvironmentScript)) {
-        throw "Missing test environment setup script: $testEnvironmentScript"
-    }
-
-    Write-Host "Loading shared Aegis test environment..." -ForegroundColor DarkCyan
-    & $testEnvironmentScript
-}
+# Authoritative test setup belongs to Build-All-Aegis.ps1, not the deploy entrypoint.
 
 function Invoke-Native {
     param(
