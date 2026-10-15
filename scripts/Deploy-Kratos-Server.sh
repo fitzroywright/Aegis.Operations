@@ -166,8 +166,12 @@ backup_current() {
   mkdir -p "$BACKUP_DIR/etc-aegis"
   for app in "${SELECTED[@]}"; do
     env_file="/etc/aegis/$app.env"
-    [[ -f "$env_file" ]] && cp -a "$env_file" "$BACKUP_DIR/etc-aegis/"
+    if [[ -f "$env_file" ]]; then
+      cp -a "$env_file" "$BACKUP_DIR/etc-aegis/"
+    fi
   done
+  # An absent optional environment file must not fail a successful backup.
+  return 0
 }
 
 cleanup_legacy_registration() {
@@ -192,6 +196,8 @@ migrate_common_secrets_env() {
   log "Migrating Common.Secrets environment configuration to provider instances"
 
   for app in "${SELECTED[@]}"; do
+    # Cafeteria uses /etc/aegis-cafeteria-services/environment, not the control-plane env format.
+    [[ "$app" == "cafeteria" ]] && continue
     env_file="/etc/aegis/$app.env"
     [[ -f "$env_file" ]] || continue
 
