@@ -63,7 +63,7 @@ internal static class OperationsPage
   --top-right-inset:18px;
   --header-gap:18px;
 }
-*{box-sizing:border-box}
+a:focus-visible,button:focus-visible{outline:3px solid #ffcc66;outline-offset:3px}*{box-sizing:border-box}
 html,body{width:100%;height:100%;margin:0;overflow:hidden;background:#000;color:var(--white);font-family:"Arial Narrow","Roboto Condensed","Segoe UI",Arial,sans-serif}
 body{position:relative}
 a{color:inherit;text-decoration:none}
@@ -356,7 +356,7 @@ function renderHistory(items){
 function renderAlerts(items){
   const rows=(items??[]).filter(a=>String(a.state??'').toLowerCase()!=='resolved').slice(0,6);
   if(!rows.length){alertList.innerHTML='<div class="activity-row"><i class="dot" style="background:var(--green)"></i><span>0</span><b>No conditions currently require operator attention.</b></div>';return}
-  alertList.innerHTML=rows.map(a=>'<div class="activity-row"><i class="dot" style="background:var(--yellow)"></i><span>'+esc(a.applicationId||a.application||a.type||'Alert')+'</span><b>'+esc(a.message||a.text||a.title||a.state||'Attention required')+'</b></div>').join('');
+  alertList.innerHTML=rows.map(a=>'<a class="activity-row" href="/issues?applicationId='+encodeURIComponent(a.applicationId||a.application||'')+'&amp;alertId='+encodeURIComponent(a.alertId||'')+'"><i class="dot" style="background:var(--yellow)"></i><span>'+esc(a.applicationId||a.application||a.type||'Alert')+'</span><b>'+esc(a.message||a.text||a.title||a.state||'Attention required')+'</b></a>').join('');
 }
 function renderFlows(flows){
   const rows=(flows??[]).filter(flowIsActive).slice(0,8);
@@ -458,4 +458,5 @@ installAegisConsoleAudio();
 """;
     }
 }
+
 
