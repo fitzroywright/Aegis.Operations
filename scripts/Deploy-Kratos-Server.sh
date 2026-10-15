@@ -30,7 +30,7 @@ Expected staging layout:
   SOURCE/diagnostics/Aegis.Diagnostics.dll
   SOURCE/hello/Aegis.Hello.dll
   SOURCE/requestportal/RequestPortal.Web.dll
-  SOURCE/studio/Aegis.Studio.Web.dll
+  SOURCE/studio/Aegis.Studio.Web.dll\n  SOURCE/cafeteria/Aegis.Cafeteria.Services.dll
 
 This script preserves application environment files and secrets. During registration-lifecycle migration it removes obsolete ordinary-application registration keys after backing the files up.
 EOF
@@ -61,6 +61,7 @@ declare -A TARGET=(
   [hello]="/opt/aegis/hello"
   [requestportal]="/opt/aegis/requestportal"
   [studio]="/opt/aegis/studio"
+  [cafeteria]="/opt/aegis-cafeteria-services"
 )
 declare -A SERVICE=(
   [operations]="aegis-operations"
@@ -69,6 +70,7 @@ declare -A SERVICE=(
   [hello]="aegis-hello"
   [requestportal]="aegis-requestportal"
   [studio]="aegis-studio"
+  [cafeteria]="aegis-cafeteria-services"
 )
 declare -A DLL=(
   [operations]="Aegis.Operations.dll"
@@ -77,6 +79,7 @@ declare -A DLL=(
   [hello]="Aegis.Hello.dll"
   [requestportal]="RequestPortal.Web.dll"
   [studio]="Aegis.Studio.Web.dll"
+  [cafeteria]="Aegis.Cafeteria.Services.dll"
 )
 declare -A HEALTH=(
   [operations]="http://127.0.0.1:5100/health"
@@ -85,6 +88,7 @@ declare -A HEALTH=(
   [hello]="http://127.0.0.1:5400/health"
   [requestportal]="http://127.0.0.1:5401/health"
   [studio]="http://127.0.0.1:5402/health"
+  [cafeteria]="http://127.0.0.1:5088/health"
 )
 
 SELECTED=()
@@ -132,7 +136,7 @@ is_selected() {
 
 stop_selected() {
   # Dependents first; RequestPortal is downstream of the control-plane services.
-  for app in studio requestportal hello operations diagnostics configuration; do
+  for app in cafeteria studio requestportal hello operations diagnostics configuration; do
     if is_selected "$app"; then
       systemctl stop "${SERVICE[$app]}" || true
     fi
@@ -141,7 +145,7 @@ stop_selected() {
 
 start_selected() {
   # Operations provides restricted control-plane bootstrap; Configuration is the ordinary application registration authority.
-  for app in operations configuration diagnostics hello requestportal studio; do
+  for app in operations configuration diagnostics hello requestportal studio cafeteria; do
     if is_selected "$app"; then
       systemctl start "${SERVICE[$app]}"
     fi
@@ -255,7 +259,15 @@ deploy_payload() {
       # Runtime configuration contracts are persistent state, never deployment content.
       rm -rf "$target/contracts"
     fi
-    chown -R "$OWNER" "$target"
+    if [[ "$app" == "cafeteria" ]]; then
+      chown -R aegis-cafeteria:aegis-cafeteria "$target"
+    else
+      if [[ "$app" == "cafeteria" ]]; then
+        chown -R aegis-cafeteria:aegis-cafeteria "$target"
+      else
+        chown -R "$OWNER" "$target"
+      fi
+    fi
     if [[ -d "$target/scripts" ]]; then
       find "$target/scripts" -maxdepth 1 -type f \( -name '*.sh' -o -name 'aegis-hello' \) -exec chmod 0755 {} +
     fi
