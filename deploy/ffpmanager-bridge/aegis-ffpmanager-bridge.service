@@ -1,0 +1,26 @@
+[Unit]
+Description=Request Portal FFP Manager Bridge
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=aegis-ffpmanager-bridge
+Group=aegis-ffpmanager-bridge
+WorkingDirectory=/opt/aegis/ffpmanager-bridge
+ExecStart=/usr/bin/dotnet /opt/aegis/ffpmanager-bridge/FfpManager.Bridge.dll
+Environment=ASPNETCORE_ENVIRONMENT=Production
+Environment=DOTNET_ENVIRONMENT=Production
+Environment=Aegis__Diagnostics__StorePath=/var/lib/aegis-ffpmanager-bridge/diagnostics.db
+EnvironmentFile=/etc/aegis/ffpmanager-bridge.env
+StateDirectory=aegis-ffpmanager-bridge
+StateDirectoryMode=0750
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+UMask=0027
+
+[Install]
+WantedBy=multi-user.target
