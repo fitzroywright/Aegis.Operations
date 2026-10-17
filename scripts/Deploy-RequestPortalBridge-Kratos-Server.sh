@@ -26,6 +26,8 @@ getent passwd "$owner" >/dev/null || { echo 'Provision the dedicated service ide
 [[ -f "$environment" && ! -L "$environment" ]] || { echo 'Provision the root-owned environment file first.' >&2; exit 2; }
 [[ "$(stat -c %u "$environment")" == 0 && "$(stat -c %a "$environment")" == 600 ]] || { echo 'Environment file must be root-owned mode 600.' >&2; exit 2; }
 [[ -f /etc/systemd/system/$service ]] || { echo 'Provision the bridge systemd unit first.' >&2; exit 2; }
+[[ -x /usr/local/libexec/aegis-check-requestportal-bridge ]] || { echo 'Run the current bridge bootstrap before deployment.' >&2; exit 2; }
+/usr/bin/python3 /usr/local/libexec/aegis-check-requestportal-bridge --env-file "$environment"
 
 # Prevent publishing local settings or development secrets into the installed app.
 [[ ! -f "$source_root/appsettings.Production.json" ]] || 
