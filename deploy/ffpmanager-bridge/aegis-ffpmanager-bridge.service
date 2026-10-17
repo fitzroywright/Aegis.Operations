@@ -8,6 +8,7 @@ Type=simple
 User=aegis-ffpmanager-bridge
 Group=aegis-ffpmanager-bridge
 WorkingDirectory=/opt/aegis/ffpmanager-bridge
+ExecStartPre=/usr/bin/python3 /usr/local/libexec/aegis-check-requestportal-bridge
 ExecStart=/usr/bin/dotnet /opt/aegis/ffpmanager-bridge/FfpManager.Bridge.dll
 Environment=ASPNETCORE_ENVIRONMENT=Production
 Environment=DOTNET_ENVIRONMENT=Production

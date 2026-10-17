@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [Parameter(Mandatory)][uri]$BridgeBaseUrl,
+    [uri]$BridgeBaseUrl,
     [string]$Root = $(if ($IsWindows) { 'D:\Projects' } else { Join-Path $HOME 'Projects' }),
     [string]$HostName = 'kratos',
     [string]$UserName = 'fwright@fftpj.local',
@@ -9,7 +9,8 @@ param(
     [switch]$SkipTests,
     [switch]$SkipPublishBuild,
     [switch]$KeepLocalBundle,
-    [switch]$KeepRemoteBundle
+    [switch]$KeepRemoteBundle,
+    [switch]$InitializeOnly
 )
 
 Set-StrictMode -Version Latest
@@ -27,12 +28,52 @@ function Quote-Shell {
     return "'" + $Value.Replace("'", "'\''") + "'"
 }
 
-if (-not $BridgeBaseUrl.IsAbsoluteUri -or $BridgeBaseUrl.Scheme -ne 'https' -or
+if (-not $InitializeOnly -and ($null -eq $BridgeBaseUrl -or -not $BridgeBaseUrl.IsAbsoluteUri -or $BridgeBaseUrl.Scheme -ne 'https' -or
     $BridgeBaseUrl.UserInfo -or $BridgeBaseUrl.Query -or $BridgeBaseUrl.Fragment -or
-    $BridgeBaseUrl.AbsolutePath -ne '/') {
+    $BridgeBaseUrl.AbsolutePath -ne '/')) {
     throw 'BridgeBaseUrl must be an absolute HTTPS origin, without credentials, path, query or fragment.'
 }
 if ($HostName -notmatch '^[A-Za-z0-9][A-Za-z0-9.-]*$') { throw 'Invalid SSH host name.' }
+
+if ($InitializeOnly) {
+    # Interactive first installation: sudo may prompt on the remote TTY.
+    # Ordinary deployments still use the installed root-owned deployer only.
+    $initScript = Join-Path $PSScriptRoot 'Initialize-RequestPortalBridge-Kratos.sh'
+    $initAssets = Join-Path $PSScriptRoot '../deploy/ffpmanager-bridge'
+    foreach ($required in @($initScript, $initAssets)) {
+        if (-not (Test-Path -LiteralPath $required)) { throw "Missing bootstrap asset: $required" }
+    }
+    $initRoot = Join-Path ([IO.Path]::GetTempPath()) ('bridge-bootstrap-' + [guid]::NewGuid().ToString('N'))
+    $initArchive = "$initRoot.tgz"
+    $remoteInit = '/tmp/' + [IO.Path]::GetFileName($initRoot)
+    $auth = @('-o', 'BatchMode=yes')
+    if ($IdentityFile) { $auth += @('-i', $IdentityFile) }
+    try {
+        New-Item -ItemType Directory -Path (Join-Path $initRoot 'scripts') -Force | Out-Null
+        New-Item -ItemType Directory -Path (Join-Path $initRoot 'deploy') -Force | Out-Null
+        Copy-Item -LiteralPath $initScript -Destination (Join-Path $initRoot 'scripts')
+        Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'Deploy-RequestPortalBridge-Kratos-Server.sh') -Destination (Join-Path $initRoot 'scripts')
+        Copy-Item -LiteralPath $initAssets -Destination (Join-Path $initRoot 'deploy/ffpmanager-bridge') -Recurse
+        Invoke-Native 'tar' @('-czf', $initArchive, '-C', $initRoot, '.')
+        Invoke-Native 'scp' ($auth + @('-o', "User=$UserName", $initArchive, "${HostName}:$remoteInit.tgz"))
+        $qInit = Quote-Shell $remoteInit
+        $qInitArchive = Quote-Shell "$remoteInit.tgz"
+        $initCommand = @(
+            'set -eu',
+            ('trap ' + (Quote-Shell "rm -rf -- $qInit; rm -f -- $qInitArchive") + ' EXIT'),
+            "mkdir -m 700 $qInit",
+            "tar -xzf $qInitArchive -C $qInit",
+            "sudo bash $qInit/scripts/Initialize-RequestPortalBridge-Kratos.sh"
+        ) -join "`n"
+        Invoke-Native 'ssh' ($auth + @('-t', '-l', $UserName, $HostName, $initCommand))
+        Write-Host 'Bootstrap installed. Complete /etc/aegis/ffpmanager-bridge.env, TLS and secrets before normal deployment.'
+    }
+    finally {
+        Remove-Item -LiteralPath $initRoot -Recurse -Force -ErrorAction SilentlyContinue
+        Remove-Item -LiteralPath $initArchive -Force -ErrorAction SilentlyContinue
+    }
+    return
+}
 
 $project = Join-Path $Root 'RequestPortal/FfpManager.Bridge/FfpManager.Bridge.csproj'
 $solution = Join-Path $Root 'RequestPortal/RequestPortal.slnx'
