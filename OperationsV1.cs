@@ -131,6 +131,7 @@ internal sealed class OperationsV1Store
         _alertRetention = Math.Clamp(configuration.GetValue("Operations:Retention:Alerts", 5000), 100, 100000);
         _engineerLogRetention = Math.Clamp(configuration.GetValue("Operations:Retention:EngineerLog", 5000), 100, 100000);
         Directory.CreateDirectory(_root);
+        CleanupStaleTemporaryFiles();
     }
 
     internal async Task<IReadOnlyList<T>> LoadAsync<T>(string bucket, CancellationToken ct)
@@ -217,12 +218,51 @@ internal sealed class OperationsV1Store
     {
         string path = Path.Combine(_root, bucket + ".json");
         string temp = path + ".tmp-" + Guid.NewGuid().ToString("N");
-        await File.WriteAllTextAsync(temp, JsonSerializer.Serialize(values, JsonOptions), ct);
-        if (!OperatingSystem.IsWindows())
-            File.SetUnixFileMode(temp, UnixFileMode.UserRead | UnixFileMode.UserWrite);
-        File.Move(temp, path, true);
-        if (!OperatingSystem.IsWindows())
-            File.SetUnixFileMode(path, UnixFileMode.UserRead | UnixFileMode.UserWrite);
+        try
+        {
+            await File.WriteAllTextAsync(temp, JsonSerializer.Serialize(values, JsonOptions), ct);
+            if (!OperatingSystem.IsWindows())
+                File.SetUnixFileMode(temp, UnixFileMode.UserRead | UnixFileMode.UserWrite);
+            File.Move(temp, path, true);
+            if (!OperatingSystem.IsWindows())
+                File.SetUnixFileMode(path, UnixFileMode.UserRead | UnixFileMode.UserWrite);
+        }
+        finally
+        {
+            try
+            {
+                if (File.Exists(temp))
+                    File.Delete(temp);
+            }
+            catch
+            {
+                // A failed cleanup must not mask the original persistence error.
+            }
+        }
+    }
+
+    private void CleanupStaleTemporaryFiles()
+    {
+        DateTime cutoff = DateTime.UtcNow.AddHours(-1);
+        try
+        {
+            foreach (string temp in Directory.EnumerateFiles(_root, "*.json.tmp-*", SearchOption.TopDirectoryOnly))
+            {
+                try
+                {
+                    if (File.GetLastWriteTimeUtc(temp) < cutoff)
+                        File.Delete(temp);
+                }
+                catch
+                {
+                    // Startup cleanup is best-effort; persistence remains available.
+                }
+            }
+        }
+        catch
+        {
+            // An inaccessible data directory is reported by normal store operations.
+        }
     }
 }
 
