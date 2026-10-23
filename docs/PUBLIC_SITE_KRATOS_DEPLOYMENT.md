@@ -39,18 +39,19 @@ Optional parameters include `-ProjectsRoot`, `-HostName`, `-UserName`, and `-Kee
 - Persistent DB/media store: `/var/lib/aegis-public-site`.
 - Environment and generated server secrets: `/etc/aegis/public-site.env`.
 - Service: `aegis-public-site.service`, with a persistent Node path and `HOST=127.0.0.1`, `PORT=5403`.
-- Nginx HTTP site: `api.bryanstudiosltd.com` -> `127.0.0.1:5403`. Existing Nginx configuration is preserved if the Public Site site file already exists.
+- Nginx site: `api.bryanstudiosltd.com` redirects HTTP to HTTPS and proxies to `127.0.0.1:5403`. On first setup it reuses Studio's certificate files at `/etc/letsencrypt/live/studio.bryanstudiosltd.com/fullchain.pem` and `privkey.pem`, and verifies the certificate covers `*.bryanstudiosltd.com` (or the exact API hostname). Existing API Nginx configuration is preserved if its site file already exists.
 - Health validation: `http://127.0.0.1:5403/health`; a failed validation triggers the deployer's backup and rollback path.
 
 The deployer creates `/etc/aegis/public-site.env` on first install with random session and provisioning secrets, production mode, demo login disabled, and a separate persistent data path. Keep this file root-owned and protected.
 
 ## HTTPS and post-deploy checks
 
-After the first successful deployment, on Kratos run:
+No separate Certbot certificate is needed: the deployer uses the existing Studio wildcard certificate. Before deployment, confirm on Kratos that its SAN includes `*.bryanstudiosltd.com` and that the certificate and key files are readable by root:
 
 ```bash
-sudo certbot --nginx -d api.bryanstudiosltd.com
-sudo certbot renew --dry-run
+sudo openssl x509 -in /etc/letsencrypt/live/studio.bryanstudiosltd.com/fullchain.pem -noout -ext subjectAltName
+sudo test -r /etc/letsencrypt/live/studio.bryanstudiosltd.com/fullchain.pem
+sudo test -r /etc/letsencrypt/live/studio.bryanstudiosltd.com/privkey.pem
 ```
 
 From the Mac, verify both DNS paths and HTTPS:
