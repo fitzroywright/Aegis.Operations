@@ -27,7 +27,7 @@ if (-not (Test-Path -LiteralPath $ProjectsRoot -PathType Container)) {
 }
 $ProjectsRoot = (Resolve-Path -LiteralPath $ProjectsRoot).Path
 $publicSitePath = Join-Path (Join-Path $ProjectsRoot "Aegis.Studio") "Aegis.Studio.PublicSite"
-$deployScript = Join-Path (Join-Path $ProjectsRoot "Aegis.Operations") "scripts/Deploy-Kratos.ps1"
+$deployScript = Join-Path (Join-Path (Join-Path $ProjectsRoot "Aegis.Operations") "scripts") "Deploy-Kratos.ps1"
 
 if (-not (Test-Path (Join-Path $publicSitePath "package.json"))) {
     throw "Bryan's Public Site project was not found: $publicSitePath"
