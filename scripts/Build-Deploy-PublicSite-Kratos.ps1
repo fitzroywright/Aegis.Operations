@@ -83,7 +83,7 @@ try {
     Write-Host ""
     Write-Host "Deployment and local Kratos health check completed." -ForegroundColor Green
     Write-Host "Service: aegis-public-site (Node 24 at /opt/nodejs/current)"
-    Write-Host "API host: https://api.bryanstudiosltd.com (run Certbot after initial HTTP deployment)"
+    Write-Host "API host: https://api.bryanstudiosltd.com (uses the existing Studio wildcard certificate)"
 }
 finally {
     Set-Location $originalLocation
