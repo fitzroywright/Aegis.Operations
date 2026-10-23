@@ -2,7 +2,7 @@
 param(
     [string]$HostName = "kratos",
     [string]$UserName = "fwright@fftpj.local",
-    [ValidateSet("operations","configuration","diagnostics","hello","requestportal","studio","cafeteria")]
+    [ValidateSet("operations","configuration","diagnostics","hello","requestportal","studio","cafeteria","publicsite")]
     [string[]]$Applications = @("operations","configuration","diagnostics","hello"),
     [string]$ProjectsRoot = $(if ([Environment]::OSVersion.Platform -eq [PlatformID]::Win32NT) { "D:\Projects" } else { Join-Path $HOME "Projects" }),
     [string]$RemoteArchive = "/tmp/aegis-control-plane.tgz",
@@ -119,6 +119,9 @@ $definitions = @{
     cafeteria = @{
         Project = Join-Path $ProjectsRoot "Aegis.Cafeteria\Aegis.Cafeteria.Services\Aegis.Cafeteria.Services.csproj"
     }
+    publicsite = @{
+        Source = Join-Path (Join-Path $ProjectsRoot "Aegis.Studio") "Aegis.Studio.PublicSite"
+    }
 }
 
 $Applications = $Applications | ForEach-Object { $_.ToLowerInvariant() } | Select-Object -Unique
@@ -153,18 +156,31 @@ try {
     foreach ($app in $Applications) {
         $definition = $definitions[$app]
         if (-not $definition) { throw "Unsupported application: $app" }
-        if (-not (Test-Path $definition.Project)) { throw "Project not found: $($definition.Project)" }
-
         $output = Join-Path $payloadRoot $app
         New-Item -ItemType Directory -Force -Path $output | Out-Null
 
         Write-Host "`n========================================"
-        Write-Host " PUBLISH $app"
+        Write-Host " STAGE $app"
         Write-Host "========================================"
-        # --no-build is only safe when explicitly requested. An authoritative suite build
-        # can validate the source, but project references may carry NoBuild state into
-        # publish under .NET 10 and fail with NETSDK1085. Publish normally by default.
-        Invoke-SafePublish -Project $definition.Project -Output $output -NoBuild:$SkipPublishBuild
+
+        if ($app -eq "publicsite") {
+            if (-not (Test-Path (Join-Path $definition.Source "package.json"))) {
+                throw "Public Site package.json not found: $($definition.Source)"
+            }
+            Get-ChildItem -LiteralPath $definition.Source -Force |
+                Where-Object { $_.Name -notin @("node_modules", ".env", "data", ".git") } |
+                ForEach-Object { Copy-Item -LiteralPath $_.FullName -Destination $output -Recurse -Force }
+            foreach ($required in @("server.mjs", "intake-api.mjs", "intake-store.mjs", "public", "package.json")) {
+                if (-not (Test-Path (Join-Path $output $required))) { throw "Public Site staging is missing $required" }
+            }
+        }
+        else {
+            if (-not (Test-Path $definition.Project)) { throw "Project not found: $($definition.Project)" }
+            # --no-build is only safe when explicitly requested. An authoritative suite build
+            # can validate the source, but project references may carry NoBuild state into
+            # publish under .NET 10 and fail with NETSDK1085. Publish normally by default.
+            Invoke-SafePublish -Project $definition.Project -Output $output -NoBuild:$SkipPublishBuild
+        }
     }
 
     $bundleFile = Join-Path ([IO.Path]::GetTempPath()) ("aegis-control-plane-" + [Guid]::NewGuid().ToString("N") + ".tgz")
