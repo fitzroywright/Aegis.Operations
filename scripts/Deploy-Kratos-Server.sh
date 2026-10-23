@@ -506,6 +506,18 @@ EOF
 fi
 
 if is_selected publicsite; then
+  # Validate the dedicated Certbot certificate before creating or enabling the service.
+  api_cert="/etc/letsencrypt/live/api.bryanstudiosltd.com/fullchain.pem"
+  api_key="/etc/letsencrypt/live/api.bryanstudiosltd.com/privkey.pem"
+  if [[ ! -r "$api_cert" || ! -r "$api_key" ]]; then
+    echo "ERROR: API Certbot certificate/key are missing. On Kratos, configure the HTTP Nginx site and run: sudo certbot --nginx -d api.bryanstudiosltd.com" >&2
+    exit 1
+  fi
+  if ! openssl x509 -in "$api_cert" -noout -ext subjectAltName | grep -Fq 'DNS:api.bryanstudiosltd.com'; then
+    echo "ERROR: API Certbot certificate does not cover api.bryanstudiosltd.com." >&2
+    exit 1
+  fi
+
   log "Preparing Bryan's Public Site runtime"
   NODE_BIN="/opt/nodejs/current/bin/node"
   NPM_BIN="/opt/nodejs/current/bin/npm"
@@ -578,18 +590,6 @@ EOF
   fi
   install -d /etc/nginx/sites-available /etc/nginx/sites-enabled
   publicsite_nginx_site="/etc/nginx/sites-available/bryans-api"
-  # Reuse the pfSense-provided certificate already installed for Nginx sites.
-  # Verify that it covers the API hostname before enabling the HTTPS virtual host.
-  pfsense_cert="/etc/ssl/ffpja.org/adminCertificates.fullchain"
-  pfsense_key="/etc/ssl/ffpja.org/adminCertificates.key"
-  if [[ ! -r "$pfsense_cert" || ! -r "$pfsense_key" ]]; then
-    echo "ERROR: pfSense certificate/key are not readable at /etc/ssl/ffpja.org/adminCertificates.*." >&2
-    exit 1
-  fi
-  if ! openssl x509 -in "$pfsense_cert" -noout -ext subjectAltName | grep -Eq 'DNS:\*\.bryanstudiosltd\.com|DNS:api\.bryanstudiosltd\.com'; then
-    echo "ERROR: pfSense certificate does not cover *.bryanstudiosltd.com or api.bryanstudiosltd.com." >&2
-    exit 1
-  fi
   if [[ ! -f "$publicsite_nginx_site" ]]; then
     cat >"$publicsite_nginx_site" <<'EOF'
 server {
@@ -604,8 +604,8 @@ server {
     listen [::]:443 ssl;
     server_name api.bryanstudiosltd.com;
 
-    ssl_certificate /etc/ssl/ffpja.org/adminCertificates.fullchain;
-    ssl_certificate_key /etc/ssl/ffpja.org/adminCertificates.key;
+    ssl_certificate /etc/letsencrypt/live/api.bryanstudiosltd.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/api.bryanstudiosltd.com/privkey.pem;
     client_max_body_size 32m;
 
     location / {
