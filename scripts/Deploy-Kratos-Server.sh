@@ -577,7 +577,7 @@ EOF
     exit 1
   fi
   install -d /etc/nginx/sites-available /etc/nginx/sites-enabled
-  publicsite_nginx_site="/etc/nginx/sites-available/aegis-public-site"
+  publicsite_nginx_site="/etc/nginx/sites-available/bryans-api"
   if [[ ! -f "$publicsite_nginx_site" ]]; then
     cat >"$publicsite_nginx_site" <<'EOF'
 server {
@@ -599,7 +599,7 @@ EOF
   else
     log "Preserving existing Public Site Nginx configuration"
   fi
-  ln -sfn "$publicsite_nginx_site" /etc/nginx/sites-enabled/aegis-public-site
+  ln -sfn "$publicsite_nginx_site" /etc/nginx/sites-enabled/bryans-api
   nginx -t
   systemctl reload nginx
 fi
