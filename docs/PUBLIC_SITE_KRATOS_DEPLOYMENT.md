@@ -39,20 +39,46 @@ Optional parameters include `-ProjectsRoot`, `-HostName`, `-UserName`, and `-Kee
 - Persistent DB/media store: `/var/lib/aegis-public-site`.
 - Environment and generated server secrets: `/etc/aegis/public-site.env`.
 - Service: `aegis-public-site.service`, with a persistent Node path and `HOST=127.0.0.1`, `PORT=5403`.
-- Nginx site: `api.bryanstudiosltd.com` redirects HTTP to HTTPS and proxies to `127.0.0.1:5403`. On first setup it reuses pfSense-provided certificate files at `/etc/ssl/ffpja.org/adminCertificates.fullchain` and `/etc/ssl/ffpja.org/adminCertificates.key`, and verifies the certificate covers `*.bryanstudiosltd.com` (or the exact API hostname). Existing API Nginx configuration is preserved if its site file already exists.
+- Nginx site: `api.bryanstudiosltd.com` redirects HTTP to HTTPS and proxies to `127.0.0.1:5403`. It uses the dedicated Certbot certificate at `/etc/letsencrypt/live/api.bryanstudiosltd.com/`. Existing API Nginx configuration is preserved so Certbot-managed TLS directives remain intact.
 - Health validation: `http://127.0.0.1:5403/health`; a failed validation triggers the deployer's backup and rollback path.
 
 The deployer creates `/etc/aegis/public-site.env` on first install with random session and provisioning secrets, production mode, demo login disabled, and a separate persistent data path. Keep this file root-owned and protected.
 
-## HTTPS and post-deploy checks
+## Obtain the API certificate on Kratos
 
-No separate Certbot certificate is needed: the deployer uses the pfSense-provided certificate installed for Nginx. Before deployment, confirm on Kratos that its SAN includes `*.bryanstudiosltd.com` (or the exact API hostname) and that the files are readable by root:
+Before the first deployment, create an HTTP Nginx site for the API so Certbot can validate the hostname. On Kratos:
 
 ```bash
-sudo openssl x509 -in /etc/ssl/ffpja.org/adminCertificates.fullchain -noout -ext subjectAltName
-sudo test -r /etc/ssl/ffpja.org/adminCertificates.fullchain
-sudo test -r /etc/ssl/ffpja.org/adminCertificates.key
+sudo tee /etc/nginx/sites-available/bryans-api >/dev/null <<'EOF'
+server {
+    listen 80;
+    listen [::]:80;
+    server_name api.bryanstudiosltd.com;
+    client_max_body_size 32m;
+
+    location / {
+        proxy_pass http://127.0.0.1:5403;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+EOF
+sudo ln -sfn /etc/nginx/sites-available/bryans-api /etc/nginx/sites-enabled/bryans-api
+sudo nginx -t && sudo systemctl reload nginx
+sudo certbot --nginx -d api.bryanstudiosltd.com
 ```
+
+If Certbot offers to redirect HTTP to HTTPS, choose the redirect option. Verify the issued certificate before deploying:
+
+```bash
+sudo openssl x509 -in /etc/letsencrypt/live/api.bryanstudiosltd.com/fullchain.pem -noout -ext subjectAltName
+sudo test -r /etc/letsencrypt/live/api.bryanstudiosltd.com/privkey.pem
+```
+
+The SAN output must include `DNS:api.bryanstudiosltd.com`. The deployer checks this certificate before creating or enabling the service, then preserves the Certbot-managed Nginx configuration.
 
 From the Mac, verify both DNS paths and HTTPS:
 
