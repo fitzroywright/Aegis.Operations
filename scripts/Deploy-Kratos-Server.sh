@@ -578,16 +578,16 @@ EOF
   fi
   install -d /etc/nginx/sites-available /etc/nginx/sites-enabled
   publicsite_nginx_site="/etc/nginx/sites-available/bryans-api"
-  # Reuse the certificate already configured for Studio. Verify that it is a valid
-  # certificate for this API hostname before enabling the HTTPS virtual host.
-  studio_cert="/etc/letsencrypt/live/studio.bryanstudiosltd.com/fullchain.pem"
-  studio_key="/etc/letsencrypt/live/studio.bryanstudiosltd.com/privkey.pem"
-  if [[ ! -r "$studio_cert" || ! -r "$studio_key" ]]; then
-    echo "ERROR: Studio wildcard certificate/key are not readable at the expected paths." >&2
+  # Reuse the pfSense-provided certificate already installed for Nginx sites.
+  # Verify that it covers the API hostname before enabling the HTTPS virtual host.
+  pfsense_cert="/etc/ssl/ffpja.org/adminCertificates.fullchain"
+  pfsense_key="/etc/ssl/ffpja.org/adminCertificates.key"
+  if [[ ! -r "$pfsense_cert" || ! -r "$pfsense_key" ]]; then
+    echo "ERROR: pfSense certificate/key are not readable at /etc/ssl/ffpja.org/adminCertificates.*." >&2
     exit 1
   fi
-  if ! openssl x509 -in "$studio_cert" -noout -ext subjectAltName | grep -Eq 'DNS:\*\.bryanstudiosltd\.com|DNS:api\.bryanstudiosltd\.com'; then
-    echo "ERROR: Studio certificate does not cover *.bryanstudiosltd.com or api.bryanstudiosltd.com." >&2
+  if ! openssl x509 -in "$pfsense_cert" -noout -ext subjectAltName | grep -Eq 'DNS:\*\.bryanstudiosltd\.com|DNS:api\.bryanstudiosltd\.com'; then
+    echo "ERROR: pfSense certificate does not cover *.bryanstudiosltd.com or api.bryanstudiosltd.com." >&2
     exit 1
   fi
   if [[ ! -f "$publicsite_nginx_site" ]]; then
@@ -604,8 +604,8 @@ server {
     listen [::]:443 ssl;
     server_name api.bryanstudiosltd.com;
 
-    ssl_certificate /etc/letsencrypt/live/studio.bryanstudiosltd.com/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/studio.bryanstudiosltd.com/privkey.pem;
+    ssl_certificate /etc/ssl/ffpja.org/adminCertificates.fullchain;
+    ssl_certificate_key /etc/ssl/ffpja.org/adminCertificates.key;
     client_max_body_size 32m;
 
     location / {
