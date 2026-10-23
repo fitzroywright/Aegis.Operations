@@ -522,22 +522,22 @@ if is_selected publicsite; then
 NODE_ENV=production
 PUBLIC_DEMO_MODE=false
 PORT=5403
-SESSION_SECRET=$(openssl rand -hex 48)
-PUBLIC_API_PROVISIONING_TOKEN=$(openssl rand -hex 48)
+HOST=127.0.0.1
+SESSION_SECRET=$("$NODE_BIN" -e "process.stdout.write(require('node:crypto').randomBytes(48).toString('hex'))")
+PUBLIC_API_PROVISIONING_TOKEN=$("$NODE_BIN" -e "process.stdout.write(require('node:crypto').randomBytes(48).toString('hex'))")
 INTAKE_DB_PATH=/var/lib/aegis-public-site/intake.sqlite
 PUBLIC_API_KEYS_JSON=[]
 CLIENT_BINDINGS_JSON={}
 EOF
   else
-    for required in "NODE_ENV=production" "PUBLIC_DEMO_MODE=false" "PORT=5403" "INTAKE_DB_PATH=/var/lib/aegis-public-site/intake.sqlite"; do
+    for required in "NODE_ENV=production" "PUBLIC_DEMO_MODE=false" "PORT=5403" "HOST=127.0.0.1" "INTAKE_DB_PATH=/var/lib/aegis-public-site/intake.sqlite"; do
       if ! grep -Fxq "$required" /etc/aegis/public-site.env; then printf '%s\n' "$required" >>/etc/aegis/public-site.env; fi
     done
   fi
   chown root:aegis-public-site /etc/aegis/public-site.env
   chmod 0640 /etc/aegis/public-site.env
 
-  if [[ ! -f /etc/systemd/system/aegis-public-site.service ]]; then
-    cat >/etc/systemd/system/aegis-public-site.service <<'EOF'
+  cat >/etc/systemd/system/aegis-public-site.service <<'EOF'
 [Unit]
 Description=Bryan's Public Site API
 After=network-online.target
@@ -563,9 +563,8 @@ SyslogIdentifier=aegis-public-site
 [Install]
 WantedBy=multi-user.target
 EOF
-    systemctl daemon-reload
-    systemctl enable aegis-public-site.service
-  fi
+  systemctl daemon-reload
+  systemctl enable aegis-public-site.service
 
   if ! command -v nginx >/dev/null 2>&1; then
     echo "ERROR: nginx is required to publish api.bryanstudiosltd.com." >&2
