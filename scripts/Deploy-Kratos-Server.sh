@@ -169,7 +169,9 @@ backup_current() {
 
   mkdir -p "$BACKUP_DIR/etc-aegis"
   for app in "${SELECTED[@]}"; do
-    env_file="/etc/aegis/$app.env"
+    env_name="$app"
+    [[ "$app" == "publicsite" ]] && env_name="public-site"
+    env_file="/etc/aegis/$env_name.env"
     if [[ -f "$env_file" ]]; then
       cp -a "$env_file" "$BACKUP_DIR/etc-aegis/"
     fi
@@ -319,13 +321,17 @@ rollback() {
       cp -a "$BACKUP_DIR/$app/." "$target/"
       if [[ "$app" == "cafeteria" ]]; then
         chown -R aegis-cafeteria:aegis-cafeteria "$target"
+      elif [[ "$app" == "publicsite" ]]; then
+        chown -R aegis-public-site:aegis-public-site "$target"
       else
         chown -R "$OWNER" "$target"
       fi
     fi
 
-    env_file="/etc/aegis/$app.env"
-    backup_env="$BACKUP_DIR/etc-aegis/$app.env"
+    env_name="$app"
+    [[ "$app" == "publicsite" ]] && env_name="public-site"
+    env_file="/etc/aegis/$env_name.env"
+    backup_env="$BACKUP_DIR/etc-aegis/$env_name.env"
     if [[ -f "$backup_env" ]]; then
       cp -a "$backup_env" "$env_file"
       chmod 600 "$env_file"
