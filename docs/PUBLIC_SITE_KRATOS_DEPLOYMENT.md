@@ -9,13 +9,13 @@ Keep sibling repositories under the same Projects directory:
 - `Aegis.Operations`
 - `Aegis.Studio`
 
-Check out the reviewed deployment-script branch in Operations and the Public Site implementation branch in Studio:
+Both the deployment tooling and Public Site implementation are merged to `main`. Update both local checkouts:
 
 ```powershell
-git -C "$HOME/Projects/Aegis.Operations" fetch origin
-git -C "$HOME/Projects/Aegis.Operations" switch feature/deploy-public-site-kratos-20261023
-git -C "$HOME/Projects/Aegis.Studio" fetch origin
-git -C "$HOME/Projects/Aegis.Studio" switch feature/reference-api-implementation-20261023
+git -C "$HOME/Projects/Aegis.Operations" switch main
+git -C "$HOME/Projects/Aegis.Operations" pull --ff-only
+git -C "$HOME/Projects/Aegis.Studio" switch main
+git -C "$HOME/Projects/Aegis.Studio" pull --ff-only
 ```
 
 Use the appropriate ProjectsRoot if your repositories are in another directory.
