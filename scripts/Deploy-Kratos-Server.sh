@@ -546,9 +546,12 @@ PUBLIC_API_PROVISIONING_TOKEN=$("$NODE_BIN" -e "process.stdout.write(require('no
 INTAKE_DB_PATH=/var/lib/aegis-public-site/intake.sqlite
 PUBLIC_API_KEYS_JSON=[]
 CLIENT_BINDINGS_JSON={}
+WORKDAY_STUDIO_ORIGIN=https://studio.bryanstudiosltd.com
+WORKDAY_STUDIO_CONNECT_ADDRESS=127.0.0.1
+WORKDAY_STUDIO_TIMEOUT_MS=120000
 EOF
   else
-    for required in "NODE_ENV=production" "PUBLIC_DEMO_MODE=false" "PORT=5403" "HOST=127.0.0.1" "INTAKE_DB_PATH=/var/lib/aegis-public-site/intake.sqlite"; do
+    for required in "NODE_ENV=production" "PUBLIC_DEMO_MODE=false" "PORT=5403" "HOST=127.0.0.1" "INTAKE_DB_PATH=/var/lib/aegis-public-site/intake.sqlite" "WORKDAY_STUDIO_ORIGIN=https://studio.bryanstudiosltd.com" "WORKDAY_STUDIO_CONNECT_ADDRESS=127.0.0.1" "WORKDAY_STUDIO_TIMEOUT_MS=120000"; do
       if ! grep -Fxq "$required" /etc/aegis/public-site.env; then printf '%s\n' "$required" >>/etc/aegis/public-site.env; fi
     done
   fi
