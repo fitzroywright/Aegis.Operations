@@ -54,10 +54,13 @@ server {
     listen 80;
     listen [::]:80;
     server_name api.bryanstudiosltd.com;
-    client_max_body_size 32m;
+    client_max_body_size 128m;
 
     location / {
         proxy_pass http://127.0.0.1:5403;
+        proxy_read_timeout 150s;
+        proxy_send_timeout 150s;
+        client_body_timeout 150s;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
@@ -91,3 +94,11 @@ curl -i https://api.bryanstudiosltd.com/api/public-site/v1/openapi.json
 Do not forward port 5403 from pfSense; Nginx is the public entry point.
 
 This deploys the current implementation for controlled infrastructure testing. Production provider sign-in, Studio Admin credential and Client ID proof pages, and booking availability integration still need completion before real clients use galleries or submit live bookings.
+
+## WorkDay API gateway
+
+The Public Site now provides the WorkDay mobile API gateway. Its service environment defaults the Studio upstream to `https://studio.bryanstudiosltd.com` over the local Nginx listener at `127.0.0.1`. Keep the API-to-Studio TLS certificate validation enabled. The gateway forwards only WorkDay mobile routes; Studio remains authoritative. Deployment preserves existing Nginx TLS settings.
+
+For uploads, set the API Nginx site to allow up to 128 MB request bodies and wait up to 150 seconds for upload/proxy activity. If the site was already configured, edit its existing `location /` block to include `client_max_body_size 128m`, `client_body_timeout 150s`, `proxy_read_timeout 150s` and `proxy_send_timeout 150s`, then run `sudo nginx -t && sudo systemctl reload nginx`. Existing environment files are preserved; the deployer appends missing WorkDay upstream defaults without replacing values already present.
+
+The WorkDay mobile app connects only to `https://api.bryanstudiosltd.com/api/v1`. See `Aegis.Studio/docs/public-site-v1/WORKDAY-API-GATEWAY.md` for the complete path and authentication contract.
