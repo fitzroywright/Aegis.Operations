@@ -93,7 +93,7 @@ curl -i https://api.bryanstudiosltd.com/api/public-site/v1/openapi.json
 
 Do not forward port 5403 from pfSense; Nginx is the public entry point.
 
-This deploys the current implementation for controlled infrastructure testing. Production provider sign-in, Studio Admin credential and Client ID proof pages, and booking availability integration still need completion before real clients use galleries or submit live bookings.
+This deploys the current booking and WorkDay API gateway implementation for controlled testing. Studio's catalog and availability feed drive website bookings; WorkDay mobile calls only `https://api.bryanstudiosltd.com/api/v1` and the gateway forwards its allowlisted requests to Studio over private TLS. The Studio Client ID proof workflow is implemented. Real client Gallery use still requires configuring and validating the production identity provider sign-in before clients redeem proofs.
 
 ## WorkDay API gateway
 
