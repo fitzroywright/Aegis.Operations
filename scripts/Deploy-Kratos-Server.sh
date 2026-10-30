@@ -230,6 +230,17 @@ backup_current() {
       cp -a "$env_file" "$BACKUP_DIR/etc-aegis/"
     fi
   done
+  if is_selected studio; then
+    # Capture fresh service-owned key rings/provider references without restoring
+    # stale keys over any keys created after promotion during package rollback.
+    local studio_user studio_home
+    studio_user="$(systemctl show "${SERVICE[studio]}" --property=User --value)"
+    studio_home="$(getent passwd "$studio_user" | cut -d: -f6)"
+    [[ -n "$studio_user" && -n "$studio_home" ]] || return 1
+    mkdir -p "$BACKUP_DIR/studio-protected-runtime"
+    if [[ -d "$studio_home/.aspnet/DataProtection-Keys" ]]; then cp -a "$studio_home/.aspnet/DataProtection-Keys" "$BACKUP_DIR/studio-protected-runtime/"; fi
+    if [[ -d /var/lib/aegis/studio ]]; then cp -a /var/lib/aegis/studio "$BACKUP_DIR/studio-protected-runtime/state"; fi
+  fi
   # An absent optional environment file must not fail a successful backup.
   return 0
 }
