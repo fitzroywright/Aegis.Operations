@@ -4,6 +4,8 @@ param(
     [string]$HostName = "kratos",
     [string]$UserName = "fwright@fftpj.local",
     [string]$IdentityFile,
+    [string]$ExpectedStudioCommit,
+    [string]$StudioDemoCutoverDirectory,
     [switch]$SkipTests,
     [switch]$KeepLocalBundle,
     [switch]$KeepRemoteBundle
@@ -132,9 +134,16 @@ try {
         Assert-CleanMain -Name $dependency.Name -Path $dependency.Path
     }
 
+    if ($StudioDemoCutoverDirectory -and -not $ExpectedStudioCommit) { throw "Demo cutover requires the exact reviewed Studio main commit." }
+    if ($ExpectedStudioCommit) {
+        if ($ExpectedStudioCommit -notmatch '^[a-f0-9]{40}$') { throw "ExpectedStudioCommit must be a full Git SHA." }
+        $actualCommit = (& git -C $studioPath rev-parse HEAD).Trim()
+        if ($LASTEXITCODE -ne 0 -or $actualCommit -ne $ExpectedStudioCommit) { throw "Studio main changed after approval/preparation; deployment stopped." }
+    }
     . (Join-Path $PSScriptRoot "Studio-PinnedDependencies.ps1")
     $pinnedDependencies = New-StudioPinnedDependencies -ProjectsRoot $Root -StudioPath $studioPath
     $script:studioPinnedCommonRoot = $pinnedDependencies.CommonRoot
+    $studioSolution = $pinnedDependencies.Solution
 
     if (-not (Test-Path $studioSolution)) {
         throw "Studio solution not found: $studioSolution"
@@ -148,7 +157,7 @@ try {
     Write-Host " RESTORE Aegis.Studio" -ForegroundColor Yellow
     Write-Host "====================================================" -ForegroundColor Yellow
     Invoke-Native "dotnet" @(
-        "restore", ".\Aegis.Studio.slnx",
+        "restore", $studioSolution,
         "--disable-parallel",
         "-m:1",
         "/nodeReuse:false",
@@ -162,7 +171,7 @@ try {
     Write-Host " BUILD Aegis.Studio" -ForegroundColor Yellow
     Write-Host "====================================================" -ForegroundColor Yellow
     Invoke-Native "dotnet" @(
-        "build", ".\Aegis.Studio.slnx",
+        "build", $studioSolution,
         "--no-restore",
         "--configuration", "Release",
         "-m:1",
@@ -177,7 +186,7 @@ try {
         Write-Host " TEST Aegis.Studio" -ForegroundColor Yellow
         Write-Host "====================================================" -ForegroundColor Yellow
         Invoke-Native "dotnet" @(
-            "test", ".\Aegis.Studio.slnx",
+            "test", $studioSolution,
             "--no-restore",
             "--configuration", "Release",
             "-m:1",
@@ -206,6 +215,7 @@ try {
         Applications = @("studio")
         ProjectsRoot = $Root
         CommonRoot = $script:studioPinnedCommonRoot
+        StudioDemoCutoverDirectory = $StudioDemoCutoverDirectory
         HostName = $HostName
         UserName = $UserName
         SkipAuthoritativeBuild = $true

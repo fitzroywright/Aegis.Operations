@@ -1,12 +1,26 @@
 # Build complete Studio bundles from the reviewed manifest without changing shared checkouts.
 Set-StrictMode -Version Latest
 
+function New-StudioPinnedSolution {
+    param([Parameter(Mandatory)][string]$StudioPath, [Parameter(Mandatory)][string]$CommonRoot, [Parameter(Mandatory)][string]$Output)
+    [xml]$solution = Get-Content -LiteralPath (Join-Path $StudioPath "Aegis.Studio.slnx") -Raw
+    foreach ($project in $solution.SelectNodes("//Project")) {
+        $relative = $project.GetAttribute("Path").Replace('\', '/')
+        $resolved = if ($relative.StartsWith("../Common/", [StringComparison]::Ordinal)) {
+            Join-Path $CommonRoot $relative.Substring(10)
+        } else { Join-Path $StudioPath $relative }
+        $project.SetAttribute("Path", [IO.Path]::GetFullPath($resolved))
+    }
+    $solution.Save($Output)
+}
+
 function Remove-StudioPinnedDependencies {
     param([Parameter(Mandatory)]$Dependencies)
     foreach ($entry in $Dependencies.Worktrees) {
         & git -C $entry.Repository worktree remove --force $entry.Path | Out-Host
         if ($LASTEXITCODE -ne 0) { Write-Warning "Could not clean generated pinned worktree: $($entry.Path)" }
     }
+    if (Test-Path -LiteralPath $Dependencies.Solution) { Remove-Item -LiteralPath $Dependencies.Solution }
     if (Test-Path $Dependencies.CommonRoot) {
         if (@(Get-ChildItem -LiteralPath $Dependencies.CommonRoot -Force).Count -eq 0) {
             Remove-Item -LiteralPath $Dependencies.CommonRoot
@@ -20,7 +34,7 @@ function New-StudioPinnedDependencies {
     $commonRoot = Join-Path ([IO.Path]::GetTempPath()) ("studio-pinned-common-" + [Guid]::NewGuid().ToString("N"))
     New-Item -ItemType Directory -Path $commonRoot | Out-Null
     $worktrees = [Collections.Generic.List[object]]::new()
-    $result = [pscustomobject]@{ CommonRoot = $commonRoot; Worktrees = $worktrees }
+    $result = [pscustomobject]@{ CommonRoot = $commonRoot; Worktrees = $worktrees; Solution = (Join-Path $commonRoot "Studio.Verified.slnx") }
     try {
         $required = @("Common.Diagnostics", "Common.Messaging", "Common.Registration", "Common.Secrets", "Common.Security", "Common.Storage")
         $entries = @($manifest.commonLibraries.PSObject.Properties)
@@ -40,6 +54,7 @@ function New-StudioPinnedDependencies {
         $verify = Join-Path $commonRoot "Common.Security/scripts/verify-source-baseline.py"
         & python3 $verify (Join-Path $StudioPath "security-baseline.json") --common-root $commonRoot | Out-Host
         if ($LASTEXITCODE -ne 0) { throw "Studio source pins failed verification." }
+        New-StudioPinnedSolution -StudioPath $StudioPath -CommonRoot $commonRoot -Output $result.Solution
         return $result
     }
     catch {

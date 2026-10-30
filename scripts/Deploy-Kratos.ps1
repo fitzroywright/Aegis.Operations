@@ -10,6 +10,7 @@ param(
     [string]$RemoteDeployCommand = "/usr/local/sbin/aegis-deploy",
     [string]$IdentityFile,
     [string]$CommonRoot,
+    [string]$StudioDemoCutoverDirectory,
     [System.Management.Automation.PSCredential]$Credential,
     [switch]$SkipAuthoritativeBuild,
     [switch]$SkipPublishBuild,
@@ -129,6 +130,8 @@ $definitions = @{
 }
 
 $Applications = $Applications | ForEach-Object { $_.ToLowerInvariant() } | Select-Object -Unique
+if ($StudioDemoCutoverDirectory -and (@($Applications).Count -ne 1 -or $Applications[0] -ne "studio")) { throw "Demo cutover requires Studio-only deployment." }
+
 
 if (-not $SkipAuthoritativeBuild) {
     Write-Host "`n========================================"
@@ -155,6 +158,7 @@ if (-not (Test-Path $serverDeployScript)) {
     throw "Missing Kratos server deployer: $serverDeployScript"
 }
 Copy-Item -Force $serverDeployScript (Join-Path $bundleRoot "Deploy-Kratos-Server.sh")
+Copy-Item -Force (Join-Path $PSScriptRoot "Studio-Demo-Cutover.py") (Join-Path $bundleRoot "Studio-Demo-Cutover.py")
 
 try {
     foreach ($app in $Applications) {
@@ -187,7 +191,31 @@ try {
         }
     }
 
+    if ($StudioDemoCutoverDirectory) {
+        $cutoverOutput = Join-Path $payloadRoot "studio-demo-cutover"
+        New-Item -ItemType Directory -Path $cutoverOutput | Out-Null
+        foreach ($name in @("appsettings.Demo.json", "studio-demo.env", "plan.json")) {
+            $inputFile = Join-Path $StudioDemoCutoverDirectory $name
+            if (-not (Test-Path -LiteralPath $inputFile -PathType Leaf)) { throw "Protected Demo cutover input is missing." }
+            if (-not $IsWindows -and (([IO.File]::GetUnixFileMode($inputFile) -band 63) -ne 0)) { throw "Demo cutover inputs must be owner-only." }
+            Copy-Item -LiteralPath $inputFile -Destination (Join-Path $cutoverOutput $name)
+        }
+        $planPath = Join-Path $cutoverOutput "plan.json"
+        $plan = Get-Content -LiteralPath $planPath -Raw | ConvertFrom-Json
+        $commit = (& git -C (Join-Path $ProjectsRoot "Aegis.Studio") rev-parse HEAD).Trim()
+        if ($LASTEXITCODE -ne 0 -or $commit -notmatch '^[a-f0-9]{40}$') { throw "Cannot bind Demo maintenance to the published source." }
+        $plan.expectedSourceCommit = $commit
+        $plan | ConvertTo-Json -Depth 30 | Set-Content -LiteralPath $planPath -Encoding utf8NoBOM
+        if (-not $IsWindows) { [IO.File]::SetUnixFileMode($planPath, [IO.UnixFileMode]::UserRead -bor [IO.UnixFileMode]::UserWrite) }
+        $RemoteArchive = "/tmp/aegis-studio-demo-" + [Guid]::NewGuid().ToString("N") + ".tgz"
+        $RemoteWorkRoot = "/tmp/aegis-studio-demo-" + [Guid]::NewGuid().ToString("N")
+    }
+
     $bundleFile = Join-Path ([IO.Path]::GetTempPath()) ("aegis-control-plane-" + [Guid]::NewGuid().ToString("N") + ".tgz")
+    # Create the archive owner-only before tar writes any protected environment data.
+    $archive = [IO.File]::Open($bundleFile, [IO.FileMode]::CreateNew, [IO.FileAccess]::Write)
+    $archive.Dispose()
+    if (-not $IsWindows) { [IO.File]::SetUnixFileMode($bundleFile, [IO.UnixFileMode]::UserRead -bor [IO.UnixFileMode]::UserWrite) }
     Push-Location $bundleRoot
     try {
         Invoke-Native -FilePath "tar" -ArgumentList @("-czf", $bundleFile, ".")
@@ -196,12 +224,14 @@ try {
 
     $remoteDisplay = "$UserName@$HostName"
     $appsCsv = ($Applications -join ",")
+    $demoFlag = if ($StudioDemoCutoverDirectory) { " --studio-demo-cutover" } else { "" }
 
     # Build the remote shell program from individual lines joined with LF only.
     # PowerShell here-strings on Windows use CRLF, which causes bash to see tokens
     # such as `-e\r`. Keep this command explicitly Unix-normalized.
     $remoteLines = @(
         "set -e",
+        "umask 077",
         "rm -rf '$RemoteWorkRoot'",
         "mkdir -p '$RemoteWorkRoot'",
         "tar -xzf '$RemoteArchive' -C '$RemoteWorkRoot'",
@@ -215,7 +245,7 @@ try {
         "  echo 'Install the uploaded Deploy-Kratos-Server.sh as $RemoteDeployCommand with root privileges, then retry.' >&2",
         "  exit 4",
         "fi",
-        "if sudo -n '$RemoteDeployCommand' --source '$RemoteWorkRoot/payload' --apps '$appsCsv'; then",
+        "if sudo -n '$RemoteDeployCommand' --source '$RemoteWorkRoot/payload' --apps '$appsCsv'$demoFlag; then",
         "  deploy_rc=0",
         "else",
         "  deploy_rc=`$?",
@@ -224,6 +254,7 @@ try {
     if (-not $KeepRemoteBundle) {
         $remoteLines += "rm -f '$RemoteArchive'"
     }
+    if ($StudioDemoCutoverDirectory -and -not $KeepRemoteBundle) { $remoteLines += "rm -rf '$RemoteWorkRoot'" }
     $remoteLines += "exit `$deploy_rc"
     $remoteCommand = $remoteLines -join "`n"
 

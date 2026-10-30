@@ -16,6 +16,7 @@ class StudioPinnedDependenciesTests(unittest.TestCase):
             root = pathlib.Path(name)
             studio = root / 'Aegis.Studio'
             studio.mkdir()
+            (studio / 'Aegis.Studio.slnx').write_text('<Solution><Project Path="Studio.csproj"/><Project Path="../Common/Common.Security/Common.Security.csproj"/></Solution>')
             pins, heads = {}, {}
             libraries = ['Common.Diagnostics', 'Common.Messaging', 'Common.Registration', 'Common.Secrets', 'Common.Security', 'Common.Storage']
             for library in libraries:
@@ -48,7 +49,7 @@ try {
     foreach ($w in $d.Worktrees) {
         $heads[[IO.Path]::GetFileName($w.Path)] = (& git -C $w.Path rev-parse HEAD).Trim()
     }
-    @{Root=$d.CommonRoot; Heads=$heads} | ConvertTo-Json -Depth 5 | Set-Content $Output
+    @{Root=$d.CommonRoot; Heads=$heads; Solution=(Get-Content $d.Solution -Raw)} | ConvertTo-Json -Depth 5 | Set-Content $Output
 } finally { Remove-StudioPinnedDependencies -Dependencies $d }
 ''')
             output = root / 'result.json'
@@ -57,6 +58,8 @@ try {
             self.assertEqual(0, result.returncode, result.stderr)
             report = json.loads(output.read_text())
             self.assertEqual(pins, report['Heads'])
+            self.assertIn(str(studio / 'Studio.csproj'), report['Solution'])
+            self.assertIn(str(pathlib.Path(report['Root']) / 'Common.Security/Common.Security.csproj'), report['Solution'])
             self.assertFalse(pathlib.Path(report['Root']).exists())
             for library, expected in heads.items():
                 path = root / 'Common' / library

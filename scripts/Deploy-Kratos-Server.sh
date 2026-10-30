@@ -7,6 +7,7 @@ BACKUP_ROOT="/opt/aegis/backups"
 OWNER="aegis:aegis"
 HEALTH_RETRIES=10
 HEALTH_DELAY=2
+STUDIO_DEMO_CUTOVER=false
 
 usage() {
   cat <<'EOF'
@@ -22,6 +23,7 @@ Options:
                       Default: operations,configuration,diagnostics,hello
   --backup-root PATH  Backup root. Default: /opt/aegis/backups
   --owner USER:GROUP  Installed file owner. Default: aegis:aegis
+  --studio-demo-cutover  Apply protected Studio-only Demo profile and offline administrators before startup
   --help              Show this help
 
 Expected staging layout:
@@ -42,6 +44,7 @@ while [[ $# -gt 0 ]]; do
     --apps) APPS="$2"; shift 2 ;;
     --backup-root) BACKUP_ROOT="$2"; shift 2 ;;
     --owner) OWNER="$2"; shift 2 ;;
+    --studio-demo-cutover) STUDIO_DEMO_CUTOVER=true; shift ;;
     --help|-h) usage; exit 0 ;;
     *) echo "Unknown argument: $1" >&2; usage >&2; exit 2 ;;
   esac
@@ -123,11 +126,62 @@ for app in "${SELECTED[@]}"; do
   fi
 done
 
-STAMP="$(date +%Y%m%d-%H%M%S)"
+if [[ " ${SELECTED[*]} " == *" studio "* ]]; then
+  exec 9>/run/lock/aegis-studio-deploy.lock
+  if ! flock -n 9; then echo "Another Studio deployment is in progress." >&2; exit 1; fi
+  for directory in Storage data App_Data uploads Uploads appsettings.Demo.json; do
+    if [[ -e "$SOURCE_ROOT/studio/$directory" || -L "$SOURCE_ROOT/studio/$directory" ]]; then
+      echo "Studio publish output contains persistent runtime state; deployment refused." >&2
+      exit 2
+    fi
+  done
+fi
+if [[ "$STUDIO_DEMO_CUTOVER" == true && ( ${#SELECTED[@]} -ne 1 || "${SELECTED[0]}" != studio ) ]]; then
+  echo "Demo cutover requires Studio-only deployment." >&2
+  exit 2
+fi
+if [[ "$STUDIO_DEMO_CUTOVER" == true ]]; then
+  HEALTH_RETRIES=30
+fi
+STAMP="$(date +%Y%m%d-%H%M%S)-$$"
 BACKUP_DIR="$BACKUP_ROOT/$STAMP"
 mkdir -p "$BACKUP_DIR"
+chmod 700 "$BACKUP_DIR"
 
 log() { printf '\n==> %s\n' "$*"; }
+
+studio_demo_phase() {
+  [[ "$STUDIO_DEMO_CUTOVER" == true ]] || return 0
+  python3 "$SOURCE_ROOT/../Studio-Demo-Cutover.py" "$1" --settings "$SOURCE_ROOT/studio-demo-cutover" \
+    --target "${TARGET[studio]}" --service "${SERVICE[studio]}" --backup "$BACKUP_DIR"
+}
+
+# Move live state after stopping Studio, including SQLite WAL/SHM siblings inside
+# their owning directory. Never restore an older backup over newer runtime files.
+hold_studio_runtime() {
+  is_selected studio || return 0
+  local directory
+  mkdir -p "$BACKUP_DIR/studio-current-runtime"
+  for directory in Storage data App_Data uploads Uploads appsettings.Demo.json; do
+    if [[ -e "${TARGET[studio]}/$directory" || -L "${TARGET[studio]}/$directory" ]]; then
+      if [[ -e "$BACKUP_DIR/studio-current-runtime/$directory" || -L "$BACKUP_DIR/studio-current-runtime/$directory" ]]; then
+        echo "Studio live state is already preserved; refusing to overwrite it." >&2
+        return 1
+      fi
+      mv "${TARGET[studio]}/$directory" "$BACKUP_DIR/studio-current-runtime/$directory"
+    fi
+  done
+}
+restore_studio_runtime() {
+  is_selected studio || return 0
+  local directory
+  for directory in Storage data App_Data uploads Uploads appsettings.Demo.json; do
+    if [[ -e "$BACKUP_DIR/studio-current-runtime/$directory" || -L "$BACKUP_DIR/studio-current-runtime/$directory" ]]; then
+      rm -rf "${TARGET[studio]}/$directory"
+      mv "$BACKUP_DIR/studio-current-runtime/$directory" "${TARGET[studio]}/$directory"
+    fi
+  done
+}
 
 is_selected() {
   local wanted="$1"
@@ -313,6 +367,7 @@ rollback() {
   echo >&2
   echo "DEPLOYMENT FAILED - ROLLING BACK TO $BACKUP_DIR" >&2
   stop_selected
+  hold_studio_runtime
   for app in "${SELECTED[@]}"; do
     target="${TARGET[$app]}"
     rm -rf "$target"
@@ -337,29 +392,22 @@ rollback() {
       chmod 600 "$env_file"
     fi
   done
+  restore_studio_runtime
+  studio_demo_phase restore
   start_selected || true
   echo "Rollback attempted. Inspect systemctl/journalctl before retrying." >&2
 }
 
-log "Ensuring persistent control-plane state storage"
-mkdir -p /var/lib/aegis/operations/registration
-mkdir -p /var/lib/aegis/configuration/contracts/retired
-mkdir -p /var/lib/aegis/diagnostics
-mkdir -p /var/lib/aegis/hello
-mkdir -p /var/lib/aegis/studio
-# Only touch persistent state for applications selected in this deployment.
-# Recursively chowning live state for unrelated services races with their atomic
-# temp-file writes (for example Operations application-logs.json.tmp-*).
+studio_demo_phase validate
+
+log "Ensuring persistent state only for selected applications"
 for app in "${SELECTED[@]}"; do
   case "$app" in
-    operations) chown -R "$OWNER" /var/lib/aegis/operations ;;
-    configuration) chown -R "$OWNER" /var/lib/aegis/configuration ;;
-    diagnostics) chown -R "$OWNER" /var/lib/aegis/diagnostics ;;
-    hello) chown -R "$OWNER" /var/lib/aegis/hello ;;
-    studio) chown -R "$OWNER" /var/lib/aegis/studio ;;
+    operations) mkdir -p /var/lib/aegis/operations/registration; chown -R "$OWNER" /var/lib/aegis/operations; chmod 700 /var/lib/aegis/operations/registration ;;
+    configuration) mkdir -p /var/lib/aegis/configuration/contracts/retired; chown -R "$OWNER" /var/lib/aegis/configuration; chmod 700 /var/lib/aegis/configuration ;;
+    diagnostics|hello|studio) mkdir -p "/var/lib/aegis/$app"; chown -R "$OWNER" "/var/lib/aegis/$app"; chmod 700 "/var/lib/aegis/$app" ;;
   esac
 done
-chmod 700 /var/lib/aegis/operations/registration /var/lib/aegis/configuration /var/lib/aegis/diagnostics /var/lib/aegis/hello /var/lib/aegis/studio
 
 if is_selected hello; then
   log "Ensuring Aegis.Hello systemd service"
@@ -399,11 +447,17 @@ if is_selected studio; then
   if command -v nginx >/dev/null 2>&1; then
     mkdir -p /etc/nginx/sites-available /etc/nginx/sites-enabled
     studio_nginx_site="/etc/nginx/sites-available/aegis-studio"
+    studio_nginx_changed=false
+    if [[ "$STUDIO_DEMO_CUTOVER" == true && ( ! -f "$studio_nginx_site" || ! -e /etc/nginx/sites-enabled/aegis-studio ) ]]; then
+      echo "Existing Studio TLS proxy is required for this cutover; no proxy is provisioned." >&2
+      exit 1
+    fi
 
     # Create the bootstrap HTTP site only when Studio has no Nginx site yet.
     # Once Certbot has provisioned TLS it owns certificate/redirect directives in
     # this file; normal application deployments must not overwrite them.
     if [[ ! -f "$studio_nginx_site" ]]; then
+      studio_nginx_changed=true
       cat >"$studio_nginx_site" <<'EOF'
 server {
     listen 80;
@@ -431,35 +485,27 @@ EOF
       log "Preserving existing Aegis.Studio Nginx site (including Certbot-managed TLS)"
     fi
 
-    ln -sfn "$studio_nginx_site" /etc/nginx/sites-enabled/aegis-studio
+    if [[ ! -e /etc/nginx/sites-enabled/aegis-studio ]]; then
+      ln -s "$studio_nginx_site" /etc/nginx/sites-enabled/aegis-studio
+      studio_nginx_changed=true
+    elif [[ "$(readlink -f /etc/nginx/sites-enabled/aegis-studio)" != "$studio_nginx_site" ]]; then
+      echo "Existing Studio Nginx link differs; preserve it and review deployment configuration." >&2
+      exit 1
+    fi
     nginx -t
-    systemctl reload nginx
+    if [[ "$studio_nginx_changed" == true ]]; then systemctl reload nginx; fi
   else
     echo "ERROR: nginx is not installed; cannot publish studio.bryanstudiosltd.com." >&2
     exit 1
   fi
 
-  if ! grep -q '^Aegis__PublicUrl=' /etc/aegis/studio.env 2>/dev/null; then
-    printf '\nAegis__PublicUrl=https://studio.bryanstudiosltd.com\n' >> /etc/aegis/studio.env
-  else
-    sed -i 's#^Aegis__PublicUrl=.*#Aegis__PublicUrl=https://studio.bryanstudiosltd.com#' /etc/aegis/studio.env
-  fi
 
-  # Kratos currently hosts the Studio click-around/pilot deployment. Keep the
-  # process in Production hosting mode while explicitly enabling Studio mock auth.
-  if grep -q '^MockAuthentication__Enabled=' /etc/aegis/studio.env 2>/dev/null; then
-    sed -i 's/^MockAuthentication__Enabled=.*/MockAuthentication__Enabled=true/' /etc/aegis/studio.env
-  else
-    printf 'MockAuthentication__Enabled=true\n' >> /etc/aegis/studio.env
-  fi
-  chmod 600 /etc/aegis/studio.env
 fi
 
 if is_selected studio; then
   log "Ensuring Aegis.Studio systemd service"
   mkdir -p /etc/aegis
-  touch /etc/aegis/studio.env
-  chmod 600 /etc/aegis/studio.env
+  if [[ ! -f /etc/aegis/studio.env ]]; then install -m 0600 /dev/null /etc/aegis/studio.env; fi
   if [[ ! -f /etc/systemd/system/aegis-studio.service ]]; then
     cat >/etc/systemd/system/aegis-studio.service <<'EOF'
 [Unit]
@@ -487,22 +533,8 @@ EOF
     systemctl enable aegis-studio.service
   fi
 
-  # Kratos is currently the Studio demo/click-around host. Keep production
-  # configuration active, but explicitly opt this deployment into mock auth
-  # and demo seeding. The application defaults remain locked down elsewhere.
-  mkdir -p /etc/systemd/system/aegis-studio.service.d
-  cat >/etc/systemd/system/aegis-studio.service.d/10-kratos-demo.conf <<'EOF'
-[Service]
-Environment=ASPNETCORE_ENVIRONMENT=Production
-Environment=MockAuthentication__Enabled=true
-Environment=MockAuthentication__AllowOutsideDevelopment=true
-Environment=MockAuthentication__UserName=studio.admin
-Environment="MockAuthentication__DisplayName=Studio Administrator"
-Environment="MockAuthentication__Groups__0=Domain Admins"
-Environment="AuthenticationPlugin__Settings__AdministrativeGroups__0=Domain Admins"
-Environment=DemoData__Enabled=true
-EOF
-  systemctl daemon-reload
+  # Existing authentication/environment drop-ins are operator-owned and preserved.
+
 fi
 
 if is_selected publicsite; then
@@ -631,6 +663,7 @@ fi
 
 log "Backing up current deployment to $BACKUP_DIR"
 backup_current
+studio_demo_phase backup
 
 # The backup is complete. Arm rollback before mutating persistent environment
 # or registration state so a migration failure cannot leave a partial deployment.
@@ -645,9 +678,12 @@ fi
 
 log "Stopping selected services"
 stop_selected
+hold_studio_runtime
 
 log "Promoting staged publish outputs"
 deploy_payload
+restore_studio_runtime
+studio_demo_phase apply
 
 if is_selected publicsite; then
   log "Installing Public Site production dependencies"

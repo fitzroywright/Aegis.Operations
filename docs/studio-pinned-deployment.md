@@ -35,3 +35,39 @@ invokes a deployment. PowerShell parser validation and `bash -n` also pass.
 
 Source approval, merges and application cutover remain separate gates. These
 changes do not authorize deployment, live database writes or service restarts.
+
+## Reviewed Demo cutover
+
+The same entry point accepts `-ExpectedStudioCommit` and
+`-StudioDemoCutoverDirectory`. Demo mode requires the exact merged main SHA and
+Studio-only selection. The protected directory contains owner-only
+`appsettings.Demo.json`, `studio-demo.env` and `plan.json`; never commit these
+installation-specific inputs. The plan selects at least two immutable allowlisted
+administrators and identifies the reviewed database, previous package, base
+environment and service context. The bundle binds maintenance to its published
+source SHA. Protected archives and remote staging use owner-only permissions.
+
+The server verifies the prior context, takes package/configuration backups, stops
+Studio, preserves current runtime directories, promotes the complete bundle and
+installs a separate Demo environment/drop-in without rewriting existing provider
+credentials or operator drop-ins. The Python hook runs package-version checking,
+all administrator plans, then applies through real maintenance commands as the
+service user before startup. The runtime enforces external integration isolation.
+An exact database mismatch fails before account/schema writes. Existing Nginx
+TLS configuration is tested and preserved without a reload when unchanged.
+
+The generated solution resolves both project references and solution-level Common
+projects to reviewed pins. Fresh publish follows the complete local solution
+build/test. A server deployment lock excludes overlapping Studio deployments.
+Storage, uploads, application data and the protected Demo profile survive package
+promotion and rollback; current SQLite WAL siblings travel with their data
+directory. Rollback restores the prior package/profile and restarts Studio while
+retaining current runtime files and committed database/audit changes. It never
+restores a stale database over new writes.
+
+Run all three deployment suites (12 tests), PowerShell parser validation and
+`bash -n scripts/Deploy-Kratos-Server.sh`. `StudioDemoCutoverTests.py` covers the
+stopped-service requirement, target guards, plan-before-apply ordering and
+failure recovery. Its systemd calls are simulated locally; a connected Mac
+rehearsal additionally executes real maintenance against a restored PostgreSQL
+database. Actual systemd acceptance belongs to the authorized Linux cutover.
