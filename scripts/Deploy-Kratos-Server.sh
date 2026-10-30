@@ -636,8 +636,8 @@ backup_current
 # or registration state so a migration failure cannot leave a partial deployment.
 trap 'rc=$?; if [[ $rc -ne 0 ]]; then rollback; fi; exit $rc' EXIT
 
-if is_selected publicsite && [[ ${#SELECTED[@]} -eq 1 ]]; then
-  log "Skipping unrelated application environment migrations for Public Site-only deployment"
+if [[ ${#SELECTED[@]} -eq 1 ]] && { is_selected publicsite || is_selected studio; }; then
+  log "Preserving environment and registration state for the isolated application deployment"
 else
   migrate_common_secrets_env
   cleanup_legacy_registration

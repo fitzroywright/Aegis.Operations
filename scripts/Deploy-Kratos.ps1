@@ -9,6 +9,7 @@ param(
     [string]$RemoteWorkRoot = "/tmp/aegis-deploy",
     [string]$RemoteDeployCommand = "/usr/local/sbin/aegis-deploy",
     [string]$IdentityFile,
+    [string]$CommonRoot,
     [System.Management.Automation.PSCredential]$Credential,
     [switch]$SkipAuthoritativeBuild,
     [switch]$SkipPublishBuild,
@@ -27,6 +28,9 @@ function Invoke-Native {
         [Parameter(Mandatory)][string]$FilePath,
         [Parameter(Mandatory)][string[]]$ArgumentList
     )
+    if ($FilePath -eq "dotnet" -and -not [string]::IsNullOrWhiteSpace($CommonRoot)) {
+        $ArgumentList += "-p:CommonRoot=$CommonRoot"
+    }
     & $FilePath @ArgumentList
     if ($LASTEXITCODE -ne 0) {
         throw "$FilePath exited with code ${LASTEXITCODE}: $($ArgumentList -join ' ')"

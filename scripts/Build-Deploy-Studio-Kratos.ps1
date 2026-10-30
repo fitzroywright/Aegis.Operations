@@ -18,6 +18,9 @@ function Invoke-Native {
         [Parameter(Mandatory = $true)][string[]]$Arguments
     )
 
+    if ($FilePath -eq "dotnet" -and -not [string]::IsNullOrWhiteSpace($script:studioPinnedCommonRoot)) {
+        $Arguments += "-p:CommonRoot=$script:studioPinnedCommonRoot"
+    }
     & $FilePath @Arguments
     if ($LASTEXITCODE -ne 0) {
         throw "$FilePath exited with code ${LASTEXITCODE}: $($Arguments -join ' ')"
@@ -116,6 +119,8 @@ $dependencies = @(
     @{ Name = "Aegis.Studio";         Path = $studioPath }
 )
 
+$script:studioPinnedCommonRoot = $null
+$pinnedDependencies = $null
 $originalLocation = Get-Location
 try {
     Write-Host ""
@@ -126,6 +131,10 @@ try {
     foreach ($dependency in $dependencies) {
         Assert-CleanMain -Name $dependency.Name -Path $dependency.Path
     }
+
+    . (Join-Path $PSScriptRoot "Studio-PinnedDependencies.ps1")
+    $pinnedDependencies = New-StudioPinnedDependencies -ProjectsRoot $Root -StudioPath $studioPath
+    $script:studioPinnedCommonRoot = $pinnedDependencies.CommonRoot
 
     if (-not (Test-Path $studioSolution)) {
         throw "Studio solution not found: $studioSolution"
@@ -196,6 +205,7 @@ try {
     $deployArguments = @{
         Applications = @("studio")
         ProjectsRoot = $Root
+        CommonRoot = $script:studioPinnedCommonRoot
         HostName = $HostName
         UserName = $UserName
         SkipAuthoritativeBuild = $true
@@ -219,4 +229,6 @@ try {
 }
 finally {
     Set-Location $originalLocation
+    if ($null -ne $pinnedDependencies) { Remove-StudioPinnedDependencies -Dependencies $pinnedDependencies }
+    $script:studioPinnedCommonRoot = $null
 }
