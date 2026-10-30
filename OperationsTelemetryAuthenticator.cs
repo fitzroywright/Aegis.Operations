@@ -1,4 +1,6 @@
 using System.Net.Http.Headers;
+using System.Security.Cryptography;
+using System.Text;
 using Common.Security;
 using Common.Registration;
 
@@ -10,7 +12,7 @@ internal sealed class OperationsTelemetryAuthenticator
     private readonly string _operationsUrl;
     private readonly TimeSpan _authorityGrace;
     private readonly TimeSpan _validationCache;
-    private readonly System.Collections.Concurrent.ConcurrentDictionary<string, DateTimeOffset> _lastValidated = new(StringComparer.OrdinalIgnoreCase);
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<ValidationCacheKey, DateTimeOffset> _lastValidated = new();
 
     internal OperationsTelemetryAuthenticator(
         IHttpClientFactory factory,
@@ -116,7 +118,15 @@ internal sealed class OperationsTelemetryAuthenticator
         if (!string.IsNullOrWhiteSpace(correlation))
             request.Headers.TryAddWithoutValidation("X-Aegis-Correlation-Id", correlation);
 
-        string cacheKey = suppliedApplicationId + "|" + instanceId + "|" + installationId + "|" + runtimeSessionId;
+        // Correlation identifiers are public metadata, not proof of authentication.
+        // Cache and outage-grace decisions must also match the validated credential.
+        // Retain only its fingerprint; bearer credentials are case-sensitive secrets.
+        var cacheKey = new ValidationCacheKey(
+            suppliedApplicationId,
+            instanceId,
+            installationId,
+            runtimeSessionId,
+            Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(parsed.Parameter))));
 
         if (_lastValidated.TryGetValue(cacheKey, out DateTimeOffset cachedAt) &&
             DateTimeOffset.UtcNow - cachedAt <= _validationCache)
@@ -171,9 +181,16 @@ internal sealed class OperationsTelemetryAuthenticator
         }
     }
 
-    private bool IsRecentlyValidated(string cacheKey) =>
+    private bool IsRecentlyValidated(ValidationCacheKey cacheKey) =>
         _lastValidated.TryGetValue(cacheKey, out DateTimeOffset validatedAt) &&
         DateTimeOffset.UtcNow - validatedAt <= _authorityGrace;
+
+    private readonly record struct ValidationCacheKey(
+        string ApplicationId,
+        string InstanceId,
+        string InstallationId,
+        string RuntimeSessionId,
+        string CredentialFingerprint);
 
     private static bool Has(HttpContext context, string permission) =>
         context.Items.TryGetValue("SuiteIdentity", out object? value) &&
