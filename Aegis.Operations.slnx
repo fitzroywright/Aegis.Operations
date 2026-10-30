@@ -17,4 +17,6 @@
   <Folder Name="/Contract Test/">
     <Project Path="../Aegis.Hello/Aegis.Hello.csproj" />
   </Folder>
+  <Project Path="../Common/Common.Security/Common.Security.Hosting/Common.Security.Hosting.csproj" />
+  <Project Path="../Common/Common.Security/Common.Security.Plugin.ActiveDirectory/Common.Security.Plugin.ActiveDirectory.csproj" />
 </Solution>

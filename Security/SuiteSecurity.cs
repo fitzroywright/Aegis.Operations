@@ -1,75 +1,32 @@
-using System.Security.Cryptography;
-using System.Text;
 using System.Text.Encodings.Web;
-using System.Text.Json;
-using Common.Security.Abstractions;
-using Common.Security.Authenticators;
+using Common.Security.Hosting;
 using Common.Security.Models;
-using Common.Security.Options;
-internal sealed record SuiteIdentity(string UserName,string DisplayName,string Title,string[] Permissions);
-internal sealed record SuiteTicket(string Sub,string Name,string Title,string[] Permissions,string Audience,long Expires,string Nonce);
-internal sealed class SuiteSecurity(IConfiguration config,IHostEnvironment environment,IServiceProvider services)
-{
-    const string Cookie="Aegis.Operations.Session";
-    const string DevelopmentSigningKey="Aegis-Suite-Development-Handoff-Key-v1-Operations-Configuration-Diagnostics";
-    readonly byte[] key=Encoding.UTF8.GetBytes(GetSigningKey(config,environment));
-    static string GetSigningKey(IConfiguration config,IHostEnvironment environment){string? configured=config["SuiteSecurity:SigningKey"];if(!string.IsNullOrWhiteSpace(configured))return configured;if(environment.IsDevelopment())return DevelopmentSigningKey;throw new InvalidOperationException("SuiteSecurity:SigningKey is required outside Development. Supply it through protected deployment configuration/OpenBao.");}
-    public string Mode=>config["SuiteSecurity:Mode"]??(environment.IsDevelopment()?"Mock":"ActiveDirectory");
-    public int IdleTimeoutMinutes=>Math.Clamp(config.GetValue("SuiteSecurity:IdleTimeoutMinutes",30),5,60);
-    public SuiteIdentity? Authenticate(string user,string password){if(Mode.Equals("ActiveDirectory",StringComparison.OrdinalIgnoreCase))return AuthenticateAd(user,password);if(Mode.Equals("Internal",StringComparison.OrdinalIgnoreCase))return AuthenticateInternal(user,password);if(Mode.Equals("Mock",StringComparison.OrdinalIgnoreCase))return AuthenticateMock(user,password);return null;}
-    SuiteIdentity? AuthenticateAd(string user,string password){IAuthenticator? authenticator=services.GetService<IAuthenticator>();if(authenticator is null)throw new InvalidOperationException("SuiteSecurity ActiveDirectory mode requires a configured authentication plugin.");AuthenticationResult r=authenticator.Authenticate(user,password);return r.IsAuthenticated?FromResult(user,r):null;}
-    SuiteIdentity? AuthenticateMock(string user,string password)
-    {
-        if(!config.GetValue("SuiteSecurity:Mock:Enabled",false)||string.IsNullOrWhiteSpace(user))return null;
-        if(environment.IsProduction()&&!config.GetValue("SuiteSecurity:Mock:AllowInProduction",false))return null;
-        string configuredPassword=config["SuiteSecurity:Mock:Password"]??string.Empty;
-        bool allowAny=config.GetValue("SuiteSecurity:Mock:AllowAnyUser",true);
-        string? allowed=config["SuiteSecurity:Mock:AllowedUsers"];
-        string? admins=config["SuiteSecurity:Mock:AdminUsers"];
-        if(configuredPassword.Length==0&&allowAny)
-        {
-            bool admin=ParseUsers(admins).Contains(user)||IsConfiguredAdmin(user);
-            return new SuiteIdentity(user,$"Mock {user}",admin?"Administrator":"Mock User",admin?AdminPermissions():DefaultPermissions());
-        }
-        var o=new MockAuthenticationOptions{Password=configuredPassword,AllowAnyUser=allowAny,AllowedUsers=allowed,AdminUsers=admins};
-        AuthenticationResult r=new MockAuthenticator(o).Authenticate(user,password??string.Empty);
-        return r.IsAuthenticated?FromResult(user,r):null;
-    }
-    static HashSet<string> ParseUsers(string? users)=>string.IsNullOrWhiteSpace(users)?new(StringComparer.OrdinalIgnoreCase):users.Split([',',';'],StringSplitOptions.RemoveEmptyEntries|StringSplitOptions.TrimEntries).ToHashSet(StringComparer.OrdinalIgnoreCase);
-    SuiteIdentity? AuthenticateInternal(string user,string password){var section=config.GetSection("SuiteSecurity:Internal:Users").GetChildren().FirstOrDefault(x=>x.Key.Equals(user,StringComparison.OrdinalIgnoreCase));if(section is null)return null;string? hash=section["PasswordHash"];if(hash is null||!Verify(password,hash))return null;string[] permissions=IsConfiguredAdmin(user)?AdminPermissions():(section.GetSection("Permissions").Get<string[]>()??DefaultPermissions());return new(user,section["DisplayName"]??user,section["Title"]??"User",permissions);}
-    SuiteIdentity FromResult(string user,AuthenticationResult r){bool admin=r.IsAdministrative||IsConfiguredAdmin(user);return new(user,r.UserInfo?.DisplayName??user,r.UserInfo?.Title??"User",admin?AdminPermissions():DefaultPermissions());}
-    bool IsConfiguredAdmin(string user){string normalized=NormalizeUser(user);return ParseUsers(config["SuiteSecurity:AdminUsers"]).Any(x=>NormalizeUser(x).Equals(normalized,StringComparison.OrdinalIgnoreCase));}
-    static string NormalizeUser(string user){string value=(user??string.Empty).Trim();int slash=value.LastIndexOf('\\');if(slash>=0)value=value[(slash+1)..];int at=value.IndexOf('@');if(at>0)value=value[..at];return value.Trim();}
-    static string[] DefaultPermissions()=>["Operations.View","Configuration.View","Diagnostics.View"];
-    static string[] AdminPermissions()=>[
-        "Operations.View",
-        "Operations.Telemetry.Publish",
-        "Operations.Alerts.Acknowledge",
-        "Operations.Alerts.Resolve",
-        "Operations.EngineerLog.Create",
-        "Operations.Runbooks.Manage",
-        "Operations.Audit.View",
-        "Configuration.View",
-        "Configuration.Manage",
-        "Diagnostics.View",
-        "Diagnostics.Run",
-        "Diagnostics.Repair",
-        "Diagnostics.Critical",
-        "Security.Manage"
-    ];
-    static bool Verify(string password,string encoded){try{var p=encoded.Split('$');if(p.Length!=4||p[0]!="PBKDF2")return false;int iterations=int.Parse(p[1]);byte[] salt=Convert.FromBase64String(p[2]),expected=Convert.FromBase64String(p[3]);byte[] actual=Rfc2898DeriveBytes.Pbkdf2(password,salt,iterations,HashAlgorithmName.SHA256,expected.Length);return CryptographicOperations.FixedTimeEquals(actual,expected);}catch{return false;}}
-    public string CreateSession(SuiteIdentity i)=>Sign(new SuiteTicket(i.UserName,i.DisplayName,i.Title,i.Permissions,"Aegis.Operations",DateTimeOffset.UtcNow.AddMinutes(IdleTimeoutMinutes).ToUnixTimeSeconds(),Guid.NewGuid().ToString("N")));
-    public string CreateHandoff(SuiteIdentity i,string audience)=>Sign(new SuiteTicket(i.UserName,i.DisplayName,i.Title,i.Permissions,audience,DateTimeOffset.UtcNow.AddSeconds(45).ToUnixTimeSeconds(),Guid.NewGuid().ToString("N")));
-    public SuiteIdentity? AcceptHandoff(string token)=>Validate(token,"Aegis.Operations");
-    public SuiteIdentity? ReadSession(HttpRequest req)=>req.Cookies.TryGetValue(Cookie,out var v)?Validate(v,"Aegis.Operations"):null;
-    SuiteIdentity? Validate(string token,string audience){var parts=token.Split('.');if(parts.Length!=2)return null;try{byte[] data=WebEncoders.Base64UrlDecode(parts[0]),sig=WebEncoders.Base64UrlDecode(parts[1]);using var h=new HMACSHA256(key);if(!CryptographicOperations.FixedTimeEquals(h.ComputeHash(data),sig))return null;var t=JsonSerializer.Deserialize<SuiteTicket>(data);if(t is null||t.Audience!=audience||t.Expires<DateTimeOffset.UtcNow.ToUnixTimeSeconds())return null;return new(t.Sub,t.Name,t.Title,t.Permissions);}catch{return null;}}
-    string Sign(SuiteTicket ticket){byte[] data=JsonSerializer.SerializeToUtf8Bytes(ticket);using var h=new HMACSHA256(key);return WebEncoders.Base64UrlEncode(data)+"."+WebEncoders.Base64UrlEncode(h.ComputeHash(data));}
-    public void SetSession(HttpResponse response,SuiteIdentity i)=>response.Cookies.Append(Cookie,CreateSession(i),new CookieOptions{HttpOnly=true,Secure=!environment.IsDevelopment(),SameSite=SameSiteMode.Lax,MaxAge=TimeSpan.FromMinutes(IdleTimeoutMinutes)});
-    public void Clear(HttpResponse response)=>response.Cookies.Delete(Cookie);
-}
+using Common.Secrets;
+using Microsoft.Data.Sqlite;
 internal static class SuiteSecurityExtensions
 {
-    public static IServiceCollection AddSuiteSecurity(this IServiceCollection s)=>s.AddSingleton<SuiteSecurity>();
+    public static IServiceCollection AddSuiteSecurity(this IServiceCollection services, IConfiguration configuration, IHostEnvironment environment)
+    {
+        var definition = new SuiteApplication("Aegis.Operations", "Aegis.Operations.Session", new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["Administrator"] = ["Operations.View","Operations.Telemetry.Publish","Operations.Alerts.Acknowledge","Operations.Alerts.Resolve","Operations.EngineerLog.Create","Operations.Runbooks.Manage","Operations.Audit.View","Configuration.View","Configuration.Manage","Diagnostics.View","Diagnostics.Run","Diagnostics.Repair","Diagnostics.Critical","Security.Manage"],
+            ["Operator"] = ["Operations.View","Operations.Telemetry.Publish","Operations.Alerts.Acknowledge","Operations.EngineerLog.Create"],
+            ["Reader"] = ["Operations.View"],
+            ["Diagnostics"] = ["Diagnostics.View","Diagnostics.Run"]
+        });
+        return services.AddCommonSuiteSecurity(definition, provider =>
+        {
+            string? path = configuration["SuiteSecurity:AccountStorePath"];
+            if (string.IsNullOrWhiteSpace(path))
+            {
+                if (!environment.IsDevelopment()) throw new InvalidOperationException("SuiteSecurity:AccountStorePath must point to the same protected identity database for all Control Plane applications.");
+                path = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Aegis", "ControlPlane", "security.db");
+            }
+            Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(path))!);
+            return new SqliteConnection(new SqliteConnectionStringBuilder { DataSource = path, ForeignKeys = true }.ToString());
+        }, configuration.GetValue("SuiteSecurity:Entra:Enabled", false) ? provider => SuiteSecurityRegistration.EntraOptions(
+            configuration, provider.GetRequiredService<ISecretProvider>().GetRequiredAsync("SuiteSecurity:Entra:ClientSecret").GetAwaiter().GetResult()) : null);
+    }
     public static void UseSuiteSecurity(this WebApplication app)=>app.Use(async(ctx,next)=>{
         bool publicRegistrationEndpoint =
             ctx.Request.Path.Equals("/api/registration/contracts", StringComparison.OrdinalIgnoreCase) ||
@@ -112,7 +69,7 @@ internal static class SuiteSecurityExtensions
         }
 
         var sec=ctx.RequestServices.GetRequiredService<SuiteSecurity>();
-        var id=sec.ReadSession(ctx.Request);
+        var id=sec.Read(ctx.Request);
         if(id is null)
         {
             if(ctx.Request.Path.StartsWithSegments("/api"))
@@ -132,12 +89,12 @@ internal static class SuiteSecurityExtensions
         }
 
         ctx.Items["SuiteIdentity"]=id;
-        sec.SetSession(ctx.Response,id);
+        await sec.SignInAsync(ctx,id);
         await next();
     });
     public static void MapSuiteSecurity(this WebApplication app,string configurationPublicUrl,string diagnosticsPublicUrl)
     {
-        app.MapGet("/login",(SuiteSecurity s,string? returnUrl,string? username,string? error)=>Results.Content(LoginPage.Render(s.Mode,returnUrl,username,!string.IsNullOrWhiteSpace(error)),"text/html; charset=utf-8"));
+        app.MapGet("/login",(SuiteSecurity s,string? returnUrl,string? username,string? error)=>Results.Content(LoginPage.Render(s.Mode,returnUrl,username,!string.IsNullOrWhiteSpace(error),s.EntraEnabled),"text/html; charset=utf-8"));
         app.MapPost("/auth/login",async(HttpContext c,SuiteSecurity s,ILogger<SuiteSecurity> logger)=>
         {
             var f=await c.Request.ReadFormAsync();
@@ -149,7 +106,7 @@ internal static class SuiteSecurityExtensions
                 var id=s.Authenticate(user,password);
                 if(id is null)
                     return Results.Redirect("/login?error=1&username="+Uri.EscapeDataString(user)+"&returnUrl="+Uri.EscapeDataString(SafeLocal(r)?r:"/"));
-                s.SetSession(c.Response,id);
+                await s.SignInAsync(c,id);
                 return Results.Redirect(SafeLocal(r)?r:"/");
             }
             catch(Exception ex)
@@ -157,13 +114,13 @@ internal static class SuiteSecurityExtensions
                 logger.LogError(ex,"Operations authentication backend failed for user {UserName}.",user);
                 return Results.Redirect("/login?error=backend&username="+Uri.EscapeDataString(user)+"&returnUrl="+Uri.EscapeDataString(SafeLocal(r)?r:"/"));
             }
-        });
-        app.MapPost("/auth/handoff",async(HttpContext c,SuiteSecurity s)=>{var f=await c.Request.ReadFormAsync();var id=s.AcceptHandoff(f["token"].ToString());if(id is null)return Results.Redirect("/login?error=handoff");s.SetSession(c.Response,id);c.Response.Headers.CacheControl="no-store";string r=f["returnUrl"].ToString();return Results.Redirect(SafeLocal(r)?r:"/");});
-        app.MapGet("/auth/me",(HttpContext c,SuiteSecurity s)=>{var id=s.ReadSession(c.Request);if(id is null)return Results.Unauthorized();s.SetSession(c.Response,id);return Results.Ok(new { id.UserName, id.DisplayName, id.Title, id.Permissions, clientIp=c.Connection.RemoteIpAddress?.ToString() ?? "unknown", idleTimeoutMinutes=s.IdleTimeoutMinutes });});
-        app.MapGet("/auth/logout",(HttpContext c,SuiteSecurity s)=>{s.Clear(c.Response);return Results.Redirect("/login");});
+        }).RequireRateLimiting(AccountSecurityHosting.LoginRateLimit);
+        app.MapPost("/auth/handoff",async(HttpContext c,SuiteSecurity s)=>{var f=await c.Request.ReadFormAsync();var id=s.AcceptHandoff(f["token"].ToString());if(id is null)return Results.Redirect("/login?error=handoff");await s.SignInAsync(c,id);c.Response.Headers.CacheControl="no-store";string r=f["returnUrl"].ToString();return Results.Redirect(SafeLocal(r)?r:"/");});
+        app.MapGet("/auth/me",async(HttpContext c,SuiteSecurity s)=>{var id=s.Read(c.Request);if(id is null)return Results.Unauthorized();await s.SignInAsync(c,id);return Results.Ok(new { id.UserName, id.DisplayName, id.Title, id.Permissions, clientIp=c.Connection.RemoteIpAddress?.ToString() ?? "unknown", idleTimeoutMinutes=s.IdleTimeoutMinutes });});
+        app.MapGet("/auth/logout",async(HttpContext c,SuiteSecurity s)=>{await s.SignOutAsync(c);return Results.Redirect("/login");});
         app.MapGet("/handoff/{target}",(string target,string? returnUrl,HttpContext c,SuiteSecurity s)=>
         {
-            var id=s.ReadSession(c.Request);
+            var id=s.Read(c.Request);
             if(id is null)
             {
                 string pending=c.Request.Path+c.Request.QueryString;

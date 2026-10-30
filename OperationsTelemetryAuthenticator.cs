@@ -8,9 +8,6 @@ internal sealed class OperationsTelemetryAuthenticator
     private readonly ILogger<OperationsTelemetryAuthenticator> _logger;
     private readonly string _configurationUrl;
     private readonly string _operationsUrl;
-    private readonly TimeSpan _authorityGrace;
-    private readonly TimeSpan _validationCache;
-    private readonly System.Collections.Concurrent.ConcurrentDictionary<string, DateTimeOffset> _lastValidated = new(StringComparer.OrdinalIgnoreCase);
 
     internal OperationsTelemetryAuthenticator(
         IHttpClientFactory factory,
@@ -31,15 +28,7 @@ internal sealed class OperationsTelemetryAuthenticator
             _logger,
             configurationKey: "Operations:SelfUrl");
 
-        _authorityGrace = TimeSpan.FromSeconds(Math.Clamp(
-            configuration.GetValue("Operations:TelemetryAuthorityGraceSeconds", 900),
-            30,
-            3600));
 
-        _validationCache = TimeSpan.FromSeconds(Math.Clamp(
-            configuration.GetValue("Operations:TelemetryValidationCacheSeconds", 30),
-            5,
-            300));
     }
 
     internal async Task<bool> IsAuthorizedAsync(
@@ -112,34 +101,18 @@ internal sealed class OperationsTelemetryAuthenticator
         request.Headers.TryAddWithoutValidation("X-Aegis-Installation-Id", installationId);
         request.Headers.TryAddWithoutValidation("X-Aegis-Runtime-Session-Id", runtimeSessionId);
         request.Headers.TryAddWithoutValidation("Authorization", authorization);
+        request.Headers.TryAddWithoutValidation("X-Aegis-Required-Scope", "operations.telemetry.publish");
         string correlation = context.Request.Headers["X-Aegis-Correlation-Id"].ToString().Trim();
         if (!string.IsNullOrWhiteSpace(correlation))
             request.Headers.TryAddWithoutValidation("X-Aegis-Correlation-Id", correlation);
 
-        string cacheKey = suppliedApplicationId + "|" + instanceId + "|" + installationId + "|" + runtimeSessionId;
-
-        if (_lastValidated.TryGetValue(cacheKey, out DateTimeOffset cachedAt) &&
-            DateTimeOffset.UtcNow - cachedAt <= _validationCache)
-        {
-            return true;
-        }
-
+        // Credentials are checked against the current authority on every request.
+        // An outage cannot restore a revoked credential; the client retains its retry/outbox behavior.
         try
         {
             using HttpResponseMessage response = await _factory.CreateClient("registration-authority").SendAsync(request, ct);
             if (response.IsSuccessStatusCode)
             {
-                _lastValidated[cacheKey] = DateTimeOffset.UtcNow;
-                return true;
-            }
-
-            if ((int)response.StatusCode >= 500 && IsRecentlyValidated(cacheKey))
-            {
-                _logger.LogWarning(
-                    "Configuration registration authority is unavailable (HTTP {StatusCode}); accepting recently validated telemetry identity {ApplicationId}/{InstanceId} within the configured grace period.",
-                    (int)response.StatusCode,
-                    suppliedApplicationId,
-                    instanceId);
                 return true;
             }
 
@@ -152,28 +125,14 @@ internal sealed class OperationsTelemetryAuthenticator
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
         {
-            if (IsRecentlyValidated(cacheKey))
-            {
-                _logger.LogWarning(
-                    ex,
-                    "Configuration registration authority is unavailable; accepting recently validated telemetry identity {ApplicationId}/{InstanceId} within the configured grace period.",
-                    suppliedApplicationId,
-                    instanceId);
-                return true;
-            }
-
             _logger.LogWarning(
                 ex,
-                "Telemetry authentication could not validate {ApplicationId}/{InstanceId} against Configuration and no recent successful validation is cached.",
+                "Telemetry authentication could not validate {ApplicationId}/{InstanceId} against Configuration and authentication failed closed.",
                 suppliedApplicationId,
                 instanceId);
             return false;
         }
     }
-
-    private bool IsRecentlyValidated(string cacheKey) =>
-        _lastValidated.TryGetValue(cacheKey, out DateTimeOffset validatedAt) &&
-        DateTimeOffset.UtcNow - validatedAt <= _authorityGrace;
 
     private static bool Has(HttpContext context, string permission) =>
         context.Items.TryGetValue("SuiteIdentity", out object? value) &&

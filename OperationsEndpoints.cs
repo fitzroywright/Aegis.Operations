@@ -176,10 +176,14 @@ internal static class OperationsEndpoints
         app.MapPost("/api/registration/control-plane/auto", async (
             HttpContext context,
             ControlPlaneBootstrapRequest request,
+            SuiteSecurity security,
             CancellationToken ct) =>
         {
-            if (context.Connection.RemoteIpAddress is null || !IPAddress.IsLoopback(context.Connection.RemoteIpAddress))
-                return Results.Unauthorized();
+            if(!Common.Security.Hosting.BrowserMutationPolicy.IsAllowed(context.Request))return Results.StatusCode(403);
+            bool loopback=context.Connection.RemoteIpAddress is { } remote && IPAddress.IsLoopback(remote);
+            SuiteIdentity? administrator=security.Read(context.Request);
+            string? currentCredential=AuthenticationHeaderValue.TryParse(context.Request.Headers.Authorization.ToString(),out var authorization) &&
+                authorization.Scheme.Equals("Bearer",StringComparison.OrdinalIgnoreCase) ? authorization.Parameter : null;
 
             string[] controlPlaneApplications =
             [
@@ -197,10 +201,14 @@ internal static class OperationsEndpoints
                 request.ApplicationId.Trim(),
                 string.IsNullOrWhiteSpace(request.DisplayName) ? request.ApplicationId.Trim() : request.DisplayName.Trim(),
                 request.InstanceId.Trim(),
+                administrator,
+                currentCredential,
+                loopback,
                 ct);
 
-            if (!provisioned.Succeeded || string.IsNullOrWhiteSpace(provisioned.Credential))
-                return Results.Conflict(new { error = provisioned.Error ?? "Control-plane registration could not be provisioned." });
+            if(!provisioned.Succeeded)return Results.Unauthorized();
+            if(string.IsNullOrWhiteSpace(provisioned.Credential))
+                return Results.Conflict(new {error="Control-plane registration could not be provisioned."});
 
             context.Response.Headers.CacheControl = "no-store";
             registrationLogger.LogInformation(
@@ -1206,25 +1214,25 @@ internal static class OperationsEndpoints
         string DisplayName,
         string InstanceId);
 
-    private enum RegistrationValidation
+    internal enum RegistrationValidation
     {
         Valid,
         Invalid,
         Revoked
     }
 
-    private sealed record ControlPlaneProvisionResult(
+    internal sealed record ControlPlaneProvisionResult(
         bool Succeeded,
         string? RegistrationId,
         string? Credential,
         string? Error);
 
-    private sealed record ControlPlaneRegistrationAudit(
+    internal sealed record ControlPlaneRegistrationAudit(
         DateTimeOffset AtUtc,
         string Action,
         string Actor);
 
-    private sealed record ControlPlaneRegistrationRecord(
+    internal sealed record ControlPlaneRegistrationRecord(
         string RegistrationId,
         string ApplicationId,
         string DisplayName,
@@ -1236,7 +1244,7 @@ internal static class OperationsEndpoints
         DateTimeOffset? LastAuthenticatedAtUtc,
         List<ControlPlaneRegistrationAudit> Audit);
 
-    private sealed class ControlPlaneRegistrationStore
+    internal sealed class ControlPlaneRegistrationStore
     {
         private readonly string _directory;
         private readonly SemaphoreSlim _gate = new(1, 1);
@@ -1255,12 +1263,23 @@ internal static class OperationsEndpoints
             string applicationId,
             string displayName,
             string instanceId,
+            SuiteIdentity? administrator,
+            string? currentCredential,
+            bool loopback,
             CancellationToken ct)
         {
             await _gate.WaitAsync(ct);
             try
             {
                 List<ControlPlaneRegistrationRecord> all = await LoadAllUnsafeAsync(ct);
+                bool approvedAdministrator=administrator is {AccountId:not null,SessionVersion:>0,ExternalIdentity:not null} &&
+                    administrator.Permissions.Contains("Security.Manage",StringComparer.OrdinalIgnoreCase);
+                ControlPlaneRegistrationRecord? machine=loopback && !string.IsNullOrWhiteSpace(currentCredential)
+                    ? all.FirstOrDefault(record=>!record.Revoked && record.ApplicationId.Equals(applicationId,StringComparison.OrdinalIgnoreCase) &&
+                        record.InstanceId.Equals(instanceId,StringComparison.OrdinalIgnoreCase) && VerifyCredentialHash(record.CredentialHash,currentCredential))
+                    : null;
+                if(!approvedAdministrator && machine is null)return new(false,null,null,"Authenticated enrollment approval is required.");
+                string actor=approvedAdministrator ? "user:"+administrator!.AccountId : "machine:"+machine!.RegistrationId;
                 DateTimeOffset now = DateTimeOffset.UtcNow;
 
                 foreach (ControlPlaneRegistrationRecord existing in all.Where(x =>
@@ -1272,7 +1291,7 @@ internal static class OperationsEndpoints
                     {
                         Revoked = true,
                         RevokedAtUtc = now,
-                        Audit = [.. existing.Audit, new(now, "ControlPlaneCredentialRotated", applicationId)]
+                        Audit = [.. existing.Audit, new(now, "ControlPlaneCredentialRotated", actor)]
                     };
                     await SaveUnsafeAsync(revoked, ct);
                 }
@@ -1288,7 +1307,7 @@ internal static class OperationsEndpoints
                     now,
                     null,
                     null,
-                    [new(now, "ControlPlaneAutoRegistered", applicationId)]);
+                    [new(now, "ControlPlaneRegistrationProvisioned", actor)]);
 
                 await SaveUnsafeAsync(record, ct);
 
@@ -1442,57 +1461,8 @@ internal static class OperationsEndpoints
             SecureFile(path);
         }
 
-        private static string HashCredential(string credential)
-        {
-            const int iterations = 210_000;
-            byte[] salt = RandomNumberGenerator.GetBytes(32);
-            byte[] hash = Rfc2898DeriveBytes.Pbkdf2(
-                credential,
-                salt,
-                iterations,
-                HashAlgorithmName.SHA256,
-                32);
-
-            return "PBKDF2-SHA256$" + iterations + "$" +
-                   Convert.ToBase64String(salt) + "$" +
-                   Convert.ToBase64String(hash);
-        }
-
-        private static bool VerifyCredentialHash(
-            string encoded,
-            string credential)
-        {
-            try
-            {
-                string[] parts = encoded.Split('$');
-                if (parts.Length != 4 ||
-                    !string.Equals(parts[0], "PBKDF2-SHA256", StringComparison.Ordinal))
-                {
-                    return false;
-                }
-
-                int iterations = int.Parse(
-                    parts[1],
-                    System.Globalization.CultureInfo.InvariantCulture);
-
-                byte[] salt = Convert.FromBase64String(parts[2]);
-                byte[] expected = Convert.FromBase64String(parts[3]);
-                byte[] actual = Rfc2898DeriveBytes.Pbkdf2(
-                    credential,
-                    salt,
-                    iterations,
-                    HashAlgorithmName.SHA256,
-                    expected.Length);
-
-                return CryptographicOperations.FixedTimeEquals(
-                    actual,
-                    expected);
-            }
-            catch
-            {
-                return false;
-            }
-        }
+        private static string HashCredential(string credential) => Common.Security.Services.MachineCredentialProof.Hash(credential);
+        private static bool VerifyCredentialHash(string encoded,string credential) => Common.Security.Services.MachineCredentialProof.Verify(encoded,credential);
 
         private static void SecureFile(string path)
         {
