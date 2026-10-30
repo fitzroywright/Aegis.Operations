@@ -58,7 +58,7 @@ builder.Services.AddHttpClient("registration-authority", client =>
     int timeoutSeconds = builder.Configuration.GetValue("Operations:RegistrationAuthorityTimeoutSeconds", 12);
     client.Timeout = TimeSpan.FromSeconds(Math.Clamp(timeoutSeconds, 5, 30));
 });
-builder.Services.AddSuiteSecurity();
+builder.Services.AddSuiteSecurity(builder.Configuration, builder.Environment);
 builder.Services.AddSingleton(sp => new OperationsV1Store(
     sp.GetRequiredService<IConfiguration>()));
 builder.Services.AddSingleton(sp => new OperationsTelemetryAuthenticator(
@@ -122,6 +122,10 @@ startupLogger.LogInformation(
     diagnosticsPublicUrl);
 
 app.MapSuiteSecurity(configurationPublicUrl, diagnosticsPublicUrl);
+app.UseAuthentication();
+app.UseRateLimiter();
+app.InitializeCommonAccounts();
+app.MapCommonSuiteIdentityEndpoints();
 app.UseSuiteSecurity();
 app.MapOperationsEndpoints(configurationUrl, diagnosticsUrl, site, environment);
 app.MapLifecycleRegistrationProxy(configurationUrl);

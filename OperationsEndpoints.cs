@@ -1206,25 +1206,25 @@ internal static class OperationsEndpoints
         string DisplayName,
         string InstanceId);
 
-    private enum RegistrationValidation
+    internal enum RegistrationValidation
     {
         Valid,
         Invalid,
         Revoked
     }
 
-    private sealed record ControlPlaneProvisionResult(
+    internal sealed record ControlPlaneProvisionResult(
         bool Succeeded,
         string? RegistrationId,
         string? Credential,
         string? Error);
 
-    private sealed record ControlPlaneRegistrationAudit(
+    internal sealed record ControlPlaneRegistrationAudit(
         DateTimeOffset AtUtc,
         string Action,
         string Actor);
 
-    private sealed record ControlPlaneRegistrationRecord(
+    internal sealed record ControlPlaneRegistrationRecord(
         string RegistrationId,
         string ApplicationId,
         string DisplayName,
@@ -1236,7 +1236,7 @@ internal static class OperationsEndpoints
         DateTimeOffset? LastAuthenticatedAtUtc,
         List<ControlPlaneRegistrationAudit> Audit);
 
-    private sealed class ControlPlaneRegistrationStore
+    internal sealed class ControlPlaneRegistrationStore
     {
         private readonly string _directory;
         private readonly SemaphoreSlim _gate = new(1, 1);
@@ -1442,57 +1442,8 @@ internal static class OperationsEndpoints
             SecureFile(path);
         }
 
-        private static string HashCredential(string credential)
-        {
-            const int iterations = 210_000;
-            byte[] salt = RandomNumberGenerator.GetBytes(32);
-            byte[] hash = Rfc2898DeriveBytes.Pbkdf2(
-                credential,
-                salt,
-                iterations,
-                HashAlgorithmName.SHA256,
-                32);
-
-            return "PBKDF2-SHA256$" + iterations + "$" +
-                   Convert.ToBase64String(salt) + "$" +
-                   Convert.ToBase64String(hash);
-        }
-
-        private static bool VerifyCredentialHash(
-            string encoded,
-            string credential)
-        {
-            try
-            {
-                string[] parts = encoded.Split('$');
-                if (parts.Length != 4 ||
-                    !string.Equals(parts[0], "PBKDF2-SHA256", StringComparison.Ordinal))
-                {
-                    return false;
-                }
-
-                int iterations = int.Parse(
-                    parts[1],
-                    System.Globalization.CultureInfo.InvariantCulture);
-
-                byte[] salt = Convert.FromBase64String(parts[2]);
-                byte[] expected = Convert.FromBase64String(parts[3]);
-                byte[] actual = Rfc2898DeriveBytes.Pbkdf2(
-                    credential,
-                    salt,
-                    iterations,
-                    HashAlgorithmName.SHA256,
-                    expected.Length);
-
-                return CryptographicOperations.FixedTimeEquals(
-                    actual,
-                    expected);
-            }
-            catch
-            {
-                return false;
-            }
-        }
+        private static string HashCredential(string credential) => Common.Security.Services.MachineCredentialProof.Hash(credential);
+        private static bool VerifyCredentialHash(string encoded,string credential) => Common.Security.Services.MachineCredentialProof.Verify(encoded,credential);
 
         private static void SecureFile(string path)
         {
