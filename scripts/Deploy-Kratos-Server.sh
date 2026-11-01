@@ -332,6 +332,19 @@ deploy_payload() {
     rm -rf "$target"
     mkdir -p "$target"
     cp -a "$SOURCE_ROOT/$app/." "$target/"
+    if [[ "$app" == "studio" ]]; then
+      # Installation time belongs to this payload and is restored with it on rollback.
+      python3 - "$target/studio-deployment.json" <<'PY_METADATA'
+import datetime
+import json
+import pathlib
+import sys
+metadata_path = pathlib.Path(sys.argv[1])
+metadata = json.loads(metadata_path.read_text()) if metadata_path.exists() else {}
+metadata["deployedAtUtc"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
+metadata_path.write_text(json.dumps(metadata) + "\n")
+PY_METADATA
+    fi
     if [[ "$app" == "configuration" ]]; then
       # Runtime configuration contracts are persistent state, never deployment content.
       rm -rf "$target/contracts"
@@ -732,3 +745,4 @@ echo "Preserved: /etc/aegis/*.env and /etc/aegis/secrets"
 for app in "${SELECTED[@]}"; do
   echo "  ${SERVICE[$app]} -> ${HEALTH[$app]}"
 done
+
