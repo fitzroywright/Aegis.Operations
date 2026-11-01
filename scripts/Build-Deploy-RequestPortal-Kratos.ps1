@@ -162,8 +162,8 @@ try {
         }
         $pgHost = if ($parts.ContainsKey('host')) { $parts['host'] } elseif ($parts.ContainsKey('server')) { $parts['server'] } else { '' }
         $pgDb = if ($parts.ContainsKey('database')) { $parts['database'] } else { '' }
-        if ($pgHost -ne '10.10.0.226' -or $pgDb -ne 'requestportal_tests') {
-            throw "Request Portal tests require isolated database requestportal_tests on 10.10.0.226."
+        if ($pgHost -notin @('localhost', '127.0.0.1', '10.10.0.226') -or $pgDb -ne 'requestportal_tests') {
+            throw "Request Portal tests require the isolated requestportal_tests database on localhost or approved host 10.10.0.226."
         }
         Write-Host "Verified Request Portal test database target (credentials redacted)." -ForegroundColor DarkCyan
     }
