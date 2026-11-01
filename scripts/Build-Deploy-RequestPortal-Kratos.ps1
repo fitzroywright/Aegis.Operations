@@ -125,6 +125,16 @@ try {
         throw "RequestPortal solution not found: $requestPortalSolution"
     }
 
+    if (-not $SkipTests -and [string]::IsNullOrWhiteSpace([Environment]::GetEnvironmentVariable("REQUESTPORTAL_POSTGRES"))) {
+        throw "REQUESTPORTAL_POSTGRES is required for integration tests. Configure an isolated test-only PostgreSQL database; refusing to deploy without tested prerequisites."
+    }
+    # Guard against accidentally running destructive integration tests on the live portal database.
+    if (-not $SkipTests) {
+        $testPg = [Environment]::GetEnvironmentVariable("REQUESTPORTAL_POSTGRES")
+        if ($testPg -match '(?i)(database|initial catalog)\s*=\s*(requestportal|postgres|template0|template1)\s*(;|$)') {
+            throw "Refusing generic/production-looking PostgreSQL database name in REQUESTPORTAL_POSTGRES. Supply a dedicated isolated test database."
+        }
+    }
     Set-Location $requestPortalPath
     Reset-DotNetBuildServers
 
