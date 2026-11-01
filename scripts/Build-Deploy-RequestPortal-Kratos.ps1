@@ -151,6 +151,25 @@ try {
             }
         }
         if ([string]::IsNullOrWhiteSpace($pg)) {
+            # Explicitly requested demo PostgreSQL target. Never substitute a production DB.
+            # Password can be provided through REQUESTPORTAL_DEMO_PG_PASSWORD;
+            # when absent, ask interactively rather than committing credentials to Git.
+            $demoPassword = [Environment]::GetEnvironmentVariable("REQUESTPORTAL_DEMO_PG_PASSWORD", "Process")
+            if ([string]::IsNullOrWhiteSpace($demoPassword)) {
+                if ([Console]::IsInputRedirected) {
+                    throw "Set REQUESTPORTAL_DEMO_PG_PASSWORD in the current process for unattended demo integration tests."
+                }
+                $securePassword = Read-Host "PostgreSQL demo password for sa at 10.10.0.226" -AsSecureString
+                $demoPassword = [System.Net.NetworkCredential]::new("", $securePassword).Password
+            }
+            if ($demoPassword.Contains(';')) {
+                throw "Demo PostgreSQL password contains an unsupported connection-string delimiter; supply a correctly escaped REQUESTPORTAL_POSTGRES instead."
+            }
+            $pg = "Host=10.10.0.226;Port=5432;Database=requestportal_tests;Username=sa;Password=$demoPassword;Timeout=10"
+            [Environment]::SetEnvironmentVariable("REQUESTPORTAL_POSTGRES", $pg, "Process")
+            Write-Host "Using requested PostgreSQL demo host 10.10.0.226, user sa, isolated database requestportal_tests." -ForegroundColor DarkCyan
+        }
+        if ([string]::IsNullOrWhiteSpace($pg)) {
             throw "Missing REQUESTPORTAL_POSTGRES. Supply a dedicated test-only PostgreSQL connection on 10.10.0.226 or a verified Studio test connection through StudioTestPostgresVariable."
         }
         $parts = @{}
