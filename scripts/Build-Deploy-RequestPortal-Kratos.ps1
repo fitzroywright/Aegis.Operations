@@ -184,6 +184,21 @@ try {
         if ($pgHost -notin @('localhost', '127.0.0.1', '10.10.0.226') -or $pgDb -ne 'requestportal_tests') {
             throw "Request Portal tests require the isolated requestportal_tests database on localhost or approved host 10.10.0.226."
         }
+        $pgPort = if ($parts.ContainsKey('port')) { [int]$parts['port'] } else { 5432 }
+        $socket = [System.Net.Sockets.TcpClient]::new()
+        try {
+            $connect = $socket.ConnectAsync($pgHost, $pgPort)
+            if (-not $connect.Wait([TimeSpan]::FromSeconds(8))) {
+                throw "Timed out connecting to PostgreSQL test host ${pgHost}:${pgPort}."
+            }
+            if (-not $socket.Connected) {
+                throw "Could not connect to PostgreSQL test host ${pgHost}:${pgPort}."
+            }
+        }
+        finally {
+            $socket.Dispose()
+        }
+        Write-Host "PostgreSQL test server reachable at ${pgHost}:${pgPort}; database authentication/schema will be verified by integration tests." -ForegroundColor DarkCyan
         Write-Host "Verified Request Portal test database target (credentials redacted)." -ForegroundColor DarkCyan
     }
     Set-Location $requestPortalPath
