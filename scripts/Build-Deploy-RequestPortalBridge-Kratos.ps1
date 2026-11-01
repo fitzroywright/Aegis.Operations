@@ -96,6 +96,11 @@ if ($IdentityFile) { $sshArguments += @('-i', $IdentityFile) }
 # Ordinary deployments remain noninteractive; never attempt to bypass sudo.
 Write-Host 'Checking Kratos bridge deployment authorization...' -ForegroundColor DarkCyan
 $permissionProbe = 'test -x /usr/local/sbin/aegis-deploy-requestportal-bridge && sudo -n /usr/local/sbin/aegis-deploy-requestportal-bridge --help >/dev/null'
+$identityProbe = 'printf "Remote Linux user: "; id -un; printf "Remote sudo authorization: "; sudo -n -l /usr/local/sbin/aegis-deploy-requestportal-bridge 2>&1'
+& ssh @sshArguments -l $UserName $HostName $identityProbe
+if ($LASTEXITCODE -ne 0) {
+    throw "Unable to inspect remote SSH identity and sudo policy. Check the SSH user selection and effective sudoers rule."
+}
 & ssh @sshArguments -l $UserName $HostName $permissionProbe
 if ($LASTEXITCODE -ne 0) {
     throw @'
