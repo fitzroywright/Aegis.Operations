@@ -1,10 +1,11 @@
 [CmdletBinding()]
 param(
-    [string]$Root = "D:\Projects",
+    [string]$Root = $(if ($IsWindows) { "D:\Projects" } else { Join-Path $HOME "Projects" }),
     [string]$HostName = "kratos",
     [string]$UserName = "fwright@fftpj.local",
     [string]$IdentityFile,
     [switch]$SkipTests,
+    [Parameter(Mandatory = $true)][uri]$BridgeBaseUrl,
     [switch]$KeepLocalBundle,
     [switch]$KeepRemoteBundle
 )
@@ -97,6 +98,7 @@ function Assert-CleanMain {
 $requestPortalPath = Join-Path $Root "RequestPortal"
 $requestPortalSolution = Join-Path $requestPortalPath "RequestPortal.slnx"
 $deployScript = Join-Path $Root "Aegis.Operations\scripts\Deploy-Kratos.ps1"
+$bridgeDeployScript = Join-Path $Root "Aegis.Operations\scripts\Build-Deploy-RequestPortalBridge-Kratos.ps1"
 
 $dependencies = @(
     @{ Name = "Common.Diagnostics";   Path = Join-Path $Root "Common\Common.Diagnostics" },
@@ -179,6 +181,38 @@ try {
         throw "Kratos deployment script not found: $deployScript"
     }
 
+    if (-not (Test-Path $bridgeDeployScript)) {
+        throw "Bridge deployment script not found: $bridgeDeployScript"
+    }
+    if (-not $BridgeBaseUrl.IsAbsoluteUri -or $BridgeBaseUrl.Scheme -ne "https" -or
+        $BridgeBaseUrl.UserInfo -or $BridgeBaseUrl.Query -or $BridgeBaseUrl.Fragment -or
+        $BridgeBaseUrl.AbsolutePath -ne "/") {
+        throw "BridgeBaseUrl must be a credential-free HTTPS origin without path/query/fragment."
+    }
+
+    # Bridge must be healthy before the live Request Portal is replaced.
+    # Reuse the existing guarded, rollback-capable bridge deployment script.
+    Write-Host ""
+    Write-Host "========================================" -ForegroundColor Cyan
+    Write-Host " DEPLOY FFP MANAGER BRIDGE TO KRATOS" -ForegroundColor Cyan
+    Write-Host "========================================" -ForegroundColor Cyan
+    $bridgeArguments = @{
+        BridgeBaseUrl = $BridgeBaseUrl
+        Root = $Root
+        HostName = $HostName
+        UserName = $UserName
+        SkipTests = $SkipTests
+        KeepLocalBundle = $KeepLocalBundle
+        KeepRemoteBundle = $KeepRemoteBundle
+    }
+    if (-not [string]::IsNullOrWhiteSpace($IdentityFile)) {
+        $bridgeArguments.IdentityFile = $IdentityFile
+    }
+    & $bridgeDeployScript @bridgeArguments
+    if (-not $?) {
+        throw "Bridge deployment failed; Request Portal deployment was not started."
+    }
+
     Write-Host ""
     Write-Host "========================================" -ForegroundColor Cyan
     Write-Host " DEPLOY RequestPortal TO KRATOS" -ForegroundColor Cyan
@@ -200,13 +234,13 @@ try {
     }
 
     & $deployScript @deployArguments
-    if ($LASTEXITCODE -ne 0) {
+    if (-not $? -or $LASTEXITCODE -ne 0) {
         throw "RequestPortal deployment failed with exit code $LASTEXITCODE."
     }
 
     Write-Host ""
     Write-Host "========================================" -ForegroundColor Green
-    Write-Host " REQUESTPORTAL BUILD / DEPLOY COMPLETE" -ForegroundColor Green
+    Write-Host " REQUESTPORTAL + FFP BRIDGE BUILD / DEPLOY COMPLETE" -ForegroundColor Green
     Write-Host "========================================" -ForegroundColor Green
 }
 finally {
