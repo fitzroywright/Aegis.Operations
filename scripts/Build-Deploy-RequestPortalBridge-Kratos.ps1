@@ -92,6 +92,20 @@ $remoteRoot = '/tmp/' + [IO.Path]::GetFileName($bundleRoot)
 $remoteArchive = "$remoteRoot.tgz"
 $sshArguments = @('-o', 'BatchMode=yes')
 if ($IdentityFile) { $sshArguments += @('-i', $IdentityFile) }
+# Fail before the expensive build and upload when root-owned deployment permission is absent.
+# Ordinary deployments remain noninteractive; never attempt to bypass sudo.
+Write-Host 'Checking Kratos bridge deployment authorization...' -ForegroundColor DarkCyan
+$permissionProbe = 'test -x /usr/local/sbin/aegis-deploy-requestportal-bridge && sudo -n /usr/local/sbin/aegis-deploy-requestportal-bridge --help >/dev/null'
+& ssh @sshArguments -l $UserName $HostName $permissionProbe
+if ($LASTEXITCODE -ne 0) {
+    throw @'
+Kratos has not authorized passwordless execution of the root-owned bridge deployer.
+An administrator must first allow this EXACT deployment entrypoint via sudoers
+(or arrange an equivalent privileged deployment agent). The script cannot safely
+remove the remote sudo requirement. Bootstrap and TLS/OpenBao/SQL readiness are
+separate requirements. Run sudo -l on Kratos to inspect granted permissions.
+'@
+}
 New-Item -ItemType Directory -Path (Join-Path $bundleRoot 'payload') -Force | Out-Null
 try {
     Invoke-Native 'dotnet' @('restore', $solution, '--disable-parallel', '-m:1', '/nodeReuse:false')
