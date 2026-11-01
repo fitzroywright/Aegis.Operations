@@ -127,29 +127,45 @@ try {
     }
 
     if (-not $SkipTests) {
-        # Same shared-test environment convention used by Studio/Common.Messaging.
-        # Credentials are provided by a protected process environment or CI secret,
-        # never by source, a production deployment environment file, or Git.
         $pg = [Environment]::GetEnvironmentVariable("REQUESTPORTAL_POSTGRES", "Process")
         if ([string]::IsNullOrWhiteSpace($pg)) {
-            if ($StudioTestPostgresVariable -notmatch '^[A-Za-z_][A-Za-z0-9_]*
+            if ($StudioTestPostgresVariable -notmatch '^[A-Za-z_][A-Za-z0-9_]*$') {
+                throw "Invalid Studio test environment variable name."
+            }
+            $studioPg = [Environment]::GetEnvironmentVariable($StudioTestPostgresVariable, "Process")
+            if (-not [string]::IsNullOrWhiteSpace($studioPg)) {
+                $studioFields = @{}
+                foreach ($fragment in ($studioPg -split ';')) {
+                    $pair = $fragment.Split('=', 2)
+                    if ($pair.Count -eq 2) {
+                        $studioFields[$pair[0].Trim().ToLowerInvariant()] = $pair[1].Trim()
+                    }
+                }
+                $studioHost = if ($studioFields.ContainsKey('host')) { $studioFields['host'] } elseif ($studioFields.ContainsKey('server')) { $studioFields['server'] } else { '' }
+                $studioDb = if ($studioFields.ContainsKey('database')) { $studioFields['database'] } else { '' }
+                if ($studioHost -ne '10.10.0.226' -or $studioDb -notmatch '(?i)(^|[_-])test(s|ing)?($|[_-])') {
+                    throw "Studio test source must be an isolated test database on host 10.10.0.226."
+                }
+                $pg = [regex]::Replace($studioPg, '(?i)(^|;)\s*database\s*=\s*[^;]*', '${1}Database=requestportal_tests')
+                [Environment]::SetEnvironmentVariable("REQUESTPORTAL_POSTGRES", $pg, "Process")
+            }
+        }
         if ([string]::IsNullOrWhiteSpace($pg)) {
-            throw "Missing REQUESTPORTAL_POSTGRES. Use the existing shared Aegis test PostgreSQL server (10.10.0.226) with a dedicated Request Portal test database; load credentials from a protected local profile. Studio/Common.Messaging uses the same environment-variable pattern."
+            throw "Missing REQUESTPORTAL_POSTGRES. Supply a dedicated test-only PostgreSQL connection on 10.10.0.226 or a verified Studio test connection through StudioTestPostgresVariable."
         }
         $parts = @{}
         foreach ($fragment in ($pg -split ';')) {
             $pair = $fragment.Split('=', 2)
-            if ($pair.Count -eq 2) { $parts[$pair[0].Trim().ToLowerInvariant()] = $pair[1].Trim() }
+            if ($pair.Count -eq 2) {
+                $parts[$pair[0].Trim().ToLowerInvariant()] = $pair[1].Trim()
+            }
         }
         $pgHost = if ($parts.ContainsKey('host')) { $parts['host'] } elseif ($parts.ContainsKey('server')) { $parts['server'] } else { '' }
         $pgDb = if ($parts.ContainsKey('database')) { $parts['database'] } else { '' }
-        if ($pgHost -ne '10.10.0.226') {
-            throw "REQUESTPORTAL_POSTGRES must point to the approved shared test PostgreSQL host 10.10.0.226."
+        if ($pgHost -ne '10.10.0.226' -or $pgDb -ne 'requestportal_tests') {
+            throw "Request Portal tests require isolated database requestportal_tests on 10.10.0.226."
         }
-        if ($pgDb -notmatch '(?i)(^|[_-])test(s|ing)?($|[_-])') {
-            throw "REQUESTPORTAL_POSTGRES must specify a dedicated test database (e.g. requestportal_tests), not the live portal database."
-        }
-        Write-Host "Request Portal isolated PostgreSQL test connection selected on approved host (credentials redacted)." -ForegroundColor DarkCyan
+        Write-Host "Verified Request Portal test database target (credentials redacted)." -ForegroundColor DarkCyan
     }
     Set-Location $requestPortalPath
     Reset-DotNetBuildServers
