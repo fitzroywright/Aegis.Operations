@@ -125,15 +125,28 @@ try {
         throw "RequestPortal solution not found: $requestPortalSolution"
     }
 
-    if (-not $SkipTests -and [string]::IsNullOrWhiteSpace([Environment]::GetEnvironmentVariable("REQUESTPORTAL_POSTGRES"))) {
-        throw "REQUESTPORTAL_POSTGRES is required for integration tests. Configure an isolated test-only PostgreSQL database; refusing to deploy without tested prerequisites."
-    }
-    # Guard against accidentally running destructive integration tests on the live portal database.
     if (-not $SkipTests) {
-        $testPg = [Environment]::GetEnvironmentVariable("REQUESTPORTAL_POSTGRES")
-        if ($testPg -match '(?i)(database|initial catalog)\s*=\s*(requestportal|postgres|template0|template1)\s*(;|$)') {
-            throw "Refusing generic/production-looking PostgreSQL database name in REQUESTPORTAL_POSTGRES. Supply a dedicated isolated test database."
+        # Same shared-test environment convention used by Studio/Common.Messaging.
+        # Credentials are provided by a protected process environment or CI secret,
+        # never by source, a production deployment environment file, or Git.
+        $pg = [Environment]::GetEnvironmentVariable("REQUESTPORTAL_POSTGRES", "Process")
+        if ([string]::IsNullOrWhiteSpace($pg)) {
+            throw "Missing REQUESTPORTAL_POSTGRES. Use the existing shared Aegis test PostgreSQL server (10.10.0.226) with a dedicated Request Portal test database; load credentials from a protected local profile. Studio/Common.Messaging uses the same environment-variable pattern."
         }
+        $parts = @{}
+        foreach ($fragment in ($pg -split ';')) {
+            $pair = $fragment.Split('=', 2)
+            if ($pair.Count -eq 2) { $parts[$pair[0].Trim().ToLowerInvariant()] = $pair[1].Trim() }
+        }
+        $pgHost = if ($parts.ContainsKey('host')) { $parts['host'] } elseif ($parts.ContainsKey('server')) { $parts['server'] } else { '' }
+        $pgDb = if ($parts.ContainsKey('database')) { $parts['database'] } else { '' }
+        if ($pgHost -ne '10.10.0.226') {
+            throw "REQUESTPORTAL_POSTGRES must point to the approved shared test PostgreSQL host 10.10.0.226."
+        }
+        if ($pgDb -notmatch '(?i)(^|[_-])test(s|ing)?($|[_-])') {
+            throw "REQUESTPORTAL_POSTGRES must specify a dedicated test database (e.g. requestportal_tests), not the live portal database."
+        }
+        Write-Host "Request Portal isolated PostgreSQL test connection selected on approved host (credentials redacted)." -ForegroundColor DarkCyan
     }
     Set-Location $requestPortalPath
     Reset-DotNetBuildServers
