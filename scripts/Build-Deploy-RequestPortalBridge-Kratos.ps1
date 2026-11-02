@@ -118,13 +118,28 @@ $remoteHash = & ssh @sshArguments -l $UserName $HostName 'sha256sum /usr/local/s
 if ($LASTEXITCODE -ne 0) { throw 'Cannot verify installed root-owned bridge deployer.' }
 $installedHash = ([string]($remoteHash | Select-Object -First 1)).Split(' ')[0].ToLowerInvariant()
 if ($installedHash -ne $localHash) {
-    throw @'
-Installed bridge deployer does not match this source tree.
-An administrator must back up and install the reviewed
-Deploy-RequestPortalBridge-Kratos-Server.sh as
-/usr/local/sbin/aegis-deploy-requestportal-bridge (owner root, mode 0755).
-No build or release has been attempted.
-'@
+    Write-Warning 'The installed root-owned bridge deployer differs from the source.'
+    $answer = Read-Host 'Install matching deployer with root-owned backup? Type YES'
+    if ($answer -cne 'YES') { throw 'Deployer mismatch: update declined before build.' }
+    $remoteFile = '/tmp/aegis-bridge-helper-' + [guid]::NewGuid().ToString('N') + '.sh'
+    try {
+        Invoke-Native 'scp' ($sshArguments + @('-o', "User=$UserName", $serverScript, "${HostName}:$remoteFile"))
+        $qFile = Quote-Shell $remoteFile
+        $qHash = Quote-Shell $localHash
+        $remoteSteps = @(
+            'set -eu',
+            "test `$(sha256sum $qFile | cut -d ' ' -f 1) = $qHash",
+            'target=/usr/local/sbin/aegis-deploy-requestportal-bridge',
+            'stamp=$(date +%Y%m%d-%H%M%S)',
+            'sudo cp -p "$target" "$target.backup-$stamp"',
+            "sudo install -o root -g root -m 0755 $qFile /usr/local/sbin/aegis-deploy-requestportal-bridge",
+            "test `$(sha256sum /usr/local/sbin/aegis-deploy-requestportal-bridge | cut -d ' ' -f 1) = $qHash"
+        )
+        Invoke-Native 'ssh' ($sshArguments + @('-tt', '-l', $UserName, $HostName, ($remoteSteps -join '; ')))
+    }
+    finally {
+        & ssh @sshArguments -l $UserName $HostName ("rm -f -- " + (Quote-Shell $remoteFile)) | Out-Null
+    }
 }
 
 New-Item -ItemType Directory -Path (Join-Path $bundleRoot 'payload') -Force | Out-Null
