@@ -111,6 +111,22 @@ remove the remote sudo requirement. Bootstrap and TLS/OpenBao/SQL readiness are
 separate requirements. Run sudo -l on Kratos to inspect granted permissions.
 '@
 }
+# Fail early on a mismatched root-owned deployment helper. Do not spend time
+# restoring and publishing a release that the guarded installer will reject.
+$localHash = (Get-FileHash -LiteralPath $serverScript -Algorithm SHA256).Hash.ToLowerInvariant()
+$remoteHash = & ssh @sshArguments -l $UserName $HostName 'sha256sum /usr/local/sbin/aegis-deploy-requestportal-bridge'
+if ($LASTEXITCODE -ne 0) { throw 'Cannot verify installed root-owned bridge deployer.' }
+$installedHash = ([string]($remoteHash | Select-Object -First 1)).Split(' ')[0].ToLowerInvariant()
+if ($installedHash -ne $localHash) {
+    throw @'
+Installed bridge deployer does not match this source tree.
+An administrator must back up and install the reviewed
+Deploy-RequestPortalBridge-Kratos-Server.sh as
+/usr/local/sbin/aegis-deploy-requestportal-bridge (owner root, mode 0755).
+No build or release has been attempted.
+'@
+}
+
 New-Item -ItemType Directory -Path (Join-Path $bundleRoot 'payload') -Force | Out-Null
 try {
     Invoke-Native 'dotnet' @('restore', $solution, '--disable-parallel', '-m:1', '/nodeReuse:false')
