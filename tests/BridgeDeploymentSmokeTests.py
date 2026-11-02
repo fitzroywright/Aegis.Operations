@@ -1,6 +1,8 @@
 import os, pathlib, subprocess, tempfile
 
 source = (pathlib.Path(__file__).resolve().parents[1] / 'scripts/Deploy-RequestPortalBridge-Kratos-Server.sh').read_text()
+# Account/systemd operations are mocked below; only the temporary copy simulates root.
+source = source.replace('[[ $EUID -eq 0 ]]', 'true')
 for scenario in ('success', 'readiness_failure', 'first_install_failure', 'http_rejected'):
     with tempfile.TemporaryDirectory() as td:
         root = pathlib.Path(td)
@@ -20,6 +22,7 @@ for scenario in ('success', 'readiness_failure', 'first_install_failure', 'http_
         active = root / 'active'
         if existed: active.touch()
         mocks = {
+            'stat': '#!/usr/bin/env python3\nimport os,stat,sys\nprint(0 if sys.argv[2] == "%u" else format(stat.S_IMODE(os.stat(sys.argv[3]).st_mode), "o"))\n',
             'getent': '#!/bin/bash\nexit 0\n',
             'chown': '#!/bin/bash\nexit 0\n',
             'sleep': '#!/bin/bash\nexit 0\n',

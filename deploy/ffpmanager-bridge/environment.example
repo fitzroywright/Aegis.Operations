@@ -8,6 +8,9 @@ Kestrel__Certificates__Default__Path=/etc/aegis/ffpmanager-bridge/tls/fullchain.
 Kestrel__Certificates__Default__KeyPath=/etc/aegis/ffpmanager-bridge/tls/privatekey.pem
 Bridge__ServiceIdentity=FfpManager.Bridge
 Bridge__Gateway=Sql
+# Production authorizes only JMDB01/FFPJM. Rehearsal authorizes only JMDB01/FFP.
+# Change together with the protected OpenBao target after schema/backup verification.
+Bridge__SqlTarget=Production
 Bridge__RequestPortalBaseUrl=CHANGE_ME_HTTPS_PORTAL_ORIGIN
 Bridge__SupportingDocumentRoot=CHANGE_ME_MOUNTED_TEST_DOCUMENT_DIRECTORY
 Bridge__InitialApplicationStatus=CHANGE_ME_REAL_FFP_STATUS

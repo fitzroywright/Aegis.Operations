@@ -25,6 +25,8 @@ def check(values):
         'CommonSecrets__Mode': 'Production',
     }.items():
         if require(key).lower() != expected.lower(): errors.append(key + ' must be ' + expected)
+    if require('Bridge__SqlTarget') not in ('Production', 'Rehearsal'):
+        errors.append('Bridge__SqlTarget must explicitly select Production (JMDB01/FFPJM) or Rehearsal (JMDB01/FFP)')
     for key in ('Bridge__ServiceIdentity', 'Bridge__InitialApplicationStatus', 'AllowedHosts'):
         require(key)
     if '*' in values.get('AllowedHosts', ''): errors.append('AllowedHosts must be restricted')

@@ -1,7 +1,7 @@
 # Request Portal Bridge: bootstrap and deployment
 
 Run from PowerShell 7 on Windows/macOS/Linux. The bridge is a separate application
-in RequestPortal/FfpManager.Bridge. Use the FFP Manager test database and a mounted
+in RequestPortal/FfpManager.Bridge. Use an explicit `Bridge__SqlTarget` (`Production` = JMDB01/FFPJM; `Rehearsal` = JMDB01/FFP) and a mounted
 test document directory for commissioning. No application secrets belong in source.
 
 ## First install on Kratos

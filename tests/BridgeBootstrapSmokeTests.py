@@ -27,6 +27,10 @@ with tempfile.TemporaryDirectory() as td:
     for key in ('Kestrel__Certificates__Default__Path','Kestrel__Certificates__Default__KeyPath','CommonSecrets__Providers__PrimarySecrets__Settings__SecretIdFile'):
         p=root/key; p.write_text('fixture'); p.chmod(0o640); values[key]=str(p)
     assert not checker.check(values), checker.check(values)
+    for bad in ('', 'production', 'FFPJM', 'Other'):
+        assert checker.check({**values, 'Bridge__SqlTarget':bad})
+    assert not checker.check({**values, 'Bridge__SqlTarget':'Rehearsal'})
+    print('PASS explicit target required and unknown targets rejected')
     print('PASS complete configuration shape accepted (not live credentials or TLS)')
     for key, bad in [('ASPNETCORE_URLS','http://0.0.0.0:5443'), ('Bridge__RequestPortalBaseUrl','http://portal.test'), ('CommonSecrets__Providers__PrimarySecrets__Settings__DeleteSecretIdFileAfterRead','true')]:
         assert checker.check({**values,key:bad})
@@ -37,6 +41,8 @@ with tempfile.TemporaryDirectory() as td:
     # Keep the installer next to real repository assets; rewrite host paths only
     # in an isolated copy, and stub all account/systemd mutations.
     code=(repo/'scripts/Initialize-RequestPortalBridge-Kratos.sh').read_text()
+    # Only the isolated copy simulates root; production authorization is unchanged.
+    code=code.replace('[[ $EUID -eq 0 ]]', 'true')
     code=code.replace('repo=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}\")/.." && pwd)', 'repo="'+str(repo)+'"')
     for prefix in ('/etc/aegis','/etc/systemd/system','/opt/aegis','/var/lib/aegis-ffpmanager-bridge','/usr/local/libexec','/usr/local/sbin'):
         code=code.replace(prefix,str(root)+prefix)
