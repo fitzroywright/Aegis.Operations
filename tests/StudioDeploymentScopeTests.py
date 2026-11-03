@@ -24,6 +24,9 @@ cleanup_legacy_registration() { echo mutation:registration; }
     def test_public_site_only_preserves_its_existing_isolation(self):
         self.assertEqual("", self.decision("publicsite"))
 
+    def test_requestportal_only_preserves_secrets_and_other_application_registration(self):
+        self.assertEqual("", self.decision("requestportal"))
+
     def test_control_plane_rollout_retains_its_explicit_migrations(self):
         self.assertEqual("mutation:secrets\nmutation:registration\n", self.decision("operations", "configuration", "diagnostics"))
 

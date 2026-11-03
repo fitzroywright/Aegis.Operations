@@ -680,7 +680,7 @@ studio_demo_phase backup
 # or registration state so a migration failure cannot leave a partial deployment.
 trap 'rc=$?; if [[ $rc -ne 0 ]]; then rollback; fi; exit $rc' EXIT
 
-if [[ ${#SELECTED[@]} -eq 1 ]] && { is_selected publicsite || is_selected studio; }; then
+if [[ ${#SELECTED[@]} -eq 1 ]] && { is_selected publicsite || is_selected studio || is_selected requestportal; }; then
   log "Preserving environment and registration state for the isolated application deployment"
 else
   migrate_common_secrets_env
@@ -722,6 +722,10 @@ for app in "${SELECTED[@]}"; do
   fi
 
   health_check "$app"
+  if [[ "$app" == "requestportal" ]]; then
+    # Non-secret evidence binds the running publish artifact to the verified source build.
+    sha256sum "${TARGET[$app]}/${DLL[$app]}"
+  fi
 done
 
 trap - EXIT
