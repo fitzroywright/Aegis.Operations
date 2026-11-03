@@ -1,6 +1,17 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
+# Configuration-only commissioning uses the reviewed, fixed-scope portal helper.
+# This exits before staging, service selection or any shared configuration cleanup.
+if [[ $# -eq 1 && "$1" == "--requestportal-directory-commission" ]]; then
+  helper="/usr/local/sbin/aegis-requestportal-commission-directory"
+  if [[ ! -f "$helper" || ! -x "$helper" || -L "$helper" || "$(stat -c '%u:%a' "$helper")" != "0:755" ]]; then
+    echo "ERROR: the reviewed root-owned Request Portal commissioning helper is not installed." >&2
+    exit 1
+  fi
+  exec "$helper" --apply
+fi
+
 SOURCE_ROOT="/tmp/aegis-deploy/payload"
 APPS="operations,configuration,diagnostics,hello"
 BACKUP_ROOT="/opt/aegis/backups"
@@ -18,6 +29,8 @@ restarts the selected systemd services, validates local health endpoints, and
 rolls back automatically if deployment health validation fails.
 
 Options:
+  --requestportal-directory-commission
+                      Alone: run the installed fixed-scope directory commissioning helper; no application deployment
   --source PATH       Staging payload root. Default: /tmp/aegis-deploy/payload
   --apps LIST         Comma-separated: operations,configuration,diagnostics,hello,requestportal,studio,publicsite
                       Default: operations,configuration,diagnostics,hello
