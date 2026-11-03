@@ -4,6 +4,7 @@ import os
 import pathlib
 import subprocess
 import tempfile
+from unittest.mock import patch
 
 repo = pathlib.Path(__file__).resolve().parents[1]
 spec = importlib.util.spec_from_file_location('bridge_check', repo / 'deploy/ffpmanager-bridge/Check-Configuration.py')
@@ -17,8 +18,9 @@ with tempfile.TemporaryDirectory() as td:
     values = checker.read_environment(template)
     values = {k:v for k,v in values.items() if 'CHANGE_ME' not in k}
     values.update({
-        'AllowedHosts':'bridge.test', 'Bridge__RequestPortalBaseUrl':'https://portal.test',
+        'Bridge__SqlTarget':'Production', 'AllowedHosts':'bridge.test', 'Bridge__RequestPortalBaseUrl':'https://portal.test',
         'Bridge__SupportingDocumentRoot':td, 'Bridge__InitialApplicationStatus':'RECEIVED',
+        'Bridge__SupportingDocumentManagerRoot':r'\\nas01.fftpj.local\ffpmanager_data\RequestPortalBridge',
         'Bridge__StatusMap__New':'RECEIVED', 'Bridge__DocumentTypeMap__Photo':'Photo',
         'CommonSecrets__Providers__PrimarySecrets__Settings__Address':'https://bao.test',
         'CommonSecrets__Providers__PrimarySecrets__Settings__RoleId':'test-role',
@@ -26,23 +28,35 @@ with tempfile.TemporaryDirectory() as td:
     })
     for key in ('Kestrel__Certificates__Default__Path','Kestrel__Certificates__Default__KeyPath','CommonSecrets__Providers__PrimarySecrets__Settings__SecretIdFile'):
         p=root/key; p.write_text('fixture'); p.chmod(0o640); values[key]=str(p)
-    assert not checker.check(values), checker.check(values)
+    checker.MOUNT = td
+    mountinfo = f'1 0 0:1 / {td} rw - cifs {checker.SOURCE} rw\n'
+    assert not checker.check(values, mountinfo), checker.check(values, mountinfo)
     for bad in ('', 'production', 'FFPJM', 'Other'):
-        assert checker.check({**values, 'Bridge__SqlTarget':bad})
-    assert not checker.check({**values, 'Bridge__SqlTarget':'Rehearsal'})
+        assert checker.check({**values, 'Bridge__SqlTarget':bad}, mountinfo)
+    assert not checker.check({**values, 'Bridge__SqlTarget':'Rehearsal'}, mountinfo)
     print('PASS explicit target required and unknown targets rejected')
     print('PASS complete configuration shape accepted (not live credentials or TLS)')
     for key, bad in [('ASPNETCORE_URLS','http://0.0.0.0:5443'), ('Bridge__RequestPortalBaseUrl','http://portal.test'), ('CommonSecrets__Providers__PrimarySecrets__Settings__DeleteSecretIdFileAfterRead','true')]:
-        assert checker.check({**values,key:bad})
+        assert checker.check({**values,key:bad}, mountinfo)
     print('PASS insecure listeners/callback and destructive restart bootstrap rejected')
+    for bad in ('', mountinfo.replace('cifs', 'ext4'), mountinfo.replace(checker.SOURCE, '//other/share'), mountinfo.replace(' rw', ' ro')):
+        assert checker.check(values, bad), bad
+    assert checker.check({**values, 'Bridge__SupportingDocumentRoot':'/tmp/outside-share'}, mountinfo)
+    with patch.object(checker.os, 'fsync', side_effect=OSError('NAS unavailable')):
+        assert checker.check(values, mountinfo)
+    assert not list(root.glob('.bridge-preflight-*'))
+    print('PASS absent, wrong filesystem, wrong share, read-only and outside-share storage rejected')
+    print('PASS failed NAS fsync rejected and unique probe file cleaned up')
+    with patch.object(checker.tempfile, 'mkstemp', side_effect=AssertionError('Read-only checks must never write')):
+        assert not checker.check(values, mountinfo, read_only=True)
+    print('PASS read-only preflight never creates a NAS probe')
 
 with tempfile.TemporaryDirectory() as td:
     root=pathlib.Path(td); bindir=root/'bin'; bindir.mkdir()
     # Keep the installer next to real repository assets; rewrite host paths only
     # in an isolated copy, and stub all account/systemd mutations.
     code=(repo/'scripts/Initialize-RequestPortalBridge-Kratos.sh').read_text()
-    # Only the isolated copy simulates root; production authorization is unchanged.
-    code=code.replace('[[ $EUID -eq 0 ]]', 'true')
+    code=code.replace('[[ $EUID -eq 0 ]]', 'true')  # Isolated paths and stubbed privileged commands only.
     code=code.replace('repo=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}\")/.." && pwd)', 'repo="'+str(repo)+'"')
     for prefix in ('/etc/aegis','/etc/systemd/system','/opt/aegis','/var/lib/aegis-ffpmanager-bridge','/usr/local/libexec','/usr/local/sbin'):
         code=code.replace(prefix,str(root)+prefix)

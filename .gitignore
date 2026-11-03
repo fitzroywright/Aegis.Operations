@@ -8,5 +8,10 @@
 *.user
 *.slnLaunch.user
 
+# Local bridge publish and test evidence (no deployment configuration).
+artifacts/bridge-commissioning-*/
+artifacts/bridge-install-*/
+artifacts/bridge-resume-*/
+
 # Studio runtime version/media store
 Aegis.Studio.Web/VersionStore/

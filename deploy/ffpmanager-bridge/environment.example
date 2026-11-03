@@ -4,8 +4,8 @@ ASPNETCORE_ENVIRONMENT=Production
 DOTNET_ENVIRONMENT=Production
 ASPNETCORE_URLS=https://0.0.0.0:5443
 AllowedHosts=CHANGE_ME_BRIDGE_DNS_NAME
-Kestrel__Certificates__Default__Path=/etc/aegis/ffpmanager-bridge/tls/fullchain.pem
-Kestrel__Certificates__Default__KeyPath=/etc/aegis/ffpmanager-bridge/tls/privatekey.pem
+Kestrel__Certificates__Default__Path=/etc/aegis-ffpmanager-bridge/tls/fullchain.pem
+Kestrel__Certificates__Default__KeyPath=/etc/aegis-ffpmanager-bridge/tls/privatekey.pem
 Bridge__ServiceIdentity=FfpManager.Bridge
 Bridge__Gateway=Sql
 # Production authorizes only JMDB01/FFPJM. Rehearsal authorizes only JMDB01/FFP.
@@ -13,6 +13,8 @@ Bridge__Gateway=Sql
 Bridge__SqlTarget=Production
 Bridge__RequestPortalBaseUrl=CHANGE_ME_HTTPS_PORTAL_ORIGIN
 Bridge__SupportingDocumentRoot=CHANGE_ME_MOUNTED_TEST_DOCUMENT_DIRECTORY
+# Windows-visible path to the SAME directory; quote to preserve UNC backslashes.
+Bridge__SupportingDocumentManagerRoot='CHANGE_ME_APPROVED_WINDOWS_UNC_DIRECTORY'
 Bridge__InitialApplicationStatus=CHANGE_ME_REAL_FFP_STATUS
 # Replace both mapping key suffixes and values with real agreed lookup values.
 Bridge__StatusMap__CHANGE_ME=CHANGE_ME
@@ -33,6 +35,6 @@ CommonSecrets__Providers__PrimarySecrets__Settings__BasePath=CHANGE_ME_APPROVED_
 CommonSecrets__Providers__PrimarySecrets__Settings__RoleId=CHANGE_ME_WORKLOAD_ROLE_ID
 # Protected, renewable workload bootstrap. Rotate under the organization's policy.
 # Persist for service restarts; do not use a deleted one-time file without reprovisioning it.
-CommonSecrets__Providers__PrimarySecrets__Settings__SecretIdFile=/etc/aegis/ffpmanager-bridge/openbao-secret-id
+CommonSecrets__Providers__PrimarySecrets__Settings__SecretIdFile=/etc/aegis-ffpmanager-bridge/openbao-secret-id
 CommonSecrets__Providers__PrimarySecrets__Settings__RequireSecretIdFileInProduction=true
 CommonSecrets__Providers__PrimarySecrets__Settings__DeleteSecretIdFileAfterRead=false

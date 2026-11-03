@@ -21,19 +21,20 @@ unit=/etc/systemd/system/aegis-ffpmanager-bridge.service
 if $check_only; then
   [[ -f "$config" && ! -L "$config" ]] || { echo 'Missing regular environment file; run initialization first.' >&2; exit 2; }
   [[ $(stat -c %u "$config") == 0 && $(stat -c %a "$config") == 600 ]] || { echo 'Environment file must be root-owned mode 600.' >&2; exit 2; }
-  /usr/bin/python3 /usr/local/libexec/aegis-check-requestportal-bridge --env-file "$config"
+  timeout --kill-after=5 30 /usr/bin/python3 /usr/local/libexec/aegis-check-requestportal-bridge --env-file "$config" --service-user "$identity" --read-only
   /usr/bin/dotnet --list-runtimes | grep -q 'Microsoft.AspNetCore.App 10\.' || { echo '.NET 10 ASP.NET runtime is required.' >&2; exit 2; }
   echo 'Local configuration checks passed. SQL, OpenBao, callbacks and HTTPS delivery still require live commissioning.'
   exit 0
 fi
 
 for command in python3 systemctl useradd groupadd getent install; do command -v "$command" >/dev/null; done
-for file in "$assets/environment.example" "$assets/Check-Configuration.py" "$assets/aegis-ffpmanager-bridge.service" "$repo/scripts/Deploy-RequestPortalBridge-Kratos-Server.sh"; do
+for file in "$assets/environment.example" "$assets/Check-Configuration.py" "$assets/Inspect-Commissioning.py" "$assets/Configure-OpenBao.py" "$assets/aegis-ffpmanager-bridge.service" "$assets/storage.conf" "$repo/scripts/Deploy-RequestPortalBridge-Kratos-Server.sh"; do
   [[ -f "$file" ]] || { echo "Missing installation asset: $file" >&2; exit 2; }
 done
 getent group "$identity" >/dev/null || groupadd --system "$identity"
 getent passwd "$identity" >/dev/null || useradd --system --gid "$identity" --home-dir /var/lib/aegis-ffpmanager-bridge --shell /usr/sbin/nologin "$identity"
-install -d -o root -g "$identity" -m 0750 /etc/aegis/ffpmanager-bridge /etc/aegis/ffpmanager-bridge/tls
+# /etc/aegis may be root-only; do not broaden access to other services' secrets.
+install -d -o root -g "$identity" -m 0750 /etc/aegis-ffpmanager-bridge /etc/aegis-ffpmanager-bridge/tls
 install -d -o "$identity" -g "$identity" -m 0750 /var/lib/aegis-ffpmanager-bridge
 install -d -o root -g root -m 0755 /opt/aegis /opt/aegis/backups /usr/local/libexec
 if [[ -e "$config" || -L "$config" ]]; then
@@ -49,7 +50,13 @@ if [[ -e "$unit" || -L "$unit" ]]; then
     echo "Preserved customized $unit; compare it with the repository template before deployment."
   else echo 'Existing service unit matches.'; fi
 else install -o root -g root -m 0644 "$assets/aegis-ffpmanager-bridge.service" "$unit"; fi
+install -d -o root -g root -m 0755 "$unit.d"
+if [[ -e "$unit.d/storage.conf" ]]; then
+  echo "Preserved existing $unit.d/storage.conf; compare with the NAS01 storage template."
+else install -o root -g root -m 0644 "$assets/storage.conf" "$unit.d/storage.conf"; fi
 install -o root -g root -m 0755 "$assets/Check-Configuration.py" /usr/local/libexec/aegis-check-requestportal-bridge
+install -o root -g root -m 0755 "$assets/Inspect-Commissioning.py" /usr/local/libexec/aegis-inspect-requestportal-bridge
+install -o root -g root -m 0755 "$assets/Configure-OpenBao.py" /usr/local/libexec/aegis-configure-requestportal-bridge-openbao
 install -o root -g root -m 0755 "$repo/scripts/Deploy-RequestPortalBridge-Kratos-Server.sh" /usr/local/sbin/aegis-deploy-requestportal-bridge
 systemctl daemon-reload
 echo 'Bootstrap complete; service was not started or enabled.'

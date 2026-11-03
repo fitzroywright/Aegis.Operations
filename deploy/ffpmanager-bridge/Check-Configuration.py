@@ -10,9 +10,28 @@ import pathlib
 import re
 import shlex
 import sys
+import tempfile
 from urllib.parse import urlsplit
 
-def check(values):
+MOUNT = '/mnt/ffpmanager-data'
+SOURCE = '//nas01.fftpj.local/ffpmanager_data'
+
+def check_storage(values, mountinfo):
+    """Reject a local fallback directory, another share, or a read-only mount."""
+    root = pathlib.Path(values.get('Bridge__SupportingDocumentRoot', ''))
+    if not root.is_absolute() or not root.resolve().is_relative_to(pathlib.Path(MOUNT).resolve()):
+        return ['SupportingDocumentRoot must be beneath ' + MOUNT]
+    for line in mountinfo.splitlines():
+        fields = line.split()
+        if len(fields) < 10 or fields[4] != MOUNT:
+            continue
+        before, after = line.split(' - ', 1)
+        filesystem, source, options = after.split()[:3]
+        if filesystem == 'cifs' and source == SOURCE and 'rw' in before.split()[5].split(',') and 'rw' in options.split(','):
+            return []
+    return ['Required writable NAS01 CIFS share is not mounted at ' + MOUNT]
+
+def check(values, mountinfo=None, read_only=False):
     errors = []
     def require(key):
         value = values.get(key, '').strip()
@@ -59,8 +78,34 @@ def check(values):
         elif key.endswith('KeyPath') or key.endswith('SecretIdFile'):
             if path.stat().st_mode & 0o007: errors.append('Remove world permissions from file for ' + key)
     root = pathlib.Path(require('Bridge__SupportingDocumentRoot'))
+    manager_root = require('Bridge__SupportingDocumentManagerRoot')
+    if not manager_root.startswith('\\\\') or '/' in manager_root or any(part in ('.', '..') for part in manager_root.split('\\')):
+        errors.append('SupportingDocumentManagerRoot must be an approved Windows UNC directory')
     if not root.is_absolute() or not root.is_dir() or not os.access(root, os.R_OK | os.W_OK | os.X_OK):
         errors.append('SupportingDocumentRoot must be an accessible mounted absolute directory')
+    try:
+        storage_errors = check_storage(values, pathlib.Path('/proc/self/mountinfo').read_text() if mountinfo is None else mountinfo)
+        errors.extend(storage_errors)
+        if not storage_errors and root.is_dir() and os.access(root, os.R_OK | os.W_OK | os.X_OK) and read_only:
+            # Force an actual directory read under the service identity without
+            # creating, changing, or deleting any NAS content.
+            with os.scandir(root) as entries:
+                next(entries, None)
+            print('PASS: service identity can read the required CIFS document directory; write access is permission-only, not tested')
+        if not storage_errors and root.is_dir() and os.access(root, os.R_OK | os.W_OK | os.X_OK) and not read_only:
+            # fsync forces a server round trip: cached mount metadata alone cannot
+            # establish that NAS01 is online. Remove only this unique probe file.
+            probe = None
+            try:
+                descriptor, probe = tempfile.mkstemp(prefix='.bridge-preflight-', dir=root)
+                with os.fdopen(descriptor, 'wb') as stream:
+                    stream.write(b'bridge-storage-preflight\n')
+                    stream.flush()
+                    os.fsync(stream.fileno())
+            finally:
+                if probe is not None: os.unlink(probe)
+    except (OSError, ValueError):
+        errors.append('Unable to verify or write/fsync the required NAS01 CIFS mount')
     for key in ('Bridge__SqlConnectionString', 'Bridge__SharedSecret'):
         if values.get(key): errors.append('Resolve ' + key + ' through Common.Secrets instead')
     return errors
@@ -82,9 +127,22 @@ def read_environment(path):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--env-file')
+    parser.add_argument('--read-only', action='store_true', help='Do not create or delete NAS probe files')
+    parser.add_argument('--service-user', help='When root, drop privileges before checking file access')
     args = parser.parse_args()
     try:
-        problems = check(read_environment(args.env_file) if args.env_file else os.environ)
+        values = read_environment(args.env_file) if args.env_file else os.environ
+        if args.read_only:
+            info = pathlib.Path(args.env_file).stat() if args.env_file else None
+            if info:
+                print(f'Environment owner UID={info.st_uid}; mode={info.st_mode & 0o777:o}')
+        if args.service_user:
+            import pwd
+            account = pwd.getpwnam(args.service_user)
+            os.initgroups(account.pw_name, account.pw_gid)
+            os.setgid(account.pw_gid)
+            os.setuid(account.pw_uid)
+        problems = check(values, read_only=args.read_only)
     except (OSError, ValueError):
         print('Unable to parse configuration; check the environment template and file permissions.', file=sys.stderr)
         sys.exit(2)
