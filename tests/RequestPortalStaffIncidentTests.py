@@ -12,11 +12,18 @@ spec.loader.exec_module(incident)
 
 class StaffIncidentTests(unittest.TestCase):
     def test_only_staff_page_events_are_returned(self):
-        rows = [json.dumps({"MESSAGE": "Unrelated request", "__REALTIME_TIMESTAMP": "1000000"}),
+        rows = [json.dumps({"MESSAGE": "Unrelated request", "__REALTIME_TIMESTAMP": "1000000"})] * 25 + [
                 json.dumps({"MESSAGE": "NpgsqlException at StaffAdministrationService.HistoryAsync", "__REALTIME_TIMESTAMP": "2000000"})]
         result = list(incident.inspect(rows))
-        self.assertEqual(1, len(result))
-        self.assertIn("HistoryAsync", result[0]["message"])
+        self.assertEqual(21, len(result))
+        self.assertIn("HistoryAsync", result[-1]["message"])
+
+    def test_split_exception_cause_is_retained_with_redacted_context(self):
+        rows = [json.dumps({"MESSAGE": 'Npgsql.PostgresException: 42601 syntax error near time password=fixture-secret', "__REALTIME_TIMESTAMP": "1000000"}),
+                json.dumps({"MESSAGE": "at StaffAdministrationService.HistoryAsync", "__REALTIME_TIMESTAMP": "1000001"})]
+        result = list(incident.inspect(rows))
+        self.assertIn("42601", result[0]["message"])
+        self.assertNotIn("fixture-secret", result[0]["message"])
 
     def test_credential_and_selection_values_are_redacted(self):
         message = '/Administration/Staff password="fixture-password" client_secret=fixture-secret&state=fixture-state Authorization: Bearer fixture-token Selection=fixture-selection'
