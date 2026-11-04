@@ -1,6 +1,15 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
+if [[ $# -eq 1 && "$1" == "--requestportal-staff-incident" ]]; then
+  helper="/usr/local/sbin/aegis-requestportal-staff-incident"
+  if [[ ! -f "$helper" || ! -x "$helper" || -L "$helper" || "$(stat -c '%u:%a' "$helper")" != "0:755" ]]; then
+    echo "ERROR: the reviewed root-owned Request Portal incident reader is not installed." >&2
+    exit 1
+  fi
+  exec "$helper"
+fi
+
 # Configuration-only commissioning uses the reviewed, fixed-scope portal helper.
 # This exits before staging, service selection or any shared configuration cleanup.
 if [[ $# -eq 1 && "$1" == "--requestportal-directory-commission" ]]; then
@@ -29,6 +38,8 @@ restarts the selected systemd services, validates local health endpoints, and
 rolls back automatically if deployment health validation fails.
 
 Options:
+  --requestportal-staff-incident
+                      Alone: read redacted staff-administration failures from the Request Portal journal; no deployment
   --requestportal-directory-commission
                       Alone: run the installed fixed-scope directory commissioning helper; no application deployment
   --source PATH       Staging payload root. Default: /tmp/aegis-deploy/payload

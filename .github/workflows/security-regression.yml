@@ -66,6 +66,7 @@ jobs:
       - name: Test Studio deployment scope, pins and cutover recovery
         run: |
           python3 tests/RequestPortalDirectoryCommissioningTests.py
+          python3 tests/RequestPortalStaffIncidentTests.py
           python3 tests/StudioDeploymentScopeTests.py
           python3 tests/StudioDemoCutoverTests.py
           python3 tests/StudioPinnedDependenciesTests.py
