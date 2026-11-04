@@ -21,14 +21,24 @@ def redact(message):
 
 
 def inspect(lines):
+    records = []
     for line in lines:
         try:
             event = json.loads(line)
         except ValueError:
             continue
         message = event.get("MESSAGE", "")
-        if not isinstance(message, str) or not relevant(message):
-            continue
+        if isinstance(message, str):
+            records.append(event)
+    selected = set()
+    for index, event in enumerate(records):
+        if relevant(event["MESSAGE"]):
+            # journald can split a console exception and its stack into separate
+            # records. Keep bounded neighboring context so the cause is retained.
+            selected.update(range(max(0, index - 20), min(len(records), index + 3)))
+    for index in sorted(selected):
+        event = records[index]
+        message = event["MESSAGE"]
         timestamp = event.get("__REALTIME_TIMESTAMP", "0")
         when = datetime.datetime.fromtimestamp(int(timestamp) / 1_000_000, datetime.timezone.utc).isoformat()
         yield {"time": when, "message": redact(message)}
@@ -42,7 +52,7 @@ def main():
     if result.returncode:
         raise RuntimeError("The Request Portal service journal could not be read.")
     events = list(inspect(result.stdout.splitlines()))
-    for event in events[-40:]:
+    for event in events[-120:]:
         print(json.dumps(event))
     print(json.dumps({"service": "aegis-requestportal", "matchingEvents": len(events), "readOnly": True}))
 
