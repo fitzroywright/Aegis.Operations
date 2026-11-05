@@ -67,6 +67,7 @@ if os.geteuid() != 0:
     raise SystemExit('Run through the root-owned bridge deployer.')
 parser = argparse.ArgumentParser()
 parser.add_argument('--prepare-tls-request', action='store_true')
+parser.add_argument('--sql-read-only', action='store_true')
 args = parser.parse_args()
 if args.prepare_tls_request:
     active = command(['systemctl','is-active','--quiet','aegis-ffpmanager-bridge.service'])
@@ -100,8 +101,16 @@ if args.prepare_tls_request:
         csr_pem=csr.read_text(),csr_sha256=hashlib.sha256(csr.read_bytes()).hexdigest(),
         csr_signature_and_key_match=True,issued_certificate=False)
 checker = runpy.run_path('/usr/local/libexec/aegis-check-requestportal-bridge')
-values = checker['read_environment'](ENV)
-safe_keys = ('ASPNETCORE_URLS', 'AllowedHosts', 'Bridge__Gateway',
+values = environment_shape(ENV)
+overlay = pathlib.Path('/etc/aegis/ffpmanager-bridge-production.env')
+if overlay.exists(): values.update(environment_shape(overlay))
+service_environment = command(['systemctl','show','aegis-ffpmanager-bridge.service','-p','Environment','--value'])
+for assignment in shlex.split(service_environment.stdout):
+    key, sep, value = assignment.partition('=')
+    if sep and key in ('KRB5CCNAME','KRB5_CLIENT_KTNAME'): values[key] = value
+result['service_user'] = command(['systemctl','show','aegis-ffpmanager-bridge.service','-p','User','--value']).stdout.strip()
+if result['service_user'] != OWNER: raise SystemExit('Unexpected bridge service user')
+safe_keys = ('ASPNETCORE_URLS', 'AllowedHosts', 'Bridge__Gateway', 'Bridge__SqlTarget',
              'Bridge__RequestPortalBaseUrl', 'Bridge__SupportingDocumentRoot',
              'Bridge__SupportingDocumentManagerRoot', 'Bridge__InitialApplicationStatus',
              'Bridge__SqlConnectionStringSecretName', 'Bridge__SharedSecretSecretName',
@@ -111,7 +120,7 @@ result['bridge_config']['Bridge__RequestPortalBaseUrl'] = origin(values.get('Bri
 result['mapping_config'] = {k: v for k, v in values.items() if k.startswith(('Bridge__StatusMap__', 'Bridge__DocumentTypeMap__'))}
 result['environment_file'] = metadata(ENV)
 result['application'] = metadata(ROOT)
-journal = command(['journalctl','-u','aegis-ffpmanager-bridge.service','-n','50','-o','json','--no-pager'])
+journal = command(['journalctl','-u','aegis-requestportal.service','-u','aegis-ffpmanager-bridge.service','-n','50','-o','json','--no-pager'])
 entries = [json.loads(line) for line in journal.stdout.splitlines() if line.startswith('{')]
 result['journal_summary'] = dict(read_exit=journal.returncode, entries_up_to_50=len(entries), errors=sum(int(entry.get('PRIORITY',6)) <= 3 for entry in entries))
 result['dll'] = {**metadata(ROOT / 'FfpManager.Bridge.dll'), 'sha256': hashlib.sha256((ROOT / 'FfpManager.Bridge.dll').read_bytes()).hexdigest()}
@@ -164,12 +173,57 @@ kt = command(['klist','-k','/etc/krb5.keytab'])
 result['host_keytab_principals'] = kt.stdout.strip() if kt.returncode == 0 else 'unavailable'
 result['bridge_keytabs'] = [metadata(p) for p in pathlib.Path('/etc/aegis-ffpmanager-bridge').rglob('*.keytab')]
 
+# Portal configuration is summarized without credential values or recipients.
+portal_root = pathlib.Path('/opt/aegis/requestportal')
+portal_values = environment_shape(pathlib.Path('/etc/aegis/requestportal.env'))
+portal_configs = []
+for filename in ('appsettings.json', 'appsettings.Production.json'):
+    path = portal_root / filename
+    if path.exists(): portal_configs.append(json.loads(path.read_text()))
+def flatten(values, prefix=''):
+    result = {}
+    for key,value in values.items():
+        name = prefix + key
+        if isinstance(value,dict): result.update(flatten(value,name+'__'))
+        else: result[name] = str(value).lower() if isinstance(value,bool) else str(value)
+    return result
+portal_effective = {}
+for config in portal_configs: portal_effective.update(flatten(config))
+portal_effective.update(portal_values)
+portal_keys = ('FfpManagerIntegration__Enabled','FfpManagerIntegration__BaseUrl',
+    'FfpManagerIntegration__PollIntervalSeconds','Notifications__Enabled','Notifications__WhatsAppEnabled',
+    'Messaging__Outbox__Enabled','Messaging__MicrosoftGraph__Enabled')
+result['portal_config'] = {k:portal_effective.get(k) for k in portal_keys}
+result['portal_messaging_configured'] = {k:configured(portal_effective.get(k)) for k in
+    ('Notifications__QuickIntakeClientRelationsEmail','Messaging__MicrosoftGraph__ClientId',
+     'Messaging__MicrosoftGraph__TenantId','Notifications__WhatsAppPhoneNumberId')}
+result['portal_dll_sha256'] = hashlib.sha256((portal_root/'RequestPortal.Web.dll').read_bytes()).hexdigest()
+manifest = portal_root/'DEPLOYMENT.json'
+result['portal_deployment'] = json.loads(manifest.read_text()) if manifest.exists() else 'No manifest'
+if args.sql_read_only:
+    probe = '/usr/local/libexec/aegis-bridge-commissioning-probe/BridgeCommissioningProbe.dll'
+    def probe_as(user, environment, root, mode):
+        account = pwd.getpwnam(user)
+        def drop():
+            os.initgroups(account.pw_name,account.pw_gid)
+            os.setgid(account.pw_gid)
+            os.setuid(account.pw_uid)
+        response = subprocess.run(['/usr/bin/dotnet',probe,mode], cwd=root,
+            env={**os.environ, **environment, 'DOTNET_ENVIRONMENT':'Production','ASPNETCORE_ENVIRONMENT':'Production'},
+            preexec_fn=drop, capture_output=True,text=True,timeout=90)
+        try: return dict(exit=response.returncode, data=json.loads(response.stdout))
+        except ValueError: return dict(exit=response.returncode, parseable=False)
+    result['portal_database_preflight'] = probe_as('aegis',portal_values,portal_root,'--portal')
+    result['ffpjm_database_preflight'] = probe_as(OWNER,values,ROOT,'--ffpjm')
+
 account = pwd.getpwnam(OWNER)
 os.initgroups(account.pw_name, account.pw_gid)
 os.setgid(account.pw_gid)
 os.setuid(account.pw_uid)
 result['effective_uid'] = os.geteuid()
+os.environ.update({k:v for k,v in values.items() if k in ('KRB5CCNAME','KRB5_CLIENT_KTNAME')})
 result['bridge_has_kerberos_ticket'] = command(['klist','-s']).returncode == 0
+result['kerberos_renewal'] = command(['systemctl','show','aegis-ffpbridge-kerberos.service','-p','Result','-p','ExecMainStartTimestamp']).stdout.strip()
 result['runtime'] = command(['/usr/bin/dotnet','--list-runtimes']).stdout.strip()
 result['bridge_file_access'] = {}
 provider = values.get('CommonSecrets__ProviderOrder__0', '')

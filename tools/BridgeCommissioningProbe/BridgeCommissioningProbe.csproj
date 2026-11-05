@@ -8,7 +8,7 @@
   </PropertyGroup>
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
-    <!-- Reuse the exact deployed assemblies; do not rebuild application projects. -->
-    <Reference Include="../../artifacts/bridge-install-20261101/publish/*.dll" />
+    <ProjectReference Include="../../../RequestPortal/FfpManager.Bridge/FfpManager.Bridge.csproj" />
+    <ProjectReference Include="../../../RequestPortal/RequestPortal.Infrastructure/RequestPortal.Infrastructure.csproj" />
   </ItemGroup>
 </Project>

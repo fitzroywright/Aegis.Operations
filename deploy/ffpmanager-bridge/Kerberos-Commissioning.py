@@ -18,8 +18,8 @@ import tempfile
 
 PRINCIPAL='svc_ffpbridge@FFTPJ.LOCAL'
 OWNER='aegis-ffpmanager-bridge'
-KEYTAB=pathlib.Path('/etc/aegis/ffpmanager-bridge/krb5.keytab')
-CACHE=pathlib.Path('/run/aegis-ffpmanager-bridge-krb5/ccache')
+KEYTAB=pathlib.Path('/etc/aegis/ffpmanager-bridge/svc_ffpbridge.keytab')
+CACHE=pathlib.Path('/var/lib/aegis-ffpmanager-bridge/krb5cc')
 
 def command(args,env=None):
     return subprocess.run(args,capture_output=True,text=True,timeout=25,env=env)

@@ -11,6 +11,7 @@ owner=aegis-ffpmanager-bridge
 check_only=false
 install_only=false
 commissioning_check=false
+sql_read_only=false
 prepare_tls_request=false
 openbao_action=''
 
@@ -18,6 +19,7 @@ while (($#)); do
   case "$1" in
     --check) check_only=true; shift ;;
     --install-only) install_only=true; shift ;;
+    --production-preflight) commissioning_check=true; sql_read_only=true; shift ;;
     --commissioning-check) commissioning_check=true; shift ;;
     --prepare-tls-request) commissioning_check=true; prepare_tls_request=true; shift ;;
     --openbao-check) openbao_action=check; shift ;;
@@ -30,7 +32,7 @@ while (($#)); do
     --kerberos-check) openbao_action=kerberos; shift ;;
     --source) source_root="${2:?Missing source}"; shift 2 ;;
     --probe-url) probe_url="${2:?Missing HTTPS origin}"; shift 2 ;;
-    --help|-h) echo 'Usage: deployer --check | --commissioning-check | --prepare-tls-request | --openbao-check | --configure-openbao | --secure-openbao-proxy | --install-openbao-secretid | --install-only --source PUBLISH_DIRECTORY | --source PUBLISH_DIRECTORY --probe-url https://bridge-host[:port]'; exit 0 ;;
+    --help|-h) echo 'Usage: deployer --check | --commissioning-check | --production-preflight | --prepare-tls-request | --openbao-check | --configure-openbao | --secure-openbao-proxy | --install-openbao-secretid | --install-only --source PUBLISH_DIRECTORY | --source PUBLISH_DIRECTORY --probe-url https://bridge-host[:port]'; exit 0 ;;
     *) echo "Unknown argument: $1" >&2; exit 2 ;;
   esac
 done
@@ -64,6 +66,9 @@ if $commissioning_check; then
   [[ $# -eq 0 && -z "$source_root" && -z "$probe_url" ]] && ! $install_only && ! $check_only || { echo 'Commissioning check cannot be combined with deployment.' >&2; exit 2; }
   if $prepare_tls_request; then
     exec /usr/bin/python3 /usr/local/libexec/aegis-inspect-requestportal-bridge --prepare-tls-request
+  fi
+  if $sql_read_only; then
+    exec /usr/bin/python3 /usr/local/libexec/aegis-inspect-requestportal-bridge --sql-read-only
   fi
   exec /usr/bin/python3 /usr/local/libexec/aegis-inspect-requestportal-bridge
 fi

@@ -204,10 +204,10 @@ Common.Secrets reads KV v2 `data.data.value` at
 Verify the policy's actual narrow paths before configuring BasePath. Do not copy
 another application's AppRole, guess paths, or replace the shared integration
 secret without coordinating Request Portal. The effective SQL value must pass
-the existing JMDB01/FFP guard before opening any connection.
+the explicit Production JMDB01/FFPJM guard before opening any connection.
 
 Before using the normal deployment command below, resolve the actual OpenBao SQL
-secret without printing it and verify JMDB01/FFP before opening any SQL connection.
+secret without printing it and verify JMDB01/FFPJM before opening any SQL connection.
 Use only guarded read-only queries to inspect schema and pending/locked/retryable
 outbox rows. Normal Production startup immediately runs the outbox dispatcher,
 which claims rows with UPDATE, posts callbacks, and updates delivery state. Verify
@@ -270,3 +270,20 @@ python3 tests/BridgeDeploymentSmokeTests.py
 
 Fixture checks do not prove actual certificates, credentials or external services.
 PowerShell execution, .NET build/tests and Kratos deployment remain target checks.
+
+### Production read-only commissioning
+
+`--production-preflight` runs the installed `BridgeCommissioningProbe` under
+the two existing service users. It merges the protected production environment
+override, uses the bridge service Kerberos cache, and refuses a managed SQL
+secret unless it already targets JMDB01/FFPJM. It never rewrites the catalog.
+The SQL probe issues SELECT statements only; the PostgreSQL probe additionally
+uses a read-only transaction. It reports metadata and aggregate queue counts,
+never connection strings, credentials, applicant details or recipients.
+
+Publish `tools/BridgeCommissioningProbe` for linux-x64 into the root-owned
+`/usr/local/libexec/aegis-bridge-commissioning-probe` directory before using the
+command. Install the matching root-owned inspector and deployment entrypoint
+using the existing authorized installation workflow, retaining their backups.
+A successful diagnostic is not acceptance, backup recovery verification, or
+proof of least privilege: review each reported gate separately.
