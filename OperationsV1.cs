@@ -220,7 +220,13 @@ internal sealed class OperationsV1Store
         string temp = path + ".tmp-" + Guid.NewGuid().ToString("N");
         try
         {
-            await File.WriteAllTextAsync(temp, JsonSerializer.Serialize(values, JsonOptions), ct);
+            // Dispose even on serialization/cancellation failure, before promotion or cleanup.
+            await using (var stream = new FileStream(temp, FileMode.CreateNew, FileAccess.Write,
+                FileShare.None, 4096, FileOptions.Asynchronous))
+            {
+                await JsonSerializer.SerializeAsync(stream, values, JsonOptions, ct);
+            }
+            ct.ThrowIfCancellationRequested();
             if (!OperatingSystem.IsWindows())
                 File.SetUnixFileMode(temp, UnixFileMode.UserRead | UnixFileMode.UserWrite);
             File.Move(temp, path, true);
@@ -231,12 +237,11 @@ internal sealed class OperationsV1Store
         {
             try
             {
-                if (File.Exists(temp))
-                    File.Delete(temp);
+                File.Delete(temp);
             }
-            catch
+            catch (Exception error)
             {
-                // A failed cleanup must not mask the original persistence error.
+                ReportCleanupFailure(temp, error);
             }
         }
     }
@@ -250,19 +255,32 @@ internal sealed class OperationsV1Store
             {
                 try
                 {
-                    if (File.GetLastWriteTimeUtc(temp) < cutoff)
-                        File.Delete(temp);
+                    string suffix = Path.GetFileName(temp).Split(".json.tmp-").Last();
+                    if (!Guid.TryParseExact(suffix, "N", out _) || File.GetLastWriteTimeUtc(temp) >= cutoff)
+                        continue;
+                    // Age alone does not establish abandonment. Writers hold an exclusive
+                    // handle; unique names are never reused once that handle is closed.
+                    using (new FileStream(temp, FileMode.Open, FileAccess.ReadWrite, FileShare.None)) { }
+                    File.Delete(temp);
                 }
-                catch
+                catch (Exception error)
                 {
-                    // Startup cleanup is best-effort; persistence remains available.
+                    ReportCleanupFailure(temp, error);
                 }
             }
         }
-        catch
+        catch (Exception error)
         {
-            // An inaccessible data directory is reported by normal store operations.
+            ReportCleanupFailure(_root, error);
         }
+    }
+
+    private static void ReportCleanupFailure(string path, Exception error)
+    {
+        // stderr reaches the service journal without re-entering Operations telemetry.
+        // Even a failed diagnostic sink must not replace the original write error.
+        try { Console.Error.WriteLine($"Operations temporary-file cleanup failed for '{path}': {error.GetType().Name}: {error.Message}"); }
+        catch { }
     }
 }
 
