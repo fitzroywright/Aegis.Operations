@@ -131,6 +131,7 @@ internal sealed class OperationsV1Store
         _alertRetention = Math.Clamp(configuration.GetValue("Operations:Retention:Alerts", 5000), 100, 100000);
         _engineerLogRetention = Math.Clamp(configuration.GetValue("Operations:Retention:EngineerLog", 5000), 100, 100000);
         Directory.CreateDirectory(_root);
+        CleanupStaleTemporaryFiles();
     }
 
     internal async Task<IReadOnlyList<T>> LoadAsync<T>(string bucket, CancellationToken ct)
@@ -217,12 +218,69 @@ internal sealed class OperationsV1Store
     {
         string path = Path.Combine(_root, bucket + ".json");
         string temp = path + ".tmp-" + Guid.NewGuid().ToString("N");
-        await File.WriteAllTextAsync(temp, JsonSerializer.Serialize(values, JsonOptions), ct);
-        if (!OperatingSystem.IsWindows())
-            File.SetUnixFileMode(temp, UnixFileMode.UserRead | UnixFileMode.UserWrite);
-        File.Move(temp, path, true);
-        if (!OperatingSystem.IsWindows())
-            File.SetUnixFileMode(path, UnixFileMode.UserRead | UnixFileMode.UserWrite);
+        try
+        {
+            // Dispose even on serialization/cancellation failure, before promotion or cleanup.
+            await using (var stream = new FileStream(temp, FileMode.CreateNew, FileAccess.Write,
+                FileShare.None, 4096, FileOptions.Asynchronous))
+            {
+                await JsonSerializer.SerializeAsync(stream, values, JsonOptions, ct);
+            }
+            ct.ThrowIfCancellationRequested();
+            if (!OperatingSystem.IsWindows())
+                File.SetUnixFileMode(temp, UnixFileMode.UserRead | UnixFileMode.UserWrite);
+            File.Move(temp, path, true);
+            if (!OperatingSystem.IsWindows())
+                File.SetUnixFileMode(path, UnixFileMode.UserRead | UnixFileMode.UserWrite);
+        }
+        finally
+        {
+            try
+            {
+                File.Delete(temp);
+            }
+            catch (Exception error)
+            {
+                ReportCleanupFailure(temp, error);
+            }
+        }
+    }
+
+    private void CleanupStaleTemporaryFiles()
+    {
+        DateTime cutoff = DateTime.UtcNow.AddHours(-1);
+        try
+        {
+            foreach (string temp in Directory.EnumerateFiles(_root, "*.json.tmp-*", SearchOption.TopDirectoryOnly))
+            {
+                try
+                {
+                    string suffix = Path.GetFileName(temp).Split(".json.tmp-").Last();
+                    if (!Guid.TryParseExact(suffix, "N", out _) || File.GetLastWriteTimeUtc(temp) >= cutoff)
+                        continue;
+                    // Age alone does not establish abandonment. Writers hold an exclusive
+                    // handle; unique names are never reused once that handle is closed.
+                    using (new FileStream(temp, FileMode.Open, FileAccess.ReadWrite, FileShare.None)) { }
+                    File.Delete(temp);
+                }
+                catch (Exception error)
+                {
+                    ReportCleanupFailure(temp, error);
+                }
+            }
+        }
+        catch (Exception error)
+        {
+            ReportCleanupFailure(_root, error);
+        }
+    }
+
+    private static void ReportCleanupFailure(string path, Exception error)
+    {
+        // stderr reaches the service journal without re-entering Operations telemetry.
+        // Even a failed diagnostic sink must not replace the original write error.
+        try { Console.Error.WriteLine($"Operations temporary-file cleanup failed for '{path}': {error.GetType().Name}: {error.Message}"); }
+        catch { }
     }
 }
 

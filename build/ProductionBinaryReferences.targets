@@ -1,0 +1,22 @@
+<Project>
+  <!-- Explicit opt-in for a production-baseline hotfix. Never rebuild floating Common sources. -->
+  <ItemGroup Condition="'$(MSBuildProjectName)' == 'Aegis.Operations' and '$(OperationsProductionReferenceRoot)' != ''">
+    <ProjectReference Remove="@(ProjectReference)" />
+  </ItemGroup>
+  <ItemGroup Condition="('$(MSBuildProjectName)' == 'Aegis.Operations' or '$(MSBuildProjectName)' == 'Aegis.Operations.Tests') and '$(OperationsProductionReferenceRoot)' != ''">
+    <Reference Include="$(OperationsProductionReferenceRoot)/*.dll" Exclude="$(OperationsProductionReferenceRoot)/Aegis.Operations.dll">
+      <Private>true</Private>
+    </Reference>
+  </ItemGroup>
+  <Target Name="StageAuthenticationPluginAfterBuild" AfterTargets="Build"
+          Condition="'$(MSBuildProjectName)' == 'Aegis.Operations' and '$(OperationsProductionReferenceRoot)' != ''">
+    <ItemGroup><ProductionPluginFiles Include="$(OperationsProductionReferenceRoot)/plugins/**/*.dll" /></ItemGroup>
+    <Copy SourceFiles="@(ProductionPluginFiles)" DestinationFiles="@(ProductionPluginFiles->'$(OutDir)plugins/%(RecursiveDir)%(Filename)%(Extension)')" />
+    <Error Condition="!Exists('$(OutDir)plugins/Common.Security.Plugin.ActiveDirectory.dll')" Text="Production authentication plugin reference is missing." />
+  </Target>
+  <Target Name="StageAuthenticationPluginForPublish" AfterTargets="Publish"
+          Condition="'$(MSBuildProjectName)' == 'Aegis.Operations' and '$(OperationsProductionReferenceRoot)' != ''">
+    <ItemGroup><ProductionPluginPublishFiles Include="$(OperationsProductionReferenceRoot)/plugins/**/*.dll" /></ItemGroup>
+    <Copy SourceFiles="@(ProductionPluginPublishFiles)" DestinationFiles="@(ProductionPluginPublishFiles->'$(PublishDir)plugins/%(RecursiveDir)%(Filename)%(Extension)')" />
+  </Target>
+</Project>
