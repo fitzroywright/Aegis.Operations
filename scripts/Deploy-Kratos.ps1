@@ -188,6 +188,14 @@ try {
             # can validate the source, but project references may carry NoBuild state into
             # publish under .NET 10 and fail with NETSDK1085. Publish normally by default.
             Invoke-SafePublish -Project $definition.Project -Output $output -NoBuild:$SkipPublishBuild
+            if ($app -eq "studio") {
+                $studioSource = Split-Path (Split-Path $definition.Project -Parent) -Parent
+                $studioCommit = (& git -C $studioSource rev-parse HEAD).Trim()
+                if ($LASTEXITCODE -ne 0 -or $studioCommit -notmatch '^[a-f0-9]{40}$') { throw "Cannot identify the deployed Studio source." }
+                $studioDirty = @(& git -C $studioSource status --porcelain --untracked-files=normal)
+                if ($LASTEXITCODE -ne 0 -or $studioDirty.Count -gt 0) { throw "Studio source must be clean to stamp an exact deployed version." }
+                @{ version = $studioCommit } | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $output "studio-deployment.json") -Encoding utf8NoBOM
+            }
         }
     }
 
@@ -317,3 +325,4 @@ finally {
         Remove-Item $bundleFile -Force -ErrorAction SilentlyContinue
     }
 }
+
